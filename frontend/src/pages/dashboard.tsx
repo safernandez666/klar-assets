@@ -91,12 +91,13 @@ export default function Dashboard() {
       const cw = pw - m * 2;
       let y = 0;
 
-      // ── Colors ─────────────────────────────────────────────────────
+      // ── Colors — Klar brand: black base ────────────────────────────
       const colors: Record<string, [number, number, number]> = {
-        FULLY_MANAGED: [16, 185, 129], MANAGED: [59, 130, 246],
+        FULLY_MANAGED: [16, 185, 129], MANAGED: [40, 40, 40],
         NO_EDR: [239, 68, 68], NO_MDM: [245, 158, 11],
-        IDP_ONLY: [249, 115, 22], STALE: [107, 114, 128],
-        crowdstrike: [239, 68, 68], jumpcloud: [59, 130, 246], okta: [245, 158, 11],
+        IDP_ONLY: [249, 115, 22], STALE: [160, 160, 160],
+        SERVER: [100, 80, 160],
+        crowdstrike: [50, 50, 50], jumpcloud: [90, 90, 90], okta: [140, 140, 140],
       };
 
       // ── Helpers ─────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ export default function Dashboard() {
         checkPage(18); y += 10;
         pdf.setFontSize(18); pdf.setFont("helvetica", "bold"); pdf.setTextColor(25, 25, 25);
         pdf.text(text, m, y); y += 2;
-        pdf.setDrawColor(59, 130, 246); pdf.setLineWidth(0.8); pdf.line(m, y, m + cw, y);
+        pdf.setDrawColor(30, 30, 30); pdf.setLineWidth(0.8); pdf.line(m, y, m + cw, y);
         pdf.setLineWidth(0.2); y += 8;
       };
 
@@ -177,7 +178,7 @@ export default function Dashboard() {
         const headers = showReason
           ? ["Hostname", "OS", "Owner", "Score", "Match Reason"]
           : ["Hostname", "Serial", "Owner", "OS", "Sources"];
-        tableRow(headers, widths, true, [44, 62, 80]);
+        tableRow(headers, widths, true, [25, 25, 25]);
         for (const d of devices) {
           if (showReason) {
             tableRow([d.hostname || "N/A", d.os || "N/A", d.owner || "N/A",
@@ -252,19 +253,19 @@ export default function Dashboard() {
       // PAGE 1: Title + Charts + Executive Summary
       // ════════════════════════════════════════════════════════════════
       y = 20;
-      pdf.setFillColor(30, 41, 59); pdf.rect(0, 0, pw, 48, "F");
-      // Logo
-      try { pdf.addImage(KLAR_LOGO_WHITE, "PNG", m, 8, 28, 11); } catch { /* skip if fails */ }
+      pdf.setFillColor(15, 15, 15); pdf.rect(0, 0, pw, 48, "F");
+      // Logo — 2:1 aspect ratio
+      try { pdf.addImage(KLAR_LOGO_WHITE, "PNG", m, 7, 24, 12); } catch { /* skip if fails */ }
       pdf.setFontSize(20); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255, 255, 255);
-      pdf.text("Device Inventory Report", m + 33, 17);
-      pdf.setFontSize(10); pdf.setFont("helvetica", "normal"); pdf.setTextColor(180, 200, 220);
+      pdf.text("Device Inventory Report", m + 28, 17);
+      pdf.setFontSize(10); pdf.setFont("helvetica", "normal"); pdf.setTextColor(180, 180, 180);
       pdf.text(`Generated: ${new Date(report.generated_at).toLocaleString()}`, m, 30);
       const total = report.summary?.total || 0;
       const byStatus = report.summary?.by_status || {};
       const managed = (byStatus.MANAGED || 0) + (byStatus.FULLY_MANAGED || 0);
       const pct = total > 0 ? Math.round((managed / total) * 100) : 0;
       pdf.text(`Fleet: ${total} devices  |  ${pct}% managed  |  ${managed} covered`, m, 37);
-      pdf.setFontSize(8); pdf.setTextColor(140, 160, 180);
+      pdf.setFontSize(8); pdf.setTextColor(120, 120, 120);
       pdf.text("Klar — IT Security Team", m, 43);
       y = 55;
 

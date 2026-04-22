@@ -268,6 +268,30 @@ export default function Dashboard() {
       pdf.text(`Fleet: ${total} devices  |  ${pct}% managed  |  ${managed} covered`, m, 37);
       pdf.setFontSize(8); pdf.setTextColor(120, 120, 120);
       pdf.text("Klar — IT Security Team", m, 43);
+
+      // Risk Score badge in header
+      const riskScore = report.summary?.risk_score ?? 0;
+      const rsLabel = riskScore >= 85 ? "Excellent" : riskScore >= 70 ? "Good" : riskScore >= 55 ? "Fair" : riskScore >= 40 ? "At Risk" : "Critical";
+      const rsColor: [number, number, number] = riskScore >= 80 ? [16, 185, 129] : riskScore >= 60 ? [245, 158, 11] : riskScore >= 40 ? [249, 115, 22] : [239, 68, 68];
+      // Draw score circle on the right side of header
+      const rsCx = pw - m - 18;
+      const rsCy = 24;
+      pdf.setFillColor(...rsColor);
+      // Filled circle
+      const rsSteps = 24;
+      for (let i = 0; i < rsSteps; i++) {
+        const a1 = (Math.PI * 2 * i) / rsSteps;
+        const a2 = (Math.PI * 2 * (i + 1)) / rsSteps;
+        pdf.triangle(rsCx, rsCy, rsCx + 14 * Math.cos(a1), rsCy + 14 * Math.sin(a1),
+          rsCx + 14 * Math.cos(a2), rsCy + 14 * Math.sin(a2), "F");
+      }
+      pdf.setFontSize(14); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255, 255, 255);
+      pdf.text(String(riskScore), rsCx, rsCy + 2, { align: "center" });
+      pdf.setFontSize(7); pdf.setFont("helvetica", "normal");
+      pdf.text(rsLabel, rsCx, rsCy + 12, { align: "center" });
+      pdf.setFontSize(7); pdf.setTextColor(180, 180, 180);
+      pdf.text("Risk Score", rsCx, rsCy - 12, { align: "center" });
+
       y = 55;
 
       // Status bar chart

@@ -301,6 +301,33 @@ export default function Dashboard() {
       }));
       barChart(srcData, "Source Coverage (raw devices)");
 
+      // Status reference
+      checkPage(60);
+      y += 4;
+      pdf.setFontSize(10); pdf.setFont("helvetica", "bold"); pdf.setTextColor(30, 30, 30);
+      pdf.text("Status Reference", m, y); y += 2;
+      pdf.setDrawColor(200); pdf.line(m, y, m + cw, y); y += 5;
+
+      const statusRef = [
+        { label: "Fully Managed", color: colors.FULLY_MANAGED, desc: "JumpCloud (MDM) + CrowdStrike (EDR) + Okta (IDP) + owner assigned. Complete visibility." },
+        { label: "Managed", color: colors.MANAGED, desc: "JumpCloud (MDM) + CrowdStrike (EDR). Device is managed and protected — the baseline." },
+        { label: "No EDR", color: colors.NO_EDR, desc: "In JumpCloud but missing CrowdStrike. Managed by IT but without endpoint protection." },
+        { label: "No MDM", color: colors.NO_MDM, desc: "In CrowdStrike but missing JumpCloud. Has EDR but IT doesn't manage it." },
+        { label: "IDP Only", color: colors.IDP_ONLY, desc: "Only in Okta, no EDR or MDM. Potential shadow IT — needs investigation." },
+        { label: "Server/VM", color: colors.SERVER || [100, 80, 160], desc: "Servers and VMs with CrowdStrike. Don't require JumpCloud (MDM) enrollment." },
+        { label: "Stale", color: colors.STALE, desc: "Not seen in 90+ days. Candidate for cleanup to reduce license costs." },
+      ];
+      for (const ref of statusRef) {
+        checkPage(12);
+        pdf.setFillColor(...ref.color); pdf.roundedRect(m, y - 3, 3, 3, 0.5, 0.5, "F");
+        pdf.setFontSize(8); pdf.setFont("helvetica", "bold"); pdf.setTextColor(30, 30, 30);
+        pdf.text(ref.label, m + 5, y);
+        pdf.setFont("helvetica", "normal"); pdf.setTextColor(80, 80, 80);
+        const descLines = pdf.splitTextToSize(ref.desc, cw - 35);
+        pdf.text(descLines, m + 35, y);
+        y += Math.max(descLines.length * 4, 5) + 2;
+      }
+
       // ════════════════════════════════════════════════════════════════
       // PAGE 2: Executive Summary (AI)
       // ════════════════════════════════════════════════════════════════

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from typing import Any
 
@@ -34,26 +33,26 @@ def send_slack(text: str, blocks: list[dict[str, Any]] | None = None) -> bool:
 def alert_after_sync(
     devices: list[NormalizedDevice],
     sync_result: dict[str, Any],
+    disappeared: list[dict[str, Any]] | None = None,
+    newly_stale: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Send a Slack alert summarizing the sync and highlighting coverage gaps."""
+    """Send a Slack alert summarizing the sync, gaps, and disappearances."""
     if not SLACK_WEBHOOK_URL:
         return
 
     no_edr = [d for d in devices if "crowdstrike" not in d.sources]
     no_mdm = [d for d in devices if "jumpcloud" not in d.sources]
-    idp_only = [d for d in devices if d.status == "IDP_ONLY"]
 
     status_counts: dict[str, int] = {}
     for d in devices:
         status_counts[d.status] = status_counts.get(d.status, 0) + 1
 
-    # Build message
     total = len(devices)
     sources_ok = sync_result.get("sources_ok", [])
     sources_failed = sync_result.get("sources_failed", [])
 
     status_line = sync_result.get("status", "unknown")
-    header = f":{'white_check_mark' if status_line == 'success' else 'warning'}: *Device Inventory Sync — {status_line.upper()}*"
+    header = f":{'white_check_mark' if status_line == 'success' else 'warning'}: *Klar Device Normalizer — Sync {status_line.upper()}*"
 
     lines = [
         header,
@@ -68,27 +67,41 @@ def alert_after_sync(
     for status, count in sorted(status_counts.items()):
         lines.append(f"  • {status}: {count}")
 
-    # Highlight critical gaps
+    # ── Disappeared devices (were managed, now gone) ────────────────
+    if disappeared:
+        lines.append("")
+        lines.append(f":rotating_light: *{len(disappeared)} managed devices DISAPPEARED*")
+        lines.append("_These devices were MANAGED/FULLY_MANAGED in the previous sync but are no longer reporting:_")
+        for d in disappeared[:8]:
+            host = (d.get("hostnames") or ["unknown"])[0]
+            owner = d.get("owner_email") or "no owner"
+            sources = ", ".join(d.get("sources") or [])
+            lines.append(f"  • `{host}` — {owner} (was: {sources})")
+        if len(disappeared) > 8:
+            lines.append(f"  _... and {len(disappeared) - 8} more_")
+
+    # ── Newly stale devices ─────────────────────────────────────────
+    if newly_stale:
+        lines.append("")
+        lines.append(f":hourglass: *{len(newly_stale)} devices just went STALE (>90 days)*")
+        for d in newly_stale[:5]:
+            host = (d.get("hostnames") or ["unknown"])[0]
+            days = d.get("days_since_seen") or "?"
+            lines.append(f"  • `{host}` — inactive for {days} days")
+        if len(newly_stale) > 5:
+            lines.append(f"  _... and {len(newly_stale) - 5} more_")
+
+    # ── Coverage gaps ───────────────────────────────────────────────
     if no_edr:
         lines.append("")
-        lines.append(f":rotating_light: *{len(no_edr)} devices without EDR (CrowdStrike)*")
+        lines.append(f":warning: *{len(no_edr)} devices without EDR (CrowdStrike)*")
         for d in no_edr[:5]:
             host = d.hostnames[0] if d.hostnames else "unknown"
             owner = d.owner_email or "no owner"
-            lines.append(f"  • `{host}` — {owner} ({', '.join(d.sources)})")
+            lines.append(f"  • `{host}` — {owner}")
         if len(no_edr) > 5:
             lines.append(f"  _... and {len(no_edr) - 5} more_")
 
-    if no_mdm:
-        lines.append("")
-        lines.append(f":warning: *{len(no_mdm)} devices without MDM (JumpCloud)*")
-        for d in no_mdm[:5]:
-            host = d.hostnames[0] if d.hostnames else "unknown"
-            owner = d.owner_email or "no owner"
-            lines.append(f"  • `{host}` — {owner} ({', '.join(d.sources)})")
-        if len(no_mdm) > 5:
-            lines.append(f"  _... and {len(no_mdm) - 5} more_")
-
     text = "\n".join(lines)
     send_slack(text)
-    logger.info("slack_alert_sent", no_edr=len(no_edr), no_mdm=len(no_mdm))
+    logger.info("slack_alert_sent", no_edr=len(no_edr), disappeared=len(disappeared or []), newly_stale=len(newly_stale or []))

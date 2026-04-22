@@ -162,6 +162,40 @@ class DeviceRepository:
             return None
         return self._row_to_dict(row)
 
+    def get_recently_deleted(self) -> list[dict[str, Any]]:
+        """Get devices that were soft-deleted in the most recent sync (disappeared)."""
+        conn = self._connect()
+        # Find devices that have deleted_at set and were active in the previous generation
+        # These are devices from the previous sync that didn't appear in the latest
+        rows = conn.execute(
+            """
+            SELECT * FROM devices
+            WHERE deleted_at IS NOT NULL
+              AND status IN ('MANAGED', 'FULLY_MANAGED', 'SERVER')
+              AND deleted_at = (SELECT MAX(deleted_at) FROM devices WHERE deleted_at IS NOT NULL)
+              AND canonical_id NOT IN (SELECT canonical_id FROM devices WHERE deleted_at IS NULL)
+            ORDER BY last_seen DESC
+            """,
+        ).fetchall()
+        conn.close()
+        return [self._row_to_dict(row) for row in rows]
+
+    def get_newly_stale(self, previous_days: int = 7) -> list[dict[str, Any]]:
+        """Get devices that recently became stale (were active last sync, now >90 days)."""
+        conn = self._connect()
+        rows = conn.execute(
+            """
+            SELECT * FROM devices
+            WHERE deleted_at IS NULL
+              AND status = 'STALE'
+              AND days_since_seen BETWEEN 90 AND ?
+            ORDER BY days_since_seen ASC
+            """,
+            (90 + previous_days,),
+        ).fetchall()
+        conn.close()
+        return [self._row_to_dict(row) for row in rows]
+
     def save_status_snapshot(self, sync_run_id: int, status_counts: dict[str, int]) -> None:
         conn = self._connect()
         now = datetime.now(timezone.utc).isoformat()

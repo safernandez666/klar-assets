@@ -110,9 +110,18 @@ class SyncEngine:
             status_counts[dev.status] = status_counts.get(dev.status, 0) + 1
         self.repo.save_status_snapshot(sync_run_id, status_counts)
 
+        # Detect disappeared and newly stale devices
+        disappeared = self.repo.get_recently_deleted()
+        newly_stale = self.repo.get_newly_stale()
+        if disappeared:
+            logger.warning("devices_disappeared", count=len(disappeared),
+                          devices=[((d.get("hostnames") or ["?"])[0]) for d in disappeared[:5]])
+        if newly_stale:
+            logger.warning("devices_newly_stale", count=len(newly_stale))
+
         # Send Slack alert if webhook is configured
         try:
-            alert_after_sync(enriched, run)
+            alert_after_sync(enriched, run, disappeared=disappeared, newly_stale=newly_stale)
         except Exception as exc:
             logger.warning("alert_failed", error=str(exc))
 

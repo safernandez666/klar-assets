@@ -227,7 +227,7 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+              className="fixed inset-0 z-[55] bg-black/40 backdrop-blur-sm"
               onClick={() => setOpen(false)}
             />
 
@@ -237,7 +237,7 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-              className="fixed right-0 top-0 z-50 flex h-screen w-full max-w-sm flex-col border-l border-border bg-background shadow-2xl"
+              className="fixed right-0 top-0 z-[60] flex h-screen w-full max-w-sm flex-col border-l border-border bg-background shadow-2xl"
             >
               {/* Panel header */}
               <div className="flex items-center justify-between border-b border-border px-5 py-4">

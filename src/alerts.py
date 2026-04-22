@@ -72,12 +72,12 @@ def build_sync_blocks(
         _blocks_header(f"{icon} Klar Device Normalizer"),
         _blocks_section(f"Sync completed — *{sync_status.upper()}*"),
         _blocks_divider(),
-        _blocks_fields([
-            f":computer: *Fleet*\n{total} devices",
-            f":shield: *Managed*\n{managed} ({pct}%)",
-            f":red_circle: *No EDR*\n{no_edr_count}",
-            f":large_orange_circle: *No MDM*\n{no_mdm_count}",
-        ]),
+        _blocks_section(
+            f":computer:  *Fleet:*  `{total}` devices\n\n"
+            f":shield:  *Managed (MDM+EDR):*  `{managed}` of `{total}`  —  *{pct}%* coverage\n\n"
+            f":red_circle:  *Without EDR:*  `{no_edr_count}` devices need CrowdStrike\n\n"
+            f":large_orange_circle:  *Without MDM:*  `{no_mdm_count}` devices need JumpCloud"
+        ),
         _blocks_divider(),
     ]
 

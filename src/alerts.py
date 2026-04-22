@@ -10,17 +10,18 @@ from src.models import NormalizedDevice
 
 logger = structlog.get_logger(__name__)
 
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
+def _get_webhook_url() -> str:
+    return os.getenv("SLACK_WEBHOOK_URL", "")
 
 
 def send_slack(text: str, blocks: list[dict[str, Any]] | None = None) -> bool:
-    if not SLACK_WEBHOOK_URL:
+    if not _get_webhook_url():
         return False
     payload: dict[str, Any] = {"text": text}
     if blocks:
         payload["blocks"] = blocks
     try:
-        resp = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
+        resp = requests.post(_get_webhook_url(), json=payload, timeout=10)
         if resp.status_code != 200:
             logger.warning("slack_send_failed", status=resp.status_code, body=resp.text)
             return False
@@ -37,7 +38,7 @@ def alert_after_sync(
     newly_stale: list[dict[str, Any]] | None = None,
 ) -> None:
     """Send a Slack alert summarizing the sync, gaps, and disappearances."""
-    if not SLACK_WEBHOOK_URL:
+    if not _get_webhook_url():
         return
 
     no_edr = [d for d in devices if "crowdstrike" not in d.sources]

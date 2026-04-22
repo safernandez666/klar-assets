@@ -371,8 +371,8 @@ async def api_report_full() -> Any:
 @app.post("/api/slack/test")
 async def api_slack_test() -> Any:
     """Send a test Slack alert with current data."""
-    from src.alerts import send_slack, SLACK_WEBHOOK_URL
-    if not SLACK_WEBHOOK_URL:
+    from src.alerts import send_slack, _get_webhook_url
+    if not _get_webhook_url():
         return JSONResponse(content={"error": "SLACK_WEBHOOK_URL not configured in .env"}, status_code=400)
 
     repo = _get_repo()

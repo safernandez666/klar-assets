@@ -233,30 +233,51 @@ class Deduplicator:
 
             # 5. Owner email + OS type match (cross-source correlation)
             #    Only match across different sources to avoid self-matching
+            #    BLOCK if both have serial numbers and they differ
             if matched_group is None:
                 if dev.last_user:
                     dev_os = _normalize_os(dev.os_type)
+                    dev_serial = _usable_serial(dev.serial_number)
                     if dev_os:
                         key = f"{dev.last_user.lower()}|{dev_os}"
                         if key in owner_os_index:
                             for candidate_idx in owner_os_index[key]:
-                                # Only match if the group doesn't already have this source
                                 group_sources = {d.source for d in groups[candidate_idx]}
                                 if dev.source not in group_sources:
+                                    # Block if serials conflict
+                                    if dev_serial:
+                                        group_serials = {
+                                            _usable_serial(d.serial_number)
+                                            for d in groups[candidate_idx]
+                                            if _usable_serial(d.serial_number)
+                                        }
+                                        if group_serials and dev_serial not in group_serials:
+                                            continue
                                     matched_group = candidate_idx
                                     match_reason = "owner_os:exact"
                                     break
 
             # 6. hostname fuzzy >= 95% (stricter) + same OS type
+            #    BLOCK if both have serial numbers and they differ — different devices
             if matched_group is None:
                 sh = _strip_hostname_suffix(dev.hostname)
                 dev_os = _normalize_os(dev.os_type)
+                dev_serial = _usable_serial(dev.serial_number)
                 if sh and not _is_generic_hostname(dev.hostname):
                     for gidx, gh_list in enumerate(group_hostnames):
                         # Require same OS family if both are known
                         g_os = group_os[gidx]
                         if dev_os and g_os and dev_os != g_os:
                             continue
+                        # If both have serials and they differ, skip — different devices
+                        if dev_serial:
+                            group_serials = {
+                                _usable_serial(d.serial_number)
+                                for d in groups[gidx]
+                                if _usable_serial(d.serial_number)
+                            }
+                            if group_serials and dev_serial not in group_serials:
+                                continue
                         for gh in gh_list:
                             if _is_generic_hostname(gh):
                                 continue

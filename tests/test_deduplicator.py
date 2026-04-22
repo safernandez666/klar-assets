@@ -231,11 +231,11 @@ class TestDeduplicator:
         assert len(result) == 2
 
     def test_owner_os_cross_match(self) -> None:
-        """Devices from different sources with same owner+OS should merge."""
+        """Devices from different sources with same owner+OS merge when no serial conflict."""
         devices = [
-            _cs_device(aid="cs-x", serial="SN-UNIQUE-CS", mac="", hostname="WS-CS-001",
+            _cs_device(aid="cs-x", serial="", mac="", hostname="WS-CS-001",
                        last_user="shared@company.com"),
-            _okta_device(okta_id="okta-x", serial="SN-UNIQUE-OKTA", hostname="User's Laptop",
+            _okta_device(okta_id="okta-x", serial="", hostname="User's Laptop",
                          owner_email="shared@company.com"),
         ]
         dedup = Deduplicator()
@@ -245,6 +245,18 @@ class TestDeduplicator:
         assert "crowdstrike" in d.sources
         assert "okta" in d.sources
         assert d.match_reason == "owner_os:exact"
+
+    def test_owner_os_no_merge_different_serials(self) -> None:
+        """Devices with same owner+OS but different serials should NOT merge."""
+        devices = [
+            _cs_device(aid="cs-x", serial="SN-AAA", mac="", hostname="WS-CS-001",
+                       last_user="shared@company.com"),
+            _okta_device(okta_id="okta-x", serial="SN-BBB", hostname="User's Laptop",
+                         owner_email="shared@company.com"),
+        ]
+        dedup = Deduplicator()
+        result = dedup.deduplicate(devices)
+        assert len(result) == 2
 
     def test_source_failure(self) -> None:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:

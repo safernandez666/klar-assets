@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Inventory Normalizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #e5e5e5; }
+    .card { background: #141414; border: 1px solid #1f1f1f; border-radius: 16px; }
+    .card-hover:hover { border-color: #2a2a2a; }
+    .status-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.02em; }
+    .table-row { border-bottom: 1px solid #1a1a1a; transition: background 0.15s; }
+    .table-row:hover { background: #161616; }
+    .table-row:last-child { border-bottom: none; }
+    .text-gradient { background: linear-gradient(135deg, #fff 0%, #a3a3a3 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .glow-green { box-shadow: 0 0 20px rgba(16,185,129,0.08); }
+    .glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.08); }
+    .glow-yellow { box-shadow: 0 0 20px rgba(245,158,11,0.08); }
+    .glow-gray { box-shadow: 0 0 20px rgba(107,114,128,0.08); }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #404040; }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+
+  <!-- Header -->
+  <header class="border-b border-[#1f1f1f] bg-[#0a0a0a]/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v8.25m0 0l-3-3m3 3l3-3"/></svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-semibold text-white tracking-tight">Device Inventory Normalizer</h1>
+          <p class="text-xs text-neutral-500" id="last-sync-text">Last sync: —</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="sync-badge" class="px-3 py-1.5 rounded-full text-xs font-medium bg-neutral-800 text-neutral-400 border border-neutral-700">Unknown</span>
+        <button id="sync-btn" class="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-neutral-200 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+          Sync now
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+    <!-- Status Cards -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Inventory Status</h2>
+        <span class="text-xs text-neutral-600" id="total-devices">0 devices</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" id="status-cards">
+        <!-- JS injected -->
+      </div>
+    </section>
+
+    <!-- Normalization Quality -->
+    <section class="card p-6">
+      <div class="flex items-center gap-2 mb-4">
+        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+        <h2 class="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Normalization Quality</h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="quality-metrics">
+        <!-- JS injected -->
+      </div>
+    </section>
+
+    <!-- Sources Health -->
+    <section class="card p-6">
+      <div class="flex items-center gap-2 mb-4">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7"/></svg>
+        <h2 class="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Sources Health</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-neutral-500 border-b border-[#1f1f1f]">
+              <th class="pb-3 font-medium">Source</th>
+              <th class="pb-3 font-medium text-right">Devices (raw)</th>
+              <th class="pb-3 font-medium text-center">Status</th>
+              <th class="pb-3 font-medium text-center">Failed</th>
+            </tr>
+          </thead>
+          <tbody id="sources-body" class="text-neutral-300">
+            <!-- JS injected -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Device Inventory -->
+    <section class="card p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+          <h2 class="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Device Inventory</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="status-filter" class="bg-[#1a1a1a] border border-[#2a2a2a] text-neutral-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-neutral-600">
+            <option value="">All statuses</option>
+            <option value="MANAGED">MANAGED</option>
+            <option value="UNMANAGED">UNMANAGED</option>
+            <option value="NO_EDR">NO_EDR</option>
+            <option value="VPN_ONLY">VPN_ONLY</option>
+            <option value="STALE">STALE</option>
+          </select>
+          <input id="search-input" type="text" placeholder="Search owner or hostname..." class="bg-[#1a1a1a] border border-[#2a2a2a] text-neutral-300 text-sm rounded-lg px-3 py-2 w-64 focus:outline-none focus:border-neutral-600 placeholder-neutral-600">
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-neutral-500 border-b border-[#1f1f1f]">
+              <th class="pb-3 font-medium">Owner</th>
+              <th class="pb-3 font-medium">Hostname</th>
+              <th class="pb-3 font-medium">Serial</th>
+              <th class="pb-3 font-medium">OS</th>
+              <th class="pb-3 font-medium">Sources</th>
+              <th class="pb-3 font-medium">Status</th>
+              <th class="pb-3 font-medium">Last Seen</th>
+              <th class="pb-3 font-medium text-right">Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="devices-body" class="text-neutral-300">
+            <!-- JS injected -->
+          </tbody>
+        </table>
+      </div>
+      <div class="flex items-center justify-between mt-4 pt-4 border-t border-[#1f1f1f]">
+        <span id="devices-info" class="text-xs text-neutral-600">Showing 0 of 0</span>
+        <div class="flex items-center gap-2">
+          <button id="prev-page" class="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-xs text-neutral-400 hover:bg-[#222] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">Prev</button>
+          <button id="next-page" class="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-xs text-neutral-400 hover:bg-[#222] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Low Confidence -->
+    <section class="card p-6">
+      <div class="flex items-center gap-2 mb-4">
+        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+        <h2 class="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Low Confidence Devices (&lt; 0.5)</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-neutral-500 border-b border-[#1f1f1f]">
+              <th class="pb-3 font-medium">Owner</th>
+              <th class="pb-3 font-medium">Hostname</th>
+              <th class="pb-3 font-medium">Sources</th>
+              <th class="pb-3 font-medium text-right">Confidence</th>
+              <th class="pb-3 font-medium">Reason</th>
+            </tr>
+          </thead>
+          <tbody id="low-confidence-body" class="text-neutral-300">
+            <!-- JS injected -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    (function() {
+      const state = {
+        devices: [],
+        filtered: [],
+        page: 1,
+        pageSize: 25,
+        summary: null,
+        lastSync: null,
+      };
+
+      function formatDate(iso) {
+        if (!iso) return 'N/A';
+        return new Date(iso).toLocaleString();
+      }
+
+      function statusConfig(status) {
+        const map = {
+          MANAGED:   { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', label: 'MANAGED' },
+          UNMANAGED: { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'UNMANAGED' },
+          NO_EDR:    { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'NO_EDR' },
+          VPN_ONLY:  { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'VPN_ONLY' },
+          STALE:     { cls: 'bg-neutral-700/40 text-neutral-400 border-neutral-700/50', label: 'STALE' },
+          UNKNOWN:   { cls: 'bg-neutral-700/40 text-neutral-400 border-neutral-700/50', label: 'UNKNOWN' },
+        };
+        return map[status] || map.UNKNOWN;
+      }
+
+      function renderCards() {
+        const container = document.getElementById('status-cards');
+        if (!state.summary) return;
+        const byStatus = state.summary.by_status || {};
+        const total = state.summary.total || 0;
+        document.getElementById('total-devices').textContent = `${total} devices`;
+
+        const cards = [
+          { key: 'MANAGED',   label: 'MANAGED',   icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>', color: 'text-emerald-400', glow: 'glow-green', bg: 'from-emerald-500/10 to-transparent' },
+          { key: 'UNMANAGED', label: 'UNMANAGED', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>', color: 'text-red-400', glow: 'glow-red', bg: 'from-red-500/10 to-transparent' },
+          { key: 'NO_EDR',    label: 'NO_EDR',    icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>', color: 'text-red-400', glow: 'glow-red', bg: 'from-red-500/10 to-transparent' },
+          { key: 'VPN_ONLY',  label: 'VPN_ONLY',  icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>', color: 'text-amber-400', glow: 'glow-yellow', bg: 'from-amber-500/10 to-transparent' },
+          { key: 'STALE',     label: 'STALE',     icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', color: 'text-neutral-400', glow: 'glow-gray', bg: 'from-neutral-500/10 to-transparent' },
+        ];
+
+        container.innerHTML = cards.map(c => {
+          const count = byStatus[c.key] || 0;
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          return `
+            <div class="card ${c.glow} p-5 relative overflow-hidden group">
+              <div class="absolute inset-0 bg-gradient-to-br ${c.bg} opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+              <div class="relative">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="p-2 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] ${c.color}">${c.icon}</div>
+                  <span class="text-xs text-neutral-600">${pct}%</span>
+                </div>
+                <div class="text-3xl font-bold text-white tracking-tight">${count}</div>
+                <div class="text-xs text-neutral-500 mt-1 font-medium">${c.label}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderQualityMetrics() {
+        const container = document.getElementById('quality-metrics');
+        if (!state.summary || !state.lastSync) return;
+        const totalRaw = state.lastSync.total_raw_devices || 0;
+        const final = state.lastSync.final_count || 0;
+        const removed = state.lastSync.duplicates_removed || 0;
+        const dedupRate = totalRaw > 0 ? ((removed / totalRaw) * 100).toFixed(1) : '0.0';
+
+        // Calculate overlap from current devices
+        let overlap = 0;
+        state.devices.forEach(d => {
+          const s = d.sources || [];
+          if (s.includes('crowdstrike') && s.includes('jumpcloud')) overlap++;
+        });
+        const overlapRate = final > 0 ? ((overlap / final) * 100).toFixed(1) : '0.0';
+
+        const metrics = [
+          { label: 'Raw Devices', value: totalRaw.toString(), sub: 'before dedup' },
+          { label: 'Duplicates Removed', value: removed.toString(), sub: `${dedupRate}% reduction` },
+          { label: 'Final Inventory', value: final.toString(), sub: 'unique devices' },
+          { label: 'CS ↔ JC Overlap', value: `${overlapRate}%`, sub: `${overlap} devices correlated` },
+        ];
+
+        container.innerHTML = metrics.map(m => `
+          <div class="bg-[#1a1a1a] rounded-xl p-4 border border-[#252525]">
+            <div class="text-xs text-neutral-500 mb-1">${m.label}</div>
+            <div class="text-2xl font-bold text-white">${m.value}</div>
+            <div class="text-xs text-neutral-600 mt-1">${m.sub}</div>
+          </div>
+        `).join('');
+      }
+
+      function renderSources() {
+        const tbody = document.getElementById('sources-body');
+        if (!state.lastSync) {
+          tbody.innerHTML = '<tr><td class="py-4 text-neutral-600" colspan="4">No sync data</td></tr>';
+          return;
+        }
+        const ok = state.lastSync.sources_ok || [];
+        const failed = state.lastSync.sources_failed || [];
+        const bySource = state.summary?.by_source || {};
+        const allSources = ['crowdstrike', 'okta', 'jumpcloud', 'paloalto_vpn'];
+        tbody.innerHTML = allSources.map(s => {
+          const isFailed = failed.includes(s);
+          const isOk = ok.includes(s);
+          const rawCount = bySource[s] || 0;
+          return `<tr class="table-row">
+            <td class="py-3 font-medium text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${isFailed ? 'bg-red-500' : isOk ? 'bg-emerald-500' : 'bg-neutral-600'}"></span>
+              ${s}
+            </td>
+            <td class="py-3 text-right text-neutral-400">${rawCount}</td>
+            <td class="py-3 text-center">
+              <span class="status-badge ${isFailed ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
+                ${isFailed ? 'Error' : isOk ? 'Healthy' : 'Idle'}
+              </span>
+            </td>
+            <td class="py-3 text-center">
+              <span class="${isFailed ? 'text-red-400 font-semibold' : 'text-emerald-400'}">${isFailed ? 'Yes' : 'No'}</span>
+            </td>
+          </tr>`;
+        }).join('');
+      }
+
+      function applyFilters() {
+        const status = document.getElementById('status-filter').value;
+        const query = document.getElementById('search-input').value.trim().toLowerCase();
+        state.filtered = state.devices.filter(d => {
+          if (status && d.status !== status) return false;
+          if (query) {
+            const owner = (d.owner_email || '').toLowerCase();
+            const hostname = (d.hostnames || []).join(' ').toLowerCase();
+            if (!owner.includes(query) && !hostname.includes(query)) return false;
+          }
+          return true;
+        });
+        state.page = 1;
+        renderDevices();
+      }
+
+      function renderDevices() {
+        const tbody = document.getElementById('devices-body');
+        const start = (state.page - 1) * state.pageSize;
+        const end = start + state.pageSize;
+        const pageItems = state.filtered.slice(start, end);
+        tbody.innerHTML = pageItems.map(d => {
+          const cfg = statusConfig(d.status);
+          const isRisk = d.status === 'UNMANAGED' || d.status === 'NO_EDR';
+          return `<tr class="table-row ${isRisk ? 'bg-red-500/[0.02]' : ''}">
+            <td class="py-3 pr-4">
+              <div class="text-white font-medium">${d.owner_email || 'N/A'}</div>
+              ${d.owner_name ? `<div class="text-xs text-neutral-500">${d.owner_name}</div>` : ''}
+            </td>
+            <td class="py-3 pr-4 text-neutral-300">${(d.hostnames || []).join(', ') || 'N/A'}</td>
+            <td class="py-3 pr-4 text-neutral-400 font-mono text-xs">${d.serial_number || 'N/A'}</td>
+            <td class="py-3 pr-4 text-neutral-400">${d.os_type || 'N/A'}</td>
+            <td class="py-3 pr-4">
+              <div class="flex flex-wrap gap-1">
+                ${(d.sources || []).map(s => `<span class="text-[10px] px-1.5 py-0.5 rounded bg-[#1f1f1f] text-neutral-400 border border-[#2a2a2a]">${s}</span>`).join('')}
+              </div>
+            </td>
+            <td class="py-3 pr-4">
+              <span class="status-badge ${cfg.cls}">${cfg.label}</span>
+            </td>
+            <td class="py-3 pr-4 text-neutral-400 text-xs">${formatDate(d.last_seen)}</td>
+            <td class="py-3 text-right">
+              <span class="text-xs font-semibold ${d.confidence_score >= 0.8 ? 'text-emerald-400' : d.confidence_score >= 0.5 ? 'text-amber-400' : 'text-red-400'}">${d.confidence_score != null ? d.confidence_score.toFixed(2) : '0.00'}</span>
+            </td>
+          </tr>`;
+        }).join('');
+        document.getElementById('devices-info').textContent = `Showing ${start + 1}–${Math.min(end, state.filtered.length)} of ${state.filtered.length}`;
+        document.getElementById('prev-page').disabled = state.page <= 1;
+        document.getElementById('next-page').disabled = end >= state.filtered.length;
+      }
+
+      function renderLowConfidence() {
+        const tbody = document.getElementById('low-confidence-body');
+        const items = state.devices.filter(d => (d.confidence_score || 0) < 0.5);
+        tbody.innerHTML = items.map(d => `
+          <tr class="table-row">
+            <td class="py-3 pr-4 text-white">${d.owner_email || 'N/A'}</td>
+            <td class="py-3 pr-4 text-neutral-300">${(d.hostnames || []).join(', ') || 'N/A'}</td>
+            <td class="py-3 pr-4">
+              <div class="flex flex-wrap gap-1">
+                ${(d.sources || []).map(s => `<span class="text-[10px] px-1.5 py-0.5 rounded bg-[#1f1f1f] text-neutral-400 border border-[#2a2a2a]">${s}</span>`).join('')}
+              </div>
+            </td>
+            <td class="py-3 text-right font-semibold text-red-400">${d.confidence_score != null ? d.confidence_score.toFixed(2) : '0.00'}</td>
+            <td class="py-3 text-neutral-500 text-xs">${d.match_reason || ''}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadData() {
+        try {
+          const [summaryResp, lastSyncResp, devicesResp] = await Promise.all([
+            fetch('/api/summary'),
+            fetch('/api/sync/last'),
+            fetch('/api/devices'),
+          ]);
+          state.summary = await summaryResp.json();
+          const lastSyncData = await lastSyncResp.json();
+          state.lastSync = lastSyncData.last_sync;
+          const devicesData = await devicesResp.json();
+          state.devices = devicesData.devices || [];
+          state.filtered = [...state.devices];
+
+          document.getElementById('last-sync-text').textContent = 'Last sync: ' + (state.lastSync ? formatDate(state.lastSync.finished_at || state.lastSync.started_at) : 'N/A');
+          const badge = document.getElementById('sync-badge');
+          if (state.lastSync) {
+            const ok = state.lastSync.status === 'success';
+            badge.className = `px-3 py-1.5 rounded-full text-xs font-medium border ${ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`;
+            badge.textContent = ok ? 'Healthy' : 'Partial';
+          }
+
+          renderCards();
+          renderQualityMetrics();
+          renderSources();
+          renderDevices();
+          renderLowConfidence();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      document.getElementById('status-filter').addEventListener('change', applyFilters);
+      document.getElementById('search-input').addEventListener('input', applyFilters);
+      document.getElementById('prev-page').addEventListener('click', () => { if (state.page > 1) { state.page--; renderDevices(); } });
+      document.getElementById('next-page').addEventListener('click', () => { const maxPage = Math.ceil(state.filtered.length / state.pageSize); if (state.page < maxPage) { state.page++; renderDevices(); } });
+      document.getElementById('sync-btn').addEventListener('click', async () => {
+        try {
+          const btn = document.getElementById('sync-btn');
+          btn.disabled = true;
+          btn.innerHTML = '<span class="animate-spin">↻</span> Syncing...';
+          await fetch('/api/sync/trigger', { method: 'POST' });
+          setTimeout(() => { btn.disabled = false; btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg> Sync now'; loadData(); }, 4000);
+        } catch (e) {
+          console.error(e);
+        }
+      });
+
+      loadData();
+    })();
+  </script>
+</body>
+</html>

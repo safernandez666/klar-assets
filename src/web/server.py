@@ -104,6 +104,7 @@ async def api_trends() -> Any:
             ("NO_MDM", "no_mdm"),
             ("IDP_ONLY", "idp_only"),
             ("STALE", "stale"),
+            ("SERVER", "server"),
         ]:
             old_val = prev.get(col_name, 0)
             new_val = current.get(status_key, 0)

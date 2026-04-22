@@ -16,6 +16,7 @@ const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" |
   NO_EDR: { variant: "error", label: "NO EDR" },
   NO_MDM: { variant: "warning", label: "NO MDM" },
   IDP_ONLY: { variant: "warning", label: "IDP ONLY" },
+  SERVER: { variant: "secondary", label: "SERVER/VM" },
   STALE: { variant: "secondary", label: "STALE" },
   UNKNOWN: { variant: "secondary", label: "UNKNOWN" },
 };

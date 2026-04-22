@@ -66,6 +66,16 @@ const STATUS_CONFIG = [
     tooltip: "Dispositivos que solo aparecen en Okta. Pueden ser celulares personales o shadow IT. Revisar si necesitan MDM/EDR.",
   },
   {
+    key: "SERVER",
+    label: "SERVER/VM",
+    icon: Shield,
+    color: "text-violet-400",
+    bg: "from-violet-500/10",
+    ring: "shadow-violet-500/10",
+    positive: true,
+    tooltip: "Servidores y VMs con CrowdStrike (EDR) que no necesitan JumpCloud (MDM). No son endpoints de usuario.",
+  },
+  {
     key: "STALE",
     label: "STALE",
     icon: Clock,

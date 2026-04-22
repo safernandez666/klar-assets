@@ -10,6 +10,7 @@ const STATUS_COLORS: Record<string, string> = {
   NO_EDR: "#ef4444",
   NO_MDM: "#f59e0b",
   IDP_ONLY: "#f97316",
+  SERVER: "#8b5cf6",
   STALE: "#6b7280",
   UNKNOWN: "#4b5563",
 };
@@ -20,6 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   NO_EDR: "No EDR",
   NO_MDM: "No MDM",
   IDP_ONLY: "IDP Only",
+  SERVER: "Server/VM",
   STALE: "Stale",
   UNKNOWN: "Unknown",
 };

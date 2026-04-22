@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS status_snapshots (
     no_mdm INTEGER NOT NULL DEFAULT 0,
     idp_only INTEGER NOT NULL DEFAULT 0,
     stale INTEGER NOT NULL DEFAULT 0,
-    unknown INTEGER NOT NULL DEFAULT 0
+    unknown INTEGER NOT NULL DEFAULT 0,
+    server INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_devices_owner_email ON devices(owner_email);

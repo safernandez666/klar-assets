@@ -1,8 +1,37 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 from src.models import NormalizedDevice
+
+
+# Hostname patterns that indicate a server/VM, not a workstation
+_SERVER_PATTERNS = re.compile(
+    r"(?i)"
+    r"bastion|server|servidor|"  # explicit server names
+    r"^EC2AMAZ-|"               # AWS Windows AMIs
+    r"^ip-\d+.*\.compute\.internal$|"  # AWS EC2 instances
+    r"^ip-\d+.*\.us-east|^ip-\d+.*\.us-west|"  # AWS private DNS
+    r"freeradius|coredns|"      # infrastructure services
+    r"spei|coas-(?:live|staging|beta)|"  # banking/ops servers
+    r"^ap\w+(?:drp|live)$|"    # app servers (apspeidrp, apspeilive)
+    r"^bd\w+(?:drp|live)$|"    # db servers (bdspeidrp, bdspeilive)
+    r"^log\w+(?:drp|live)$|"   # log servers
+    r"telco-.*\.elit-i\."      # telecom infrastructure
+)
+
+
+def _is_server(dev: NormalizedDevice) -> bool:
+    """Detect if a device is a server/VM based on hostname patterns and characteristics."""
+    for hostname in dev.hostnames:
+        if _SERVER_PATTERNS.search(hostname):
+            return True
+    # Linux devices in CS without JC and without an owner are likely servers
+    os_lower = (dev.os_type or "").lower()
+    if "linux" in os_lower and not dev.owner_email:
+        return True
+    return False
 
 
 class Enricher:
@@ -31,15 +60,18 @@ class Enricher:
                 gaps.append("missing_mdm")
             dev.coverage_gaps = gaps
 
-            # Status — source of truth for device management is JumpCloud (MDM)
-            # MANAGED = JC + CS (device is enrolled in MDM and has EDR)
-            # FULLY_MANAGED = JC + CS + Okta + owner (complete visibility)
+            # Detect servers/VMs — they don't need JumpCloud (MDM)
+            is_server = has_cs and not has_jc and _is_server(dev)
+
+            # Status
             is_stale = False
             if dev.days_since_seen is not None and dev.days_since_seen > stale_threshold_days:
                 is_stale = True
 
             if is_stale:
                 dev.status = "STALE"
+            elif is_server:
+                dev.status = "SERVER"
             elif has_jc and has_cs and has_okta and dev.owner_email:
                 dev.status = "FULLY_MANAGED"
             elif has_jc and has_cs:

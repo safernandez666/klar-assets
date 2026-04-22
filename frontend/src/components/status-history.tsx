@@ -17,6 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
   total: "#e2e8f0",
   fully_managed: "#34d399",
   managed: "#60a5fa",
+  server: "#8b5cf6",
   no_edr: "#f87171",
   no_mdm: "#fbbf24",
   idp_only: "#fb923c",
@@ -27,6 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
   total: "Unique Devices",
   fully_managed: "Fully Managed",
   managed: "Managed",
+  server: "Server/VM",
   no_edr: "No EDR",
   no_mdm: "No MDM",
   idp_only: "IDP Only",
@@ -54,13 +56,14 @@ export function StatusHistory({ history }: StatusHistoryProps) {
     total: s.total,
     fully_managed: s.fully_managed,
     managed: s.managed,
+    server: s.server,
     no_edr: s.no_edr,
     no_mdm: s.no_mdm,
     idp_only: s.idp_only,
     stale: s.stale,
   }));
 
-  const seriesKeys = ["total", "fully_managed", "managed", "no_edr", "no_mdm", "idp_only", "stale"];
+  const seriesKeys = ["total", "fully_managed", "managed", "server", "no_edr", "no_mdm", "idp_only", "stale"];
 
   return (
     <motion.div

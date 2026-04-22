@@ -170,8 +170,8 @@ class DeviceRepository:
             """
             INSERT INTO status_snapshots (
                 sync_run_id, recorded_at, total,
-                fully_managed, managed, no_edr, no_mdm, idp_only, stale, unknown
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                fully_managed, managed, no_edr, no_mdm, idp_only, stale, unknown, server
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 sync_run_id,
@@ -184,6 +184,7 @@ class DeviceRepository:
                 status_counts.get("IDP_ONLY", 0),
                 status_counts.get("STALE", 0),
                 status_counts.get("UNKNOWN", 0),
+                status_counts.get("SERVER", 0),
             ),
         )
         conn.commit()

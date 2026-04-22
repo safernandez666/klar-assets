@@ -57,6 +57,7 @@ export interface StatusSnapshot {
   idp_only: number;
   stale: number;
   unknown: number;
+  server: number;
 }
 
 export interface TrendsResponse {

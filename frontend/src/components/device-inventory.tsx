@@ -17,6 +17,7 @@ const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" |
   NO_EDR: { variant: "error", label: "NO EDR" },
   NO_MDM: { variant: "warning", label: "NO MDM" },
   IDP_ONLY: { variant: "warning", label: "IDP ONLY" },
+  SERVER: { variant: "secondary", label: "SERVER/VM" },
   STALE: { variant: "secondary", label: "STALE" },
   UNKNOWN: { variant: "secondary", label: "UNKNOWN" },
 };
@@ -76,6 +77,7 @@ export function DeviceInventory({ devices }: DeviceInventoryProps) {
               <option value="NO_EDR">NO EDR</option>
               <option value="NO_MDM">NO MDM</option>
               <option value="IDP_ONLY">IDP ONLY</option>
+              <option value="SERVER">SERVER/VM</option>
               <option value="STALE">STALE</option>
               <option value="UNKNOWN">UNKNOWN</option>
             </Select>

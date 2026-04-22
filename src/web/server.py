@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
+import secrets
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
-from fastapi import BackgroundTasks, FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+import jwt
+from fastapi import BackgroundTasks, Cookie, FastAPI, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -18,6 +21,10 @@ from src.storage.repository import DeviceRepository
 from src.sync_engine import SyncEngine
 
 DB_PATH = os.getenv("DB_PATH", "data/devices.db")
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "admin")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
+JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
+JWT_EXPIRY_HOURS = 24
 DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
@@ -64,6 +71,137 @@ if (DIST_DIR / "assets").exists():
 
 def _get_repo() -> DeviceRepository:
     return DeviceRepository(DB_PATH)
+
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+
+PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/favicon.svg"}
+
+
+def _create_token(username: str) -> str:
+    return jwt.encode(
+        {"sub": username, "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS)},
+        JWT_SECRET, algorithm="HS256",
+    )
+
+
+def _verify_token(token: str | None) -> str | None:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return payload.get("sub")
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return None
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next: Any) -> Any:
+    path = request.url.path
+
+    # Skip auth for public paths, static assets, and if no password configured
+    if not AUTH_PASSWORD:
+        return await call_next(request)
+    if path in PUBLIC_PATHS or path.startswith("/assets/"):
+        return await call_next(request)
+
+    token = request.cookies.get("klar_session")
+    user = _verify_token(token)
+
+    if not user:
+        # API calls get 401, page requests get redirect to login
+        if path.startswith("/api/"):
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+        return HTMLResponse(content=_login_page(), status_code=200)
+
+    return await call_next(request)
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/auth/login")
+async def auth_login(body: LoginRequest) -> Any:
+    if not AUTH_PASSWORD:
+        return JSONResponse({"error": "Auth not configured"}, status_code=400)
+
+    # Constant-time comparison
+    user_ok = secrets.compare_digest(body.username, AUTH_USERNAME)
+    pass_ok = secrets.compare_digest(body.password, AUTH_PASSWORD)
+
+    if not (user_ok and pass_ok):
+        return JSONResponse({"error": "Invalid credentials"}, status_code=401)
+
+    token = _create_token(body.username)
+    response = JSONResponse({"ok": True, "user": body.username})
+    response.set_cookie(
+        key="klar_session",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=JWT_EXPIRY_HOURS * 3600,
+        path="/",
+    )
+    return response
+
+
+@app.post("/auth/logout")
+async def auth_logout() -> Any:
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("klar_session", path="/")
+    return response
+
+
+def _login_page() -> str:
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Klar Device Normalizer — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f5f3;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:48px 40px;width:100%;max-width:380px}
+.logo{font-size:28px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px}
+.sub{font-size:13px;color:#888;margin-bottom:32px}
+label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+input{width:100%;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:border 0.2s}
+input:focus{border-color:#0f0f0f}
+.field{margin-bottom:20px}
+button{width:100%;padding:12px;background:#0f0f0f;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background 0.2s}
+button:hover{background:#333}
+.error{color:#dc2626;font-size:12px;margin-bottom:16px;display:none}
+</style>
+</head>
+<body>
+<div class="card">
+<div class="logo">Klar</div>
+<div class="sub">Device Normalizer — Sign in</div>
+<div class="error" id="err"></div>
+<form id="form">
+<div class="field"><label>Username</label><input type="text" id="user" autocomplete="username" required></div>
+<div class="field"><label>Password</label><input type="password" id="pass" autocomplete="current-password" required></div>
+<button type="submit">Sign in</button>
+</form>
+</div>
+<script>
+document.getElementById('form').addEventListener('submit', async(e)=>{
+  e.preventDefault();
+  const err=document.getElementById('err');
+  err.style.display='none';
+  try{
+    const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:document.getElementById('user').value,password:document.getElementById('pass').value})});
+    if(r.ok){location.reload()}
+    else{const d=await r.json();err.textContent=d.error||'Login failed';err.style.display='block'}
+  }catch(ex){err.textContent='Connection error';err.style.display='block'}
+});
+</script>
+</body>
+</html>"""
 
 
 # ── API Routes ───────────────────────────────────────────────────────────────
@@ -442,7 +580,14 @@ async def serve_spa(path: str, request: Request) -> Any:
         return JSONResponse({"detail": "Not found"}, status_code=404)
 
     # Try to serve static file directly
-    file_path = DIST_DIR / path
+    # Resolve to absolute path and verify it stays within DIST_DIR to prevent
+    # path traversal (e.g. GET /../../etc/passwd).  resolve() follows .. and
+    # symlinks; we check the canonical prefix before serving the file.
+    file_path = (DIST_DIR / path).resolve()
+    try:
+        file_path.relative_to(DIST_DIR.resolve())
+    except ValueError:
+        return JSONResponse({"detail": "Not found"}, status_code=404)
     if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
 

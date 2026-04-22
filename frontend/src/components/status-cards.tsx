@@ -107,7 +107,7 @@ export function StatusCards({ summary, trends }: StatusCardsProps) {
         </h2>
         <span className="text-xs text-muted">{total} devices</span>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {STATUS_CONFIG.map((cfg, i) => {
           const count = byStatus[cfg.key] || 0;
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;

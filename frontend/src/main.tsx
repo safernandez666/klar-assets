@@ -5,7 +5,7 @@ import App from "./App";
 
 // Initialize dark mode before render to avoid flash
 const stored = localStorage.getItem("theme");
-const prefersDark = stored ? stored === "dark" : true;
+const prefersDark = stored ? stored === "dark" : false;
 if (prefersDark) {
   document.documentElement.classList.add("dark");
 } else {

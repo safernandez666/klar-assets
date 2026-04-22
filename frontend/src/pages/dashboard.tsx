@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { Layout } from "../components/layout";
 import { Sidebar } from "../components/sidebar";
@@ -81,94 +80,185 @@ export default function Dashboard() {
   }, []);
 
   const handleExportPdf = useCallback(async () => {
-    if (!contentRef.current) return;
     setExporting(true);
     try {
-      // Fetch AI report text
-      let reportText = "";
-      try {
-        const res = await api.getReport();
-        reportText = res.report || "";
-      } catch {
-        reportText = "";
-      }
+      const report = await api.getFullReport();
 
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      const contentWidth = pageWidth - margin * 2;
+      const cw = pageWidth - margin * 2; // content width
+      let y = 0;
 
-      // Title page with AI report
-      pdf.setFontSize(20);
+      // ── Helpers ──────────────────────────────────────────────────────
+      const checkPage = (needed: number) => {
+        if (y + needed > pageHeight - 15) { pdf.addPage(); y = 20; }
+      };
+      const heading = (text: string, size = 14) => {
+        checkPage(15);
+        y += 8;
+        pdf.setFontSize(size);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(40);
+        pdf.text(text, margin, y);
+        y += 2;
+        pdf.setDrawColor(200);
+        pdf.line(margin, y, margin + cw, y);
+        y += 6;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        pdf.setTextColor(60);
+      };
+      const para = (text: string) => {
+        const lines = pdf.splitTextToSize(text.replace(/\*\*/g, ""), cw);
+        checkPage(lines.length * 5);
+        pdf.text(lines, margin, y);
+        y += lines.length * 5;
+      };
+      const bullet = (text: string) => {
+        const lines = pdf.splitTextToSize(text.replace(/\*\*/g, ""), cw - 6);
+        checkPage(lines.length * 5);
+        pdf.text("•", margin + 1, y);
+        pdf.text(lines, margin + 6, y);
+        y += lines.length * 5;
+      };
+      const tableRow = (cols: string[], widths: number[], bold = false) => {
+        checkPage(6);
+        pdf.setFont("helvetica", bold ? "bold" : "normal");
+        pdf.setFontSize(8);
+        let x = margin;
+        cols.forEach((col, i) => {
+          const truncated = col.length > Math.floor(widths[i] / 2) ? col.slice(0, Math.floor(widths[i] / 2)) + "…" : col;
+          pdf.text(truncated, x, y);
+          x += widths[i];
+        });
+        y += 5;
+      };
+      const deviceTable = (devices: any[], showReason = false) => {
+        const widths = showReason
+          ? [40, 30, 45, 25, 40]
+          : [45, 35, 50, 25, 25];
+        const headers = showReason
+          ? ["Hostname", "OS", "Owner", "Score", "Match Reason"]
+          : ["Hostname", "Serial", "Owner", "OS", "Sources"];
+        tableRow(headers, widths, true);
+        y += 1;
+        pdf.setDrawColor(220);
+        pdf.line(margin, y - 1, margin + cw, y - 1);
+        y += 1;
+        for (const d of devices) {
+          if (showReason) {
+            tableRow([
+              d.hostname || "N/A",
+              d.os || "N/A",
+              d.owner || "N/A",
+              String(d.confidence?.toFixed(2) ?? "0"),
+              d.match_reason || "N/A",
+            ], widths);
+          } else {
+            tableRow([
+              d.hostname || "N/A",
+              d.serial || "N/A",
+              d.owner || "N/A",
+              d.os || "N/A",
+              (d.sources || []).join(", "),
+            ], widths);
+          }
+        }
+      };
+
+      // ── Page 1: Title + Executive Summary ────────────────────────────
+      y = 25;
+      pdf.setFontSize(22);
       pdf.setFont("helvetica", "bold");
-      pdf.text("Device Inventory Report", margin, 25);
-
+      pdf.setTextColor(30);
+      pdf.text("Device Inventory Report", margin, y);
+      y += 8;
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(120);
-      pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, 33);
-      pdf.setTextColor(0);
+      pdf.setTextColor(130);
+      pdf.text(`Generated: ${new Date(report.generated_at).toLocaleString()}`, margin, y);
+      const total = report.summary?.total || 0;
+      pdf.text(`Fleet size: ${total} desktop/laptop devices`, margin + 90, y);
+      y += 12;
 
-      if (reportText) {
-        let y = 45;
-        const lines = reportText.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("## ")) {
-            y += 4;
-            pdf.setFontSize(13);
-            pdf.setFont("helvetica", "bold");
-            pdf.text(line.replace("## ", ""), margin, y);
-            y += 8;
-            pdf.setFontSize(10);
-            pdf.setFont("helvetica", "normal");
-          } else if (line.startsWith("- ")) {
-            const clean = line.replace(/\*\*/g, "").replace("- ", "");
-            const wrapped = pdf.splitTextToSize(`  •  ${clean}`, contentWidth - 5);
-            pdf.text(wrapped, margin, y);
-            y += wrapped.length * 5;
-          } else if (line.trim()) {
-            const wrapped = pdf.splitTextToSize(line.replace(/\*\*/g, ""), contentWidth);
-            pdf.text(wrapped, margin, y);
-            y += wrapped.length * 5;
-          } else {
-            y += 3;
-          }
-          if (y > 270) {
-            pdf.addPage();
-            y = 20;
-          }
+      // Executive summary from AI
+      pdf.setTextColor(60);
+      const summaryLines = (report.executive_summary || "").split("\n");
+      for (const line of summaryLines) {
+        if (line.startsWith("## ")) {
+          heading(line.replace("## ", ""), 13);
+        } else if (line.startsWith("- ")) {
+          bullet(line.replace("- ", ""));
+        } else if (line.trim()) {
+          para(line);
+        } else {
+          y += 3;
         }
       }
 
-      // Dashboard screenshot pages
-      pdf.addPage();
-      pdf.setFontSize(14);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("Dashboard Overview", margin, 20);
+      // ── Page 2: Quick Actions ────────────────────────────────────────
+      pdf.addPage(); y = 20;
+      heading("Quick Actions", 16);
+      const priorityLabels: Record<string, string> = {
+        critical: "CRITICAL", high: "HIGH", medium: "MEDIUM", low: "LOW", success: "OK", info: "INFO",
+      };
+      for (const action of report.actions || []) {
+        checkPage(15);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(9);
+        pdf.setTextColor(
+          action.priority === "critical" ? 200 : action.priority === "high" ? 180 : 80,
+          action.priority === "critical" ? 50 : action.priority === "high" ? 120 : 80,
+          action.priority === "critical" ? 50 : action.priority === "high" ? 20 : 80,
+        );
+        pdf.text(`[${priorityLabels[action.priority] || "INFO"}]`, margin, y);
+        pdf.setTextColor(40);
+        pdf.text(action.title, margin + 22, y);
+        y += 5;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.setTextColor(100);
+        const descLines = pdf.splitTextToSize(action.description, cw - 5);
+        pdf.text(descLines, margin + 5, y);
+        y += descLines.length * 4 + 4;
+      }
 
-      const element = contentRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: null,
-      });
-      const imgData = canvas.toDataURL("image/png");
+      // ── Devices without EDR ──────────────────────────────────────────
+      const cats = report.categories || {};
+      for (const [, cat] of Object.entries(cats) as [string, any][]) {
+        if (cat.count === 0) continue;
+        pdf.addPage(); y = 20;
+        heading(`${cat.title} (${cat.count})`, 14);
+        if (cat.devices?.length > 0) {
+          deviceTable(cat.devices);
+        }
+        if (cat.count > cat.devices?.length) {
+          y += 3;
+          pdf.setFontSize(8);
+          pdf.setTextColor(130);
+          pdf.text(`... and ${cat.count - cat.devices.length} more`, margin, y);
+          y += 5;
+        }
+      }
 
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = contentWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // ── Cross-source Matched Devices ─────────────────────────────────
+      if (report.unique_matches?.devices?.length > 0) {
+        pdf.addPage(); y = 20;
+        heading(`${report.unique_matches.title} (${report.unique_matches.count})`, 14);
+        para("These devices were identified across multiple sources and correlated into a single record. The match reason and confidence score indicate how the correlation was made.");
+        y += 4;
+        deviceTable(report.unique_matches.devices, true);
+      }
 
-      let heightLeft = imgHeight;
-      let position = 28;
-
-      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight - margin * 2;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + margin;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight - margin * 2;
+      // ── Low Confidence Matches ───────────────────────────────────────
+      if (report.low_confidence?.devices?.length > 0) {
+        pdf.addPage(); y = 20;
+        heading(`${report.low_confidence.title} (${report.low_confidence.count})`, 14);
+        para("These devices have a confidence score below 0.5. They may be incorrectly matched or represent single-source records that could not be correlated. Review serial numbers and hostnames.");
+        y += 4;
+        deviceTable(report.low_confidence.devices, true);
       }
 
       pdf.save("device-inventory-report.pdf");

@@ -36,4 +36,6 @@ export const api = {
   getInsights: () => fetchJson<{ actions: Insight[] }>("/api/insights"),
 
   getReport: () => fetchJson<{ report: string }>("/api/report"),
+
+  getFullReport: () => fetchJson<any>("/api/report/full"),
 };

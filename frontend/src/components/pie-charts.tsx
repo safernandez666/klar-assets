@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import type { Summary } from "../types";
 
 const STATUS_COLORS: Record<string, string> = {
-  FULLY_MANAGED: "#34d399",
-  MANAGED: "#60a5fa",
-  NO_EDR: "#f87171",
-  NO_MDM: "#fbbf24",
-  IDP_ONLY: "#fb923c",
-  STALE: "#9ca3af",
-  UNKNOWN: "#6b7280",
+  FULLY_MANAGED: "#10b981",
+  MANAGED: "#3b82f6",
+  NO_EDR: "#ef4444",
+  NO_MDM: "#f59e0b",
+  IDP_ONLY: "#f97316",
+  STALE: "#6b7280",
+  UNKNOWN: "#4b5563",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -25,9 +25,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const SOURCE_COLORS: Record<string, string> = {
-  crowdstrike: "#f87171",
-  jumpcloud: "#60a5fa",
-  okta: "#fbbf24",
+  crowdstrike: "#ef4444",
+  jumpcloud: "#3b82f6",
+  okta: "#f59e0b",
 };
 
 interface PieChartsProps {
@@ -77,15 +77,26 @@ export function PieCharts({ summary }: PieChartsProps) {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
+                    <defs>
+                      <filter id="glow-status">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
                     <Pie
                       data={statusData}
                       cx="50%"
                       cy="50%"
                       innerRadius={55}
                       outerRadius={90}
-                      paddingAngle={2}
+                      paddingAngle={3}
                       dataKey="value"
-                      strokeWidth={0}
+                      strokeWidth={1}
+                      stroke="rgba(0,0,0,0.3)"
+                      style={{ filter: "url(#glow-status)" }}
                     >
                       {statusData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
@@ -116,15 +127,26 @@ export function PieCharts({ summary }: PieChartsProps) {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
+                    <defs>
+                      <filter id="glow-source">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
                     <Pie
                       data={sourceData}
                       cx="50%"
                       cy="50%"
                       innerRadius={55}
                       outerRadius={90}
-                      paddingAngle={2}
+                      paddingAngle={3}
                       dataKey="value"
-                      strokeWidth={0}
+                      strokeWidth={1}
+                      stroke="rgba(0,0,0,0.3)"
+                      style={{ filter: "url(#glow-source)" }}
                     >
                       {sourceData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />

@@ -23,6 +23,7 @@ export interface Summary {
   by_status: Record<string, number>;
   by_source: Record<string, number>;
   total: number;
+  risk_score: number;
 }
 
 export interface SyncRun {

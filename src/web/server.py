@@ -75,10 +75,31 @@ async def api_devices(status: str | None = None, source: str | None = None) -> A
     return JSONResponse(content={"devices": devices})
 
 
+RISK_WEIGHTS: dict[str, int] = {
+    "FULLY_MANAGED": 100,
+    "MANAGED": 80,
+    "SERVER": 75,
+    "NO_MDM": 40,
+    "NO_EDR": 25,
+    "IDP_ONLY": 15,
+    "STALE": 5,
+    "UNKNOWN": 10,
+}
+
+
 @app.get("/api/summary")
 async def api_summary() -> Any:
     repo = _get_repo()
     summary = repo.get_summary()
+    # Calculate risk score
+    by_status = summary.get("by_status", {})
+    total = summary.get("total", 0)
+    if total > 0:
+        weighted = sum(by_status.get(s, 0) * w for s, w in RISK_WEIGHTS.items())
+        score = round(weighted / total, 1)
+    else:
+        score = 0
+    summary["risk_score"] = score
     return JSONResponse(content=summary)
 
 

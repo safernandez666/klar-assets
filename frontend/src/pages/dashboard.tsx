@@ -6,6 +6,7 @@ import { Sidebar } from "../components/sidebar";
 import { StatusCards } from "../components/status-cards";
 import { StatusHistory } from "../components/status-history";
 import { PieCharts } from "../components/pie-charts";
+import { RiskGauge } from "../components/risk-gauge";
 import { QualityMetrics } from "../components/quality-metrics";
 import { SourcesHealth } from "../components/sources-health";
 import { DeviceInventory } from "../components/device-inventory";
@@ -457,6 +458,7 @@ export default function Dashboard() {
         <Layout lastSync={lastSync}>
           <div ref={contentRef} className="space-y-8">
             <StatusCards summary={summary} trends={trends} />
+            <RiskGauge summary={summary} />
             {history.length > 1 && <StatusHistory history={history} />}
             <PieCharts summary={summary} />
             <QualityMetrics devices={devices} lastSync={lastSync} />

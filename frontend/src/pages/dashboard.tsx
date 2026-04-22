@@ -420,15 +420,13 @@ export default function Dashboard() {
         insights={insights}
         onRefreshInsights={handleRefreshInsights}
         refreshing={refreshingInsights}
+        onSync={handleSync}
+        syncing={syncing}
+        onExportPdf={handleExportPdf}
+        exporting={exporting}
       />
       <div className="pl-14">
-        <Layout
-          lastSync={lastSync}
-          onSync={handleSync}
-          syncing={syncing}
-          onExportPdf={handleExportPdf}
-          exporting={exporting}
-        >
+        <Layout lastSync={lastSync}>
           <div ref={contentRef} className="space-y-8">
             <StatusCards summary={summary} trends={trends} />
             {history.length > 1 && <StatusHistory history={history} />}

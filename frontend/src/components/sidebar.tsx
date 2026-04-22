@@ -12,6 +12,10 @@ import {
   FileSpreadsheet,
   Download,
   RefreshCw,
+  FileDown,
+  RotateCw,
+  Moon,
+  Sun,
 } from "lucide-react";
 import type { Insight } from "../types";
 
@@ -19,6 +23,10 @@ interface SidebarProps {
   insights: Insight[];
   onRefreshInsights?: () => void;
   refreshing?: boolean;
+  onSync?: () => void;
+  syncing?: boolean;
+  onExportPdf?: () => void;
+  exporting?: boolean;
 }
 
 const PRIORITY_CONFIG: Record<string, {
@@ -89,7 +97,7 @@ function ActionItem({ action, index }: { action: Insight; index: number }) {
   );
 }
 
-export function Sidebar({ insights, onRefreshInsights, refreshing }: SidebarProps) {
+export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, syncing, onExportPdf, exporting }: SidebarProps) {
   const [open, setOpen] = useState(false);
 
   const sorted = [...insights].sort((a, b) => {
@@ -101,51 +109,112 @@ export function Sidebar({ insights, onRefreshInsights, refreshing }: SidebarProp
   const urgent = sorted.filter((a) => a.priority === "critical" || a.priority === "high");
   const other = sorted.filter((a) => a.priority !== "critical" && a.priority !== "high");
 
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("theme") !== "light";
+  });
+
+  const toggleTheme = () => {
+    const next = !dark;
+    setDark(next);
+    const root = document.documentElement;
+    if (next) { root.classList.add("dark"); localStorage.setItem("theme", "dark"); }
+    else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
+  };
+
   return (
     <>
       {/* Fixed sidebar rail */}
-      <div className="fixed left-0 top-0 z-40 flex h-screen w-14 flex-col items-center gap-1 border-r border-border bg-card/95 pt-20 backdrop-blur">
-        {/* Quick Actions button */}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-amber-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-          aria-label="Quick Actions"
-        >
-          <Zap className="h-5 w-5 text-amber-400" />
-          {urgent.length > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-              {urgent.length}
+      <div className="fixed left-0 top-0 z-40 flex h-screen w-14 flex-col items-center border-r border-border bg-card/95 pt-20 backdrop-blur">
+        <div className="flex flex-col items-center gap-1">
+          {/* Sync */}
+          <button
+            type="button"
+            onClick={onSync}
+            disabled={syncing}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-blue-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-50"
+            aria-label="Sync now"
+          >
+            <RotateCw className={`h-5 w-5 text-blue-400 ${syncing ? "animate-spin" : ""}`} />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              {syncing ? "Syncing..." : "Sync now"}
             </span>
-          )}
-          <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-            Quick Actions
-          </span>
-        </button>
+          </button>
 
-        {/* Export CSV */}
-        <a
-          href="/api/export/csv"
-          className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-blue-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-          aria-label="Export CSV"
-        >
-          <FileSpreadsheet className="h-5 w-5 text-blue-400" />
-          <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-            Export CSV
-          </span>
-        </a>
+          {/* Quick Actions */}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-amber-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="Quick Actions"
+          >
+            <Zap className="h-5 w-5 text-amber-400" />
+            {urgent.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                {urgent.length}
+              </span>
+            )}
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Quick Actions
+            </span>
+          </button>
 
-        {/* Export Excel */}
-        <a
-          href="/api/export/xlsx"
-          className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-emerald-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-          aria-label="Export Excel"
-        >
-          <Download className="h-5 w-5 text-emerald-400" />
-          <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-            Export Excel
-          </span>
-        </a>
+          {/* Separator */}
+          <div className="my-1 h-px w-6 bg-border" />
+
+          {/* Export PDF */}
+          <button
+            type="button"
+            onClick={onExportPdf}
+            disabled={exporting}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-50"
+            aria-label="Export PDF"
+          >
+            <FileDown className={`h-5 w-5 text-red-400 ${exporting ? "animate-pulse" : ""}`} />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              {exporting ? "Exporting..." : "Export PDF"}
+            </span>
+          </button>
+
+          {/* Export CSV */}
+          <a
+            href="/api/export/csv"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-blue-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="Export CSV"
+          >
+            <FileSpreadsheet className="h-5 w-5 text-blue-400" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Export CSV
+            </span>
+          </a>
+
+          {/* Export Excel */}
+          <a
+            href="/api/export/xlsx"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-emerald-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="Export Excel"
+          >
+            <Download className="h-5 w-5 text-emerald-400" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Export Excel
+            </span>
+          </a>
+        </div>
+
+        {/* Theme toggle at bottom */}
+        <div className="mt-auto mb-4">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-card focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="Toggle theme"
+          >
+            {dark ? <Sun className="h-5 w-5 text-amber-300" /> : <Moon className="h-5 w-5 text-blue-400" />}
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              {dark ? "Light mode" : "Dark mode"}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Slide-over panel */}

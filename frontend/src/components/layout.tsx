@@ -52,7 +52,7 @@ export function Layout({
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight">
-                Device Inventory Normalizer
+                Klar Device Normalizer
               </h1>
               <p className="text-xs text-muted">
                 Last sync: {lastSync ? formatDate(lastSync.finished_at || lastSync.started_at) : "N/A"}

@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler.shutdown()
 
 
-app = FastAPI(title="Device Inventory Normalizer", lifespan=lifespan)
+app = FastAPI(title="Klar Device Normalizer", lifespan=lifespan)
 
 # Serve static assets (JS/CSS bundles)
 if (DIST_DIR / "assets").exists():

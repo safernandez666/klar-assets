@@ -17,7 +17,7 @@ DB_PATH = os.getenv("DB_PATH", "data/devices.db")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Device Inventory Normalizer")
+    parser = argparse.ArgumentParser(description="Klar Device Normalizer")
     parser.add_argument("--sync-only", action="store_true", help="Run sync without web server")
     args = parser.parse_args()
 

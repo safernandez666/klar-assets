@@ -10,6 +10,7 @@ from src.models import NormalizedDevice
 
 logger = structlog.get_logger(__name__)
 
+
 def _get_webhook_url() -> str:
     return os.getenv("SLACK_WEBHOOK_URL", "")
 
@@ -31,13 +32,103 @@ def send_slack(text: str, blocks: list[dict[str, Any]] | None = None) -> bool:
         return False
 
 
+def _blocks_header(text: str) -> dict[str, Any]:
+    return {"type": "header", "text": {"type": "plain_text", "text": text, "emoji": True}}
+
+
+def _blocks_section(text: str) -> dict[str, Any]:
+    return {"type": "section", "text": {"type": "mrkdwn", "text": text}}
+
+
+def _blocks_fields(fields: list[str]) -> dict[str, Any]:
+    return {"type": "section", "fields": [{"type": "mrkdwn", "text": f} for f in fields]}
+
+
+def _blocks_divider() -> dict[str, Any]:
+    return {"type": "divider"}
+
+
+def _blocks_context(texts: list[str]) -> dict[str, Any]:
+    return {"type": "context", "elements": [{"type": "mrkdwn", "text": t} for t in texts]}
+
+
+def build_sync_blocks(
+    status_counts: dict[str, int],
+    total: int,
+    managed: int,
+    sources_ok: list[str],
+    sources_failed: list[str],
+    sync_status: str,
+    disappeared: list[dict[str, Any]] | None = None,
+    newly_stale: list[dict[str, Any]] | None = None,
+    no_edr_count: int = 0,
+    no_mdm_count: int = 0,
+) -> list[dict[str, Any]]:
+    """Build Slack Block Kit blocks for a sync report."""
+    pct = round(managed / total * 100) if total else 0
+    icon = ":white_check_mark:" if sync_status == "success" else ":warning:"
+
+    blocks: list[dict[str, Any]] = [
+        _blocks_header(f"{icon} Klar Device Normalizer"),
+        _blocks_section(f"Sync completed — *{sync_status.upper()}*"),
+        _blocks_divider(),
+        _blocks_fields([
+            f":computer: *Fleet*\n{total} devices",
+            f":shield: *Managed*\n{managed} ({pct}%)",
+            f":red_circle: *No EDR*\n{no_edr_count}",
+            f":large_orange_circle: *No MDM*\n{no_mdm_count}",
+        ]),
+        _blocks_divider(),
+    ]
+
+    # Status breakdown as compact text
+    status_line = "  ".join(f"`{s}` {c}" for s, c in sorted(status_counts.items()))
+    blocks.append(_blocks_section(f"*Status breakdown*\n{status_line}"))
+
+    # Sources
+    src_ok = "  ".join(f":large_green_circle: {s}" for s in sources_ok)
+    src_fail = "  ".join(f":red_circle: {s}" for s in sources_failed) if sources_failed else ""
+    src_text = src_ok
+    if src_fail:
+        src_text += f"\n{src_fail}"
+    blocks.append(_blocks_section(f"*Sources*\n{src_text}"))
+
+    # Disappeared
+    if disappeared:
+        blocks.append(_blocks_divider())
+        device_list = "\n".join(
+            f":rotating_light: `{(d.get('hostnames') or ['?'])[0]}` — {d.get('owner_email') or 'no owner'}"
+            for d in disappeared[:5]
+        )
+        more = f"\n_+ {len(disappeared) - 5} more_" if len(disappeared) > 5 else ""
+        blocks.append(_blocks_section(f"*:rotating_light: {len(disappeared)} Managed Devices Disappeared*\n{device_list}{more}"))
+
+    # Newly stale
+    if newly_stale:
+        blocks.append(_blocks_divider())
+        stale_list = "\n".join(
+            f":hourglass: `{(d.get('hostnames') or ['?'])[0]}` — {d.get('days_since_seen', '?')} days"
+            for d in newly_stale[:5]
+        )
+        blocks.append(_blocks_section(f"*:hourglass: {len(newly_stale)} Devices Went Stale*\n{stale_list}"))
+
+    # All clear
+    if not disappeared and not newly_stale:
+        blocks.append(_blocks_section(":white_check_mark: No disappearances or newly stale devices"))
+
+    blocks.append(_blocks_divider())
+    blocks.append(_blocks_context(["Klar Device Normalizer — IT Security Team"]))
+
+    return blocks
+
+
 def alert_after_sync(
     devices: list[NormalizedDevice],
     sync_result: dict[str, Any],
     disappeared: list[dict[str, Any]] | None = None,
     newly_stale: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Send a Slack alert summarizing the sync, gaps, and disappearances."""
+    """Send a Slack alert summarizing the sync."""
     if not _get_webhook_url():
         return
 
@@ -49,60 +140,21 @@ def alert_after_sync(
         status_counts[d.status] = status_counts.get(d.status, 0) + 1
 
     total = len(devices)
-    sources_ok = sync_result.get("sources_ok", [])
-    sources_failed = sync_result.get("sources_failed", [])
+    managed = status_counts.get("MANAGED", 0) + status_counts.get("FULLY_MANAGED", 0)
 
-    status_line = sync_result.get("status", "unknown")
-    header = f":{'white_check_mark' if status_line == 'success' else 'warning'}: *Klar Device Normalizer — Sync {status_line.upper()}*"
+    blocks = build_sync_blocks(
+        status_counts=status_counts,
+        total=total,
+        managed=managed,
+        sources_ok=sync_result.get("sources_ok", []),
+        sources_failed=sync_result.get("sources_failed", []),
+        sync_status=sync_result.get("status", "unknown"),
+        disappeared=disappeared,
+        newly_stale=newly_stale,
+        no_edr_count=len(no_edr),
+        no_mdm_count=len(no_mdm),
+    )
 
-    lines = [
-        header,
-        f"Total devices: *{total}*",
-        f"Sources OK: {', '.join(sources_ok) or 'none'}",
-    ]
-    if sources_failed:
-        lines.append(f":x: Sources failed: {', '.join(sources_failed)}")
-
-    lines.append("")
-    lines.append("*Status breakdown:*")
-    for status, count in sorted(status_counts.items()):
-        lines.append(f"  • {status}: {count}")
-
-    # ── Disappeared devices (were managed, now gone) ────────────────
-    if disappeared:
-        lines.append("")
-        lines.append(f":rotating_light: *{len(disappeared)} managed devices DISAPPEARED*")
-        lines.append("_These devices were MANAGED/FULLY_MANAGED in the previous sync but are no longer reporting:_")
-        for d in disappeared[:8]:
-            host = (d.get("hostnames") or ["unknown"])[0]
-            owner = d.get("owner_email") or "no owner"
-            sources = ", ".join(d.get("sources") or [])
-            lines.append(f"  • `{host}` — {owner} (was: {sources})")
-        if len(disappeared) > 8:
-            lines.append(f"  _... and {len(disappeared) - 8} more_")
-
-    # ── Newly stale devices ─────────────────────────────────────────
-    if newly_stale:
-        lines.append("")
-        lines.append(f":hourglass: *{len(newly_stale)} devices just went STALE (>90 days)*")
-        for d in newly_stale[:5]:
-            host = (d.get("hostnames") or ["unknown"])[0]
-            days = d.get("days_since_seen") or "?"
-            lines.append(f"  • `{host}` — inactive for {days} days")
-        if len(newly_stale) > 5:
-            lines.append(f"  _... and {len(newly_stale) - 5} more_")
-
-    # ── Coverage gaps ───────────────────────────────────────────────
-    if no_edr:
-        lines.append("")
-        lines.append(f":warning: *{len(no_edr)} devices without EDR (CrowdStrike)*")
-        for d in no_edr[:5]:
-            host = d.hostnames[0] if d.hostnames else "unknown"
-            owner = d.owner_email or "no owner"
-            lines.append(f"  • `{host}` — {owner}")
-        if len(no_edr) > 5:
-            lines.append(f"  _... and {len(no_edr) - 5} more_")
-
-    text = "\n".join(lines)
-    send_slack(text)
+    fallback = f"Klar Sync: {total} devices, {managed} managed"
+    send_slack(fallback, blocks=blocks)
     logger.info("slack_alert_sent", no_edr=len(no_edr), disappeared=len(disappeared or []), newly_stale=len(newly_stale or []))

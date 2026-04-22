@@ -370,8 +370,8 @@ async def api_report_full() -> Any:
 
 @app.post("/api/slack/test")
 async def api_slack_test() -> Any:
-    """Send a test Slack alert with current data."""
-    from src.alerts import send_slack, _get_webhook_url
+    """Send a test Slack alert with current data using Block Kit."""
+    from src.alerts import send_slack, build_sync_blocks, _get_webhook_url
     if not _get_webhook_url():
         return JSONResponse(content={"error": "SLACK_WEBHOOK_URL not configured in .env"}, status_code=400)
 
@@ -381,39 +381,28 @@ async def api_slack_test() -> Any:
     by_status = summary_data.get("by_status", {})
     total = summary_data.get("total", 0)
     managed = (by_status.get("MANAGED", 0) + by_status.get("FULLY_MANAGED", 0))
+    no_edr = sum(1 for d in devices if d.get("status") == "NO_EDR")
+    no_mdm = sum(1 for d in devices if d.get("status") == "NO_MDM")
 
-    # Simulate a disappearance alert
     disappeared = repo.get_recently_deleted()
     newly_stale = repo.get_newly_stale()
 
-    lines = [
-        ":test_tube: *Klar Device Normalizer — TEST ALERT*",
-        f"Total devices: *{total}*",
-        f"Managed (MDM+EDR): *{managed}* ({round(managed/total*100) if total else 0}%)",
-        "",
-        "*Status breakdown:*",
-    ]
-    for status, count in sorted(by_status.items()):
-        lines.append(f"  • {status}: {count}")
+    blocks = build_sync_blocks(
+        status_counts=by_status,
+        total=total,
+        managed=managed,
+        sources_ok=["crowdstrike", "jumpcloud", "okta"],
+        sources_failed=[],
+        sync_status="test",
+        disappeared=disappeared,
+        newly_stale=newly_stale,
+        no_edr_count=no_edr,
+        no_mdm_count=no_mdm,
+    )
 
-    if disappeared:
-        lines.append("")
-        lines.append(f":rotating_light: *{len(disappeared)} managed devices DISAPPEARED*")
-        for d in disappeared[:3]:
-            host = (d.get("hostnames") or ["?"])[0]
-            lines.append(f"  • `{host}` — {d.get('owner_email') or 'no owner'}")
-    else:
-        lines.append("")
-        lines.append(":white_check_mark: No devices disappeared since last sync")
-
-    if newly_stale:
-        lines.append(f":hourglass: {len(newly_stale)} devices just went stale")
-    else:
-        lines.append(":white_check_mark: No newly stale devices")
-
-    text = "\n".join(lines)
-    ok = send_slack(text)
-    return JSONResponse(content={"sent": ok, "message": text})
+    fallback = f"Klar Test: {total} devices, {managed} managed"
+    ok = send_slack(fallback, blocks=blocks)
+    return JSONResponse(content={"sent": ok, "blocks_count": len(blocks)})
 
 
 class TriggerResponse(BaseModel):

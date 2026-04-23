@@ -100,6 +100,7 @@ function ActionItem({ action, index }: { action: Insight; index: number }) {
 
 export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, syncing, onExportPdf, exporting }: SidebarProps) {
   const [open, setOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const sorted = [...insights].sort((a, b) => {
     const aOrder = PRIORITY_CONFIG[a.priority]?.sortOrder ?? 99;
@@ -175,43 +176,57 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
           {/* Separator */}
           <div className="my-1 h-px w-6 bg-border" />
 
-          {/* Export PDF */}
-          <button
-            type="button"
-            onClick={onExportPdf}
-            disabled={exporting}
-            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-50"
-            aria-label="Export PDF"
-          >
-            <FileDown className={`h-5 w-5 text-red-400 ${exporting ? "animate-pulse" : ""}`} />
-            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-              {exporting ? "Exporting..." : "Export PDF"}
-            </span>
-          </button>
-
-          {/* Export CSV */}
-          <a
-            href="/api/export/csv"
-            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-blue-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-            aria-label="Export CSV"
-          >
-            <FileSpreadsheet className="h-5 w-5 text-blue-400" />
-            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-              Export CSV
-            </span>
-          </a>
-
-          {/* Export Excel */}
-          <a
-            href="/api/export/xlsx"
-            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-emerald-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-            aria-label="Export Excel"
-          >
-            <Download className="h-5 w-5 text-emerald-400" />
-            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-              Export Excel
-            </span>
-          </a>
+          {/* Export — grouped */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen((v) => !v)}
+              className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-emerald-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+              aria-label="Export"
+            >
+              <Download className={`h-5 w-5 text-emerald-400 ${exporting ? "animate-pulse" : ""}`} />
+              <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                Export
+              </span>
+            </button>
+            <AnimatePresence>
+              {exportOpen && (
+                <motion.div
+                  initial={{ opacity: 0, x: -4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-full top-0 ml-2 z-50 w-40 rounded-xl border border-border bg-card shadow-xl overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    onClick={() => { onExportPdf?.(); setExportOpen(false); }}
+                    disabled={exporting}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-xs hover:bg-background transition-colors disabled:opacity-50"
+                  >
+                    <FileDown className="h-4 w-4 text-red-400" />
+                    {exporting ? "Exporting..." : "PDF Report"}
+                  </button>
+                  <a
+                    href="/api/export/csv"
+                    onClick={() => setExportOpen(false)}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-xs hover:bg-background transition-colors"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-blue-400" />
+                    CSV
+                  </a>
+                  <a
+                    href="/api/export/xlsx"
+                    onClick={() => setExportOpen(false)}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-xs hover:bg-background transition-colors"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+                    Excel
+                  </a>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Theme toggle at bottom */}

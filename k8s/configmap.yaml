@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: klar-config
+  namespace: klar
+data:
+  CS_BASE_URL: "https://api.us-2.crowdstrike.com"
+  OKTA_DOMAIN: "klar.okta.com"
+  APP_URL: "https://devices.klar.mx"
+  AUTH_USERNAME: "admin"
+  SYNC_INTERVAL_HOURS: "6"
+  SYNC_ON_STARTUP: "true"
+  WEB_HOST: "0.0.0.0"
+  WEB_PORT: "8080"
+  DB_PATH: "/data/devices.db"

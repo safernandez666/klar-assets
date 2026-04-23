@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { formatDate } from "../lib/utils";
+import { formatDate, shortSource } from "../lib/utils";
 import type { Device } from "../types";
 
 const PAGE_SIZE = 10;
@@ -104,13 +104,10 @@ export function LowConfidence({ devices }: LowConfidenceProps) {
                       </td>
                       <td className="py-3 pr-4 text-muted">{d.os_type || "N/A"}</td>
                       <td className="py-3 pr-4">
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex gap-1">
                           {(d.sources || []).map((s) => (
-                            <span
-                              key={s}
-                              className="rounded border border-border bg-card px-1.5 py-0.5 text-[10px] text-muted"
-                            >
-                              {s}
+                            <span key={s} className="rounded border border-border bg-card px-1 py-0.5 text-[9px] font-medium text-muted">
+                              {shortSource(s)}
                             </span>
                           ))}
                         </div>

@@ -14,7 +14,7 @@ import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { formatDate } from "../lib/utils";
+import { formatDate, shortSource } from "../lib/utils";
 import { api } from "../lib/api";
 import type { Device } from "../types";
 
@@ -280,9 +280,9 @@ export default function SearchPage() {
                         <td className="p-3 font-mono text-[10px] text-muted">{d.serial_number || "N/A"}</td>
                         <td className="p-3 text-xs text-muted">{d.os_type || "N/A"}</td>
                         <td className="p-3">
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex gap-1">
                             {(d.sources || []).map((s) => (
-                              <span key={s} className="rounded border border-border bg-card px-1 py-0.5 text-[9px] text-muted">{s}</span>
+                              <span key={s} className="rounded border border-border bg-card px-1 py-0.5 text-[9px] font-medium text-muted">{shortSource(s)}</span>
                             ))}
                           </div>
                         </td>

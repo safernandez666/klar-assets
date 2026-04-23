@@ -231,7 +231,20 @@ curl -X POST http://localhost:8080/api/slack/test
 - **AI**: OpenAI GPT-4o-mini (insights, device matching, PDF reports)
 - **Integrations**: CrowdStrike Falconpy, Okta API, JumpCloud API, Slack Block Kit
 
-## Architecture
+## Architecture & Documentation
+
+Interactive SVG diagrams available in [`docs/`](docs/):
+
+| Diagram | Description |
+|---------|-------------|
+| [Architecture](docs/architecture.html) | System overview — sources, pipeline, storage, presentation |
+| [Flowchart](docs/flowchart.html) | Sync pipeline — 12 steps with decisions and parallel fan-out |
+| [Sequence (Okta OIDC)](docs/sequence-okta-oidc.html) | Authentication flow — 21 steps across Browser, Server, Okta |
+| [State Machine](docs/state-machine.html) | Device status transitions — 10 states, 21 transitions |
+| [ER Diagram](docs/er-diagram.html) | Database schema — 4 tables, 44 fields, relationships |
+| [Swimlane](docs/swimlane.html) | Sync process across 9 actors with phase columns |
+| [Timeline](docs/timeline.html) | Sync cycle timing with duration bars |
+| [Layer Stack](docs/layer-stack.html) | Technology stack in 6 animated layers |
 
 ```
 Collectors (parallel)          Dedup Engine         AI Matcher         Enricher

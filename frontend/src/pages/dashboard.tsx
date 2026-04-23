@@ -430,8 +430,8 @@ export default function Dashboard() {
           <div ref={contentRef} className="space-y-8">
             <StatusCards summary={summary} trends={trends} />
             <RiskGauge summary={summary} />
-            <PieCharts summary={summary} />
             <QualityMetrics devices={devices} lastSync={lastSync} />
+            <PieCharts summary={summary} />
             <SourcesHealth summary={summary} lastSync={lastSync} />
             {history.length > 1 && <StatusHistory history={history} />}
             <DeviceInventory devices={devices} />

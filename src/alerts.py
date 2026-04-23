@@ -52,6 +52,12 @@ def _blocks_context(texts: list[str]) -> dict[str, Any]:
     return {"type": "context", "elements": [{"type": "mrkdwn", "text": t} for t in texts]}
 
 
+RISK_WEIGHTS: dict[str, int] = {
+    "FULLY_MANAGED": 100, "MANAGED": 80, "SERVER": 75,
+    "NO_MDM": 40, "NO_EDR": 25, "IDP_ONLY": 15, "STALE": 5, "UNKNOWN": 10,
+}
+
+
 def build_sync_blocks(
     status_counts: dict[str, int],
     total: int,
@@ -69,11 +75,20 @@ def build_sync_blocks(
     pct = round(managed / total * 100) if total else 0
     icon = ":white_check_mark:" if sync_status == "success" else ":warning:"
 
+    # Risk score
+    risk_score = 0
+    if total > 0:
+        weighted = sum(status_counts.get(s, 0) * w for s, w in RISK_WEIGHTS.items())
+        risk_score = round(weighted / total, 1)
+    rs_emoji = ":large_green_circle:" if risk_score >= 80 else ":large_yellow_circle:" if risk_score >= 60 else ":large_orange_circle:" if risk_score >= 40 else ":red_circle:"
+    rs_label = "Excellent" if risk_score >= 85 else "Good" if risk_score >= 70 else "Fair" if risk_score >= 55 else "At Risk" if risk_score >= 40 else "Critical"
+
     blocks: list[dict[str, Any]] = [
         _blocks_header(f"{icon} Klar Device Normalizer"),
         _blocks_section(f"Sync completed — *{sync_status.upper()}*"),
         _blocks_divider(),
         _blocks_section(
+            f"{rs_emoji}  *Risk Score:*  `{risk_score}`  —  *{rs_label}*\n\n"
             f":computer:  *Fleet:*  `{total}` devices\n\n"
             f":shield:  *Managed (MDM+EDR):*  `{managed}` of `{total}`  —  *{pct}%* coverage\n\n"
             f":red_circle:  *Without EDR:*  `{no_edr_count}` devices need CrowdStrike\n\n"

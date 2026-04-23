@@ -31,19 +31,7 @@ def main() -> None:
         result = engine.run()
         logger.info("sync_finished", result=result)
     else:
-        # Sync on startup if configured and data is stale (>2h)
-        sync_on_startup = os.getenv("SYNC_ON_STARTUP", "true").lower() == "true"
-        if sync_on_startup:
-            if SyncEngine.should_skip_startup_sync(DB_PATH):
-                logger.info("startup_sync_skipped", reason="last_sync_within_2h")
-            else:
-                logger.info("running_startup_sync")
-                engine = SyncEngine(DB_PATH)
-                try:
-                    engine.run()
-                except Exception as exc:
-                    logger.error("startup_sync_failed", error=str(exc))
-
+        # Startup sync is handled by the lifespan in server.py (background thread)
         host = os.getenv("WEB_HOST", "0.0.0.0")
         port = int(os.getenv("WEB_PORT", "8080"))
         logger.info("starting_server", host=host, port=port)

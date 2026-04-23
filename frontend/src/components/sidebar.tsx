@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Zap,
@@ -104,6 +104,11 @@ function ActionItem({ action, index }: { action: Insight; index: number }) {
 export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, syncing, onExportPdf, exporting }: SidebarProps) {
   const [open, setOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState("user");
+
+  useEffect(() => {
+    fetch("/auth/me").then(r => r.json()).then(d => setCurrentUser(d.user || "user")).catch(() => {});
+  }, []);
 
   const sorted = [...insights].sort((a, b) => {
     const aOrder = PRIORITY_CONFIG[a.priority]?.sortOrder ?? 99;
@@ -264,7 +269,7 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
           <div className="group relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
             <User className="h-4 w-4 text-accent" />
             <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-              admin
+              {currentUser}
             </span>
           </div>
 

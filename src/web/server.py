@@ -206,6 +206,13 @@ async def auth_login(body: LoginRequest) -> Any:
     return response
 
 
+@app.get("/auth/me")
+async def auth_me(request: Request) -> Any:
+    token = request.cookies.get("klar_session")
+    user = _verify_token(token)
+    return JSONResponse({"user": user or "unknown"})
+
+
 @app.post("/auth/logout")
 async def auth_logout() -> Any:
     response = JSONResponse({"ok": True})

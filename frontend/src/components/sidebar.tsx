@@ -19,6 +19,7 @@ import {
   Search,
   LogOut,
   User,
+  Users,
 } from "lucide-react";
 import type { Insight } from "../types";
 
@@ -154,6 +155,18 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
             <Search className="h-5 w-5 text-violet-400" />
             <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
               Asset Search
+            </span>
+          </a>
+
+          {/* People */}
+          <a
+            href="/people"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-cyan-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="People"
+          >
+            <Users className="h-5 w-5 text-cyan-400" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              People
             </span>
           </a>
 

@@ -194,6 +194,30 @@ class DeviceRepository:
             return None
         return self._row_to_dict(row)
 
+    def get_previous_canonical_ids(self) -> set[str]:
+        """Get canonical_ids from the soft-deleted generation (previous sync)."""
+        conn = self._connect()
+        rows = conn.execute(
+            """SELECT DISTINCT canonical_id FROM devices
+               WHERE deleted_at IS NOT NULL
+               AND deleted_at = (SELECT MAX(deleted_at) FROM devices WHERE deleted_at IS NOT NULL)""",
+        ).fetchall()
+        conn.close()
+        return {row["canonical_id"] for row in rows}
+
+    def get_new_devices(self) -> list[dict[str, Any]]:
+        """Get devices that appeared in this sync but not the previous one."""
+        prev_ids = self.get_previous_canonical_ids()
+        if not prev_ids:
+            return []  # First sync, everything is new
+        conn = self._connect()
+        rows = conn.execute(
+            "SELECT * FROM devices WHERE deleted_at IS NULL"
+        ).fetchall()
+        conn.close()
+        current = [self._row_to_dict(row) for row in rows]
+        return [d for d in current if d["canonical_id"] not in prev_ids]
+
     def get_recently_deleted(self) -> list[dict[str, Any]]:
         """Get devices that were soft-deleted in the most recent sync (disappeared)."""
         conn = self._connect()

@@ -61,6 +61,7 @@ def build_sync_blocks(
     sync_status: str,
     disappeared: list[dict[str, Any]] | None = None,
     newly_stale: list[dict[str, Any]] | None = None,
+    new_devices: list[dict[str, Any]] | None = None,
     no_edr_count: int = 0,
     no_mdm_count: int = 0,
 ) -> list[dict[str, Any]]:
@@ -112,9 +113,25 @@ def build_sync_blocks(
         )
         blocks.append(_blocks_section(f"*:hourglass: {len(newly_stale)} Devices Went Stale*\n{stale_list}"))
 
+    # New devices
+    if new_devices:
+        blocks.append(_blocks_divider())
+        # Separate risky (no EDR/MDM) from normal
+        risky_new = [d for d in new_devices if d.get("status") in ("NO_EDR", "NO_MDM", "IDP_ONLY")]
+        safe_new = [d for d in new_devices if d.get("status") not in ("NO_EDR", "NO_MDM", "IDP_ONLY")]
+        if risky_new:
+            risky_list = "\n".join(
+                f":warning: `{(d.get('hostnames') or ['?'])[0]}` — {d.get('owner_email') or 'no owner'} — *{d.get('status')}*"
+                for d in risky_new[:5]
+            )
+            more = f"\n_+ {len(risky_new) - 5} more_" if len(risky_new) > 5 else ""
+            blocks.append(_blocks_section(f"*:new: {len(risky_new)} New Devices Without Full Coverage*\n{risky_list}{more}"))
+        if safe_new:
+            blocks.append(_blocks_section(f":new: {len(safe_new)} new devices detected (managed)"))
+
     # All clear
-    if not disappeared and not newly_stale:
-        blocks.append(_blocks_section(":white_check_mark: No disappearances or newly stale devices"))
+    if not disappeared and not newly_stale and not new_devices:
+        blocks.append(_blocks_section(":white_check_mark: No changes since last sync"))
 
     blocks.append(_blocks_divider())
     blocks.append(_blocks_context(["Klar Device Normalizer — IT Security Team"]))
@@ -127,6 +144,7 @@ def alert_after_sync(
     sync_result: dict[str, Any],
     disappeared: list[dict[str, Any]] | None = None,
     newly_stale: list[dict[str, Any]] | None = None,
+    new_devices: list[dict[str, Any]] | None = None,
 ) -> None:
     """Send a Slack alert summarizing the sync."""
     if not _get_webhook_url():
@@ -151,6 +169,7 @@ def alert_after_sync(
         sync_status=sync_result.get("status", "unknown"),
         disappeared=disappeared,
         newly_stale=newly_stale,
+        new_devices=new_devices,
         no_edr_count=len(no_edr),
         no_mdm_count=len(no_mdm),
     )

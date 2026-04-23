@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Klar Device Normalizer — Sync Process</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f5f5f3;
+      --ink:         #1a1a18;
+      --ink-muted:   #5a5a56;
+      --ink-faint:   #9a9a94;
+      --rule:        #ddddd8;
+      --accent:      #c8411a;
+      --accent-pale: #f5ede9;
+
+      /* lane fills — alternating */
+      --l1: #f5f5f3;
+      --l2: #eeeeeb;
+      --l3: #f5f5f3;
+      --l4: #eeeeeb;
+      --l5: #f5f5f3;
+      --l6: #eeeeeb;
+      --l7: #f5f5f3;
+      --l8: #eeeeeb;
+      --l9: #f5f5f3;
+
+      /* actor accent strips */
+      --c-scheduler:   #6b7280;
+      --c-crowdstrike: #c8411a;
+      --c-jumpcloud:   #2563eb;
+      --c-okta:        #7c3aed;
+      --c-dedup:       #0f766e;
+      --c-ai:          #d97706;
+      --c-enricher:    #be185d;
+      --c-sqlite:      #374151;
+      --c-slack:       #059669;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      padding: 48px 32px 80px;
+    }
+
+    /* ── header ───────────────────────────────────────────────── */
+    header {
+      max-width: 1600px;
+      margin: 0 auto 44px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1.5px solid var(--ink);
+      padding-bottom: 14px;
+    }
+    .title-block { display: flex; align-items: baseline; gap: 18px; }
+    .title-mark {
+      font-family: 'Instrument Serif', serif;
+      font-size: 11px;
+      font-style: italic;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+    .header-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--ink-faint);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── diagram wrapper ──────────────────────────────────────── */
+    .diagram-wrap {
+      max-width: 1600px;
+      margin: 0 auto;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .diagram-wrap svg {
+      display: block;
+      min-width: 1320px;
+    }
+
+    /* ── legend ──────────────────────────────────────────────── */
+    .legend {
+      max-width: 1600px;
+      margin: 32px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 24px;
+      border-top: 1px solid var(--rule);
+      padding-top: 20px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      color: var(--ink-muted);
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .legend-arrow-solid { width: 28px; height: 1px; background: var(--ink-muted); position: relative; }
+    .legend-arrow-solid::after {
+      content: '';
+      position: absolute;
+      right: 0; top: -3px;
+      border: 3.5px solid transparent;
+      border-left-color: var(--ink-muted);
+    }
+    .legend-arrow-dashed {
+      width: 28px; height: 0;
+      border-top: 1.5px dashed var(--ink-faint);
+      position: relative;
+    }
+    .legend-arrow-dashed::after {
+      content: '';
+      position: absolute;
+      right: -1px; top: -3.5px;
+      border: 3.5px solid transparent;
+      border-left-color: var(--ink-faint);
+    }
+
+    /* ── caption ─────────────────────────────────────────────── */
+    .caption {
+      max-width: 1600px;
+      margin: 28px auto 0;
+      font-family: 'Instrument Serif', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: var(--ink-faint);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <span class="title-mark">System Architecture</span>
+    <h1>Klar Device Normalizer — Sync Process</h1>
+  </div>
+  <div class="header-meta">IT SECURITY · TIME FLOWS LEFT → RIGHT</div>
+</header>
+
+<div class="diagram-wrap">
+<!--
+  SVG canvas: 1540 × 1050
+  Lane height: 100px each (9 lanes = 900px) + 80px top ruler + 70px bottom padding
+  Label column: 140px
+  Timeline: 1540 - 140 = 1400px wide
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1540 1040"
+     width="1540" height="1040"
+     font-family="'DM Sans', sans-serif">
+
+  <defs>
+    <!-- arrowhead markers -->
+    <marker id="arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#1a1a18" opacity="0.7"/>
+    </marker>
+    <marker id="arr-accent" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#c8411a"/>
+    </marker>
+    <marker id="arr-muted" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#9a9a94"/>
+    </marker>
+    <marker id="arr-blue" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="arr-purple" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arr-teal" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#0f766e"/>
+    </marker>
+    <marker id="arr-amber" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#d97706"/>
+    </marker>
+    <marker id="arr-pink" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#be185d"/>
+    </marker>
+    <marker id="arr-slate" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#374151"/>
+    </marker>
+    <marker id="arr-green" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#059669"/>
+    </marker>
+
+    <!-- drop shadow for cards -->
+    <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#1a1a18" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LAYOUT CONSTANTS (JS-style comments for readability)
+       label col: x=0..140
+       timeline:  x=140..1540   (1400px)
+       lane top:  y = 80 + (laneIndex * 104)
+       lane h:    104px
+       lane mid:  laneTop + 52
+       ═════════════════════════════════════════════════════════ -->
+
+  <!-- ── background fill for label column ── -->
+  <rect x="0" y="0" width="140" height="1040" fill="#f0f0ec"/>
+  <line x1="140" y1="0" x2="140" y2="1040" stroke="#ddddd8" stroke-width="1"/>
+
+  <!-- ══════════════════════════════════════════════════════════
+       TIME RULER  (top, x=140..1540)
+       Major phases:
+         TRIGGER       140–320
+         COLLECT       320–640
+         DEDUP         640–880
+         AI            880–1000
+         ENRICH+STORE  1000–1260
+         ALERT         1260–1540
+       ═══════════════════════════════════════════════════════ -->
+
+  <!-- ruler background -->
+  <rect x="140" y="0" width="1400" height="64" fill="#f5f5f3"/>
+  <line x1="140" y1="64" x2="1540" y2="64" stroke="#ddddd8" stroke-width="1"/>
+
+  <!-- phase zones: light alternating -->
+  <rect x="140"  y="0" width="180"  height="64" fill="#f5f5f3"/>
+  <rect x="320"  y="0" width="320"  height="64" fill="#eeeeeb"/>
+  <rect x="640"  y="0" width="240"  height="64" fill="#f5f5f3"/>
+  <rect x="880"  y="0" width="120"  height="64" fill="#eeeeeb"/>
+  <rect x="1000" y="0" width="260"  height="64" fill="#f5f5f3"/>
+  <rect x="1260" y="0" width="280"  height="64" fill="#eeeeeb"/>
+
+  <!-- phase dividers -->
+  <line x1="320"  y1="0" x2="320"  y2="64" stroke="#ddddd8" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="640"  y1="0" x2="640"  y2="64" stroke="#ddddd8" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="880"  y1="0" x2="880"  y2="64" stroke="#ddddd8" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="1000" y1="0" x2="1000" y2="64" stroke="#ddddd8" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="1260" y1="0" x2="1260" y2="64" stroke="#ddddd8" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- phase labels -->
+  <text x="230"  y="22" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#9a9a94" letter-spacing="0.08em">TRIGGER</text>
+  <text x="480"  y="22" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#9a9a94" letter-spacing="0.08em">COLLECT</text>
+  <text x="760"  y="22" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#9a9a94" letter-spacing="0.08em">DEDUPLICATE</text>
+  <text x="940"  y="22" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#9a9a94" letter-spacing="0.08em">AI</text>
+  <text x="1130" y="22" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#9a9a94" letter-spacing="0.08em">ENRICH + STORE</text>
+  <text x="1400" y="22" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#9a9a94" letter-spacing="0.08em">ALERT</text>
+
+  <!-- time arrow -->
+  <line x1="155" y1="48" x2="1530" y2="48" stroke="#c8411a" stroke-width="1" marker-end="url(#arr-accent)" opacity="0.4"/>
+  <text x="155" y="44" font-family="'DM Sans',sans-serif" font-size="8" fill="#c8411a" opacity="0.6">t = 0</text>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       LANE BACKGROUNDS
+       Lane 0 (Scheduler)     y=64  .. 168   mid=116
+       Lane 1 (CrowdStrike)   y=168 .. 272   mid=220
+       Lane 2 (JumpCloud)     y=272 .. 376   mid=324
+       Lane 3 (Okta)          y=376 .. 480   mid=428
+       Lane 4 (Dedup)         y=480 .. 584   mid=532
+       Lane 5 (AI)            y=584 .. 688   mid=636
+       Lane 6 (Enricher)      y=688 .. 792   mid=740
+       Lane 7 (SQLite)        y=792 .. 896   mid=844
+       Lane 8 (Slack)         y=896 .. 1000  mid=948
+       ═════════════════════════════════════════════════════════ -->
+
+  <!-- Lane fills (alternating) -->
+  <rect x="0" y="64"   width="1540" height="104" fill="#f5f5f3"/>
+  <rect x="0" y="168"  width="1540" height="104" fill="#eeeeeb"/>
+  <rect x="0" y="272"  width="1540" height="104" fill="#f5f5f3"/>
+  <rect x="0" y="376"  width="1540" height="104" fill="#eeeeeb"/>
+  <rect x="0" y="480"  width="1540" height="104" fill="#f5f5f3"/>
+  <rect x="0" y="584"  width="1540" height="104" fill="#eeeeeb"/>
+  <rect x="0" y="688"  width="1540" height="104" fill="#f5f5f3"/>
+  <rect x="0" y="792"  width="1540" height="104" fill="#eeeeeb"/>
+  <rect x="0" y="896"  width="1540" height="104" fill="#f5f5f3"/>
+
+  <!-- Lane dividers (horizontal rules) -->
+  <line x1="0" y1="168"  x2="1540" y2="168"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="272"  x2="1540" y2="272"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="376"  x2="1540" y2="376"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="480"  x2="1540" y2="480"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="584"  x2="1540" y2="584"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="688"  x2="1540" y2="688"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="792"  x2="1540" y2="792"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="896"  x2="1540" y2="896"  stroke="#ddddd8" stroke-width="1"/>
+  <line x1="0" y1="1000" x2="1540" y2="1000" stroke="#ddddd8" stroke-width="1"/>
+
+  <!-- Actor colour accent bars (left strip in label column) -->
+  <rect x="0" y="64"   width="5" height="104" fill="#6b7280"/>  <!-- Scheduler   -->
+  <rect x="0" y="168"  width="5" height="104" fill="#c8411a"/>  <!-- CrowdStrike  -->
+  <rect x="0" y="272"  width="5" height="104" fill="#2563eb"/>  <!-- JumpCloud    -->
+  <rect x="0" y="376"  width="5" height="104" fill="#7c3aed"/>  <!-- Okta         -->
+  <rect x="0" y="480"  width="5" height="104" fill="#0f766e"/>  <!-- Dedup Engine -->
+  <rect x="0" y="584"  width="5" height="104" fill="#d97706"/>  <!-- AI           -->
+  <rect x="0" y="688"  width="5" height="104" fill="#be185d"/>  <!-- Enricher     -->
+  <rect x="0" y="792"  width="5" height="104" fill="#374151"/>  <!-- SQLite        -->
+  <rect x="0" y="896"  width="5" height="104" fill="#059669"/>  <!-- Slack         -->
+
+  <!-- ── Actor Labels ── -->
+  <!-- Lane 0: Scheduler -->
+  <text x="72" y="109" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">Scheduler</text>
+  <text x="72" y="124" text-anchor="middle" font-size="9" fill="#9a9a94" font-family="'JetBrains Mono',monospace">APScheduler</text>
+
+  <!-- Lane 1: CrowdStrike -->
+  <text x="72" y="213" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">CrowdStrike</text>
+  <text x="72" y="228" text-anchor="middle" font-size="9" fill="#c8411a" font-family="'JetBrains Mono',monospace">EDR</text>
+
+  <!-- Lane 2: JumpCloud -->
+  <text x="72" y="317" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">JumpCloud</text>
+  <text x="72" y="332" text-anchor="middle" font-size="9" fill="#2563eb" font-family="'JetBrains Mono',monospace">MDM</text>
+
+  <!-- Lane 3: Okta -->
+  <text x="72" y="421" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">Okta</text>
+  <text x="72" y="436" text-anchor="middle" font-size="9" fill="#7c3aed" font-family="'JetBrains Mono',monospace">IDP</text>
+
+  <!-- Lane 4: Dedup Engine -->
+  <text x="72" y="521" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">Dedup</text>
+  <text x="72" y="536" text-anchor="middle" font-size="9" fill="#0f766e" font-family="'JetBrains Mono',monospace">Engine</text>
+
+  <!-- Lane 5: AI -->
+  <text x="72" y="625" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">AI</text>
+  <text x="72" y="640" text-anchor="middle" font-size="9" fill="#d97706" font-family="'JetBrains Mono',monospace">OpenAI gpt-4o</text>
+
+  <!-- Lane 6: Enricher -->
+  <text x="72" y="729" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">Enricher</text>
+  <text x="72" y="744" text-anchor="middle" font-size="9" fill="#be185d" font-family="'JetBrains Mono',monospace">Status + Gaps</text>
+
+  <!-- Lane 7: SQLite -->
+  <text x="72" y="833" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">SQLite</text>
+  <text x="72" y="848" text-anchor="middle" font-size="9" fill="#374151" font-family="'JetBrains Mono',monospace">Storage</text>
+
+  <!-- Lane 8: Slack -->
+  <text x="72" y="937" text-anchor="middle" font-weight="500" font-size="11.5" fill="#1a1a18">Slack</text>
+  <text x="72" y="952" text-anchor="middle" font-size="9" fill="#059669" font-family="'JetBrains Mono',monospace">Webhook</text>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP CARDS
+       Card shape: rounded rect (rx=5), width varies, height=36
+       Text: bold label (top), mono sublabel (bottom, smaller)
+
+       Helper: card centered at (cx, cy), width w
+         rect: x=cx-w/2, y=cy-18, w, h=36
+       ═════════════════════════════════════════════════════════ -->
+
+  <!-- ── LANE 0: SCHEDULER (mid=116) ── -->
+
+  <!-- Card: every 6h / manual -->
+  <g filter="url(#card-shadow)">
+    <rect x="155" y="98" width="130" height="36" rx="5" fill="#fff" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="220" y="113" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Every 6 h</text>
+    <text x="220" y="126" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#6b7280">or manual trigger</text>
+  </g>
+
+  <!-- Card: skip if < 2h ago -->
+  <g filter="url(#card-shadow)">
+    <rect x="310" y="98" width="128" height="36" rx="5" fill="#fff" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="374" y="113" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Guard check</text>
+    <text x="374" y="126" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#6b7280">skip if &lt; 2 h since last</text>
+  </g>
+
+  <!-- Card: spawn collectors (parallel) -->
+  <g filter="url(#card-shadow)">
+    <rect x="465" y="98" width="148" height="36" rx="5" fill="#fff" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="539" y="113" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Spawn collectors</text>
+    <text x="539" y="126" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#6b7280">ThreadPoolExecutor ×3</text>
+  </g>
+
+  <!-- ── LANE 1: CROWDSTRIKE (mid=220) ── -->
+
+  <!-- Card: query device IDs paginated -->
+  <g filter="url(#card-shadow)">
+    <rect x="330" y="202" width="138" height="36" rx="5" fill="#fff" stroke="#c8411a" stroke-width="1.2"/>
+    <text x="399" y="217" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Query device IDs</text>
+    <text x="399" y="230" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#c8411a">paginated · limit=500</text>
+  </g>
+
+  <!-- Card: retry / back-off 429 -->
+  <g filter="url(#card-shadow)">
+    <rect x="490" y="202" width="130" height="36" rx="5" fill="#fff" stroke="#c8411a" stroke-width="1.2"/>
+    <text x="555" y="217" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Retry / back-off</text>
+    <text x="555" y="230" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#c8411a">exp. 2^n · 3 attempts</text>
+  </g>
+
+  <!-- Card: get device details batch -->
+  <g filter="url(#card-shadow)">
+    <rect x="642" y="202" width="130" height="36" rx="5" fill="#fff" stroke="#c8411a" stroke-width="1.2"/>
+    <text x="707" y="217" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Get device details</text>
+    <text x="707" y="230" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#c8411a">serial · MAC · OS · user</text>
+  </g>
+
+  <!-- Card: emit RawDevice[] -->
+  <g filter="url(#card-shadow)">
+    <rect x="795" y="202" width="110" height="36" rx="5" fill="#fff" stroke="#c8411a" stroke-width="1.2"/>
+    <text x="850" y="217" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">RawDevice[ ]</text>
+    <text x="850" y="230" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#c8411a">crowdstrike</text>
+  </g>
+
+  <!-- ── LANE 2: JUMPCLOUD (mid=324) ── -->
+
+  <!-- Card: fetch /api/systems paginated -->
+  <g filter="url(#card-shadow)">
+    <rect x="330" y="306" width="138" height="36" rx="5" fill="#fff" stroke="#2563eb" stroke-width="1.2"/>
+    <text x="399" y="321" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Fetch /systems</text>
+    <text x="399" y="334" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#2563eb">paginated · skip+limit</text>
+  </g>
+
+  <!-- Card: associations in parallel -->
+  <g filter="url(#card-shadow)">
+    <rect x="490" y="306" width="140" height="36" rx="5" fill="#fff" stroke="#2563eb" stroke-width="1.2"/>
+    <text x="560" y="321" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">User associations</text>
+    <text x="560" y="334" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#2563eb">parallel · /v2/systems/{id}</text>
+  </g>
+
+  <!-- Card: resolve user IDs → emails parallel -->
+  <g filter="url(#card-shadow)">
+    <rect x="652" y="306" width="138" height="36" rx="5" fill="#fff" stroke="#2563eb" stroke-width="1.2"/>
+    <text x="721" y="321" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Resolve user emails</text>
+    <text x="721" y="334" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#2563eb">parallel · /systemusers/{id}</text>
+  </g>
+
+  <!-- Card: emit RawDevice[] -->
+  <g filter="url(#card-shadow)">
+    <rect x="808" y="306" width="110" height="36" rx="5" fill="#fff" stroke="#2563eb" stroke-width="1.2"/>
+    <text x="863" y="321" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">RawDevice[ ]</text>
+    <text x="863" y="334" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#2563eb">jumpcloud</text>
+  </g>
+
+  <!-- ── LANE 3: OKTA (mid=428) ── -->
+
+  <!-- Card: paginate /api/v1/devices -->
+  <g filter="url(#card-shadow)">
+    <rect x="330" y="410" width="140" height="36" rx="5" fill="#fff" stroke="#7c3aed" stroke-width="1.2"/>
+    <text x="400" y="425" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Fetch /v1/devices</text>
+    <text x="400" y="438" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#7c3aed">cursor · limit=200</text>
+  </g>
+
+  <!-- Card: rate-limit X-Rate-Limit-Reset -->
+  <g filter="url(#card-shadow)">
+    <rect x="492" y="410" width="140" height="36" rx="5" fill="#fff" stroke="#7c3aed" stroke-width="1.2"/>
+    <text x="562" y="425" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Honour rate-limit</text>
+    <text x="562" y="438" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#7c3aed">X-Rate-Limit-Reset hdr</text>
+  </g>
+
+  <!-- Card: fetch device users per device -->
+  <g filter="url(#card-shadow)">
+    <rect x="655" y="410" width="138" height="36" rx="5" fill="#fff" stroke="#7c3aed" stroke-width="1.2"/>
+    <text x="724" y="425" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Fetch device users</text>
+    <text x="724" y="438" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#7c3aed">/devices/{id}/users</text>
+  </g>
+
+  <!-- Card: emit RawDevice[] -->
+  <g filter="url(#card-shadow)">
+    <rect x="811" y="410" width="110" height="36" rx="5" fill="#fff" stroke="#7c3aed" stroke-width="1.2"/>
+    <text x="866" y="425" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">RawDevice[ ]</text>
+    <text x="866" y="438" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#7c3aed">okta</text>
+  </g>
+
+  <!-- ── LANE 4: DEDUP ENGINE (mid=532) ── -->
+
+  <!-- Card: merge all raw devices -->
+  <g filter="url(#card-shadow)">
+    <rect x="920" y="514" width="130" height="36" rx="5" fill="#fff" stroke="#0f766e" stroke-width="1.2"/>
+    <text x="985" y="529" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Merge all raw</text>
+    <text x="985" y="542" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#0f766e">CS + JC + Okta</text>
+  </g>
+
+  <!-- Card: filter mobile, detect outlier MACs/serials -->
+  <g filter="url(#card-shadow)">
+    <rect x="1068" y="514" width="138" height="36" rx="5" fill="#fff" stroke="#0f766e" stroke-width="1.2"/>
+    <text x="1137" y="529" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Filter + outliers</text>
+    <text x="1137" y="542" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#0f766e">drop mobile · cloned MACs</text>
+  </g>
+
+  <!-- Card: serial match -->
+  <g filter="url(#card-shadow)">
+    <rect x="644" y="514" width="118" height="36" rx="5" fill="#fff" stroke="#0f766e" stroke-width="1.2"/>
+    <text x="703" y="529" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">① Serial</text>
+    <text x="703" y="542" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#0f766e">exact · trusted</text>
+  </g>
+
+  <!-- Card: MAC match -->
+  <g filter="url(#card-shadow)">
+    <rect x="774" y="514" width="110" height="36" rx="5" fill="#fff" stroke="#0f766e" stroke-width="1.2"/>
+    <text x="829" y="529" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">② MAC</text>
+    <text x="829" y="542" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#0f766e">exact · trusted</text>
+  </g>
+
+  <!-- Card: owner+OS match -->
+  <g filter="url(#card-shadow)">
+    <rect x="560" y="514" width="76" height="36" rx="5" fill="#fff" stroke="#0f766e" stroke-width="1.2"/>
+    <text x="598" y="529" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">③ Owner</text>
+    <text x="598" y="542" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#0f766e">email+OS</text>
+  </g>
+
+  <!-- Card: hostname fuzzy -->
+  <g filter="url(#card-shadow)">
+    <rect x="459" y="514" width="94" height="36" rx="5" fill="#fff" stroke="#0f766e" stroke-width="1.2"/>
+    <text x="506" y="529" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">④ Hostname</text>
+    <text x="506" y="542" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#0f766e">fuzzy ≥ 95 %</text>
+  </g>
+
+  <!-- Card: post-merge by serial -->
+  <g filter="url(#card-shadow)">
+    <rect x="1218" y="514" width="130" height="36" rx="5" fill="#fff" stroke="#0f766e" stroke-width="1.2"/>
+    <text x="1283" y="529" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Post-merge serial</text>
+    <text x="1283" y="542" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#0f766e">consolidate groups</text>
+  </g>
+
+  <!-- ── LANE 5: AI (mid=636) ── -->
+
+  <!-- Card: find candidate pairs -->
+  <g filter="url(#card-shadow)">
+    <rect x="920" y="618" width="130" height="36" rx="5" fill="#fff" stroke="#d97706" stroke-width="1.2"/>
+    <text x="985" y="633" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Find candidates</text>
+    <text x="985" y="646" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#d97706">low-conf singles ≤ 0.3</text>
+  </g>
+
+  <!-- Card: batch to OpenAI (max 30 pairs) -->
+  <g filter="url(#card-shadow)">
+    <rect x="1068" y="618" width="138" height="36" rx="5" fill="#fff" stroke="#d97706" stroke-width="1.2"/>
+    <text x="1137" y="633" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Batch → OpenAI</text>
+    <text x="1137" y="646" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#d97706">≤ 30 pairs · gpt-4o-mini</text>
+  </g>
+
+  <!-- Card: confirm matches conf ≥ 0.7 -->
+  <g filter="url(#card-shadow)">
+    <rect x="1218" y="618" width="130" height="36" rx="5" fill="#fff" stroke="#d97706" stroke-width="1.2"/>
+    <text x="1283" y="633" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Confirm matches</text>
+    <text x="1283" y="646" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#d97706">conf ≥ 0.7 · merge</text>
+  </g>
+
+  <!-- ── LANE 6: ENRICHER (mid=740) ── -->
+
+  <!-- Card: days_since_seen -->
+  <g filter="url(#card-shadow)">
+    <rect x="1064" y="722" width="128" height="36" rx="5" fill="#fff" stroke="#be185d" stroke-width="1.2"/>
+    <text x="1128" y="737" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Staleness</text>
+    <text x="1128" y="750" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#be185d">days_since_seen</text>
+  </g>
+
+  <!-- Card: coverage gaps -->
+  <g filter="url(#card-shadow)">
+    <rect x="1204" y="722" width="130" height="36" rx="5" fill="#fff" stroke="#be185d" stroke-width="1.2"/>
+    <text x="1269" y="737" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Coverage gaps</text>
+    <text x="1269" y="750" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#be185d">missing EDR/MDM/IDP</text>
+  </g>
+
+  <!-- Card: server detection -->
+  <g filter="url(#card-shadow)">
+    <rect x="1346" y="722" width="130" height="36" rx="5" fill="#fff" stroke="#be185d" stroke-width="1.2"/>
+    <text x="1411" y="737" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Server detect</text>
+    <text x="1411" y="750" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#be185d">hostname + OS heuristic</text>
+  </g>
+
+  <!-- Card: assign status -->
+  <g filter="url(#card-shadow)">
+    <rect x="920" y="722" width="132" height="36" rx="5" fill="#fff" stroke="#be185d" stroke-width="1.2"/>
+    <text x="986" y="737" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Assign status</text>
+    <text x="986" y="750" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#be185d">MANAGED/NO_EDR/…</text>
+  </g>
+
+  <!-- ── LANE 7: SQLITE (mid=844) ── -->
+
+  <!-- Card: soft-delete existing -->
+  <g filter="url(#card-shadow)">
+    <rect x="1064" y="826" width="138" height="36" rx="5" fill="#fff" stroke="#374151" stroke-width="1.2"/>
+    <text x="1133" y="841" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Soft-delete active</text>
+    <text x="1133" y="854" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#374151">deleted_at = NOW()</text>
+  </g>
+
+  <!-- Card: insert new snapshot -->
+  <g filter="url(#card-shadow)">
+    <rect x="1214" y="826" width="128" height="36" rx="5" fill="#fff" stroke="#374151" stroke-width="1.2"/>
+    <text x="1278" y="841" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Insert devices</text>
+    <text x="1278" y="854" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#374151">canonical snapshot</text>
+  </g>
+
+  <!-- Card: save sync run + status snapshot -->
+  <g filter="url(#card-shadow)">
+    <rect x="1354" y="826" width="140" height="36" rx="5" fill="#fff" stroke="#374151" stroke-width="1.2"/>
+    <text x="1424" y="841" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Save sync run</text>
+    <text x="1424" y="854" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#374151">run + status snapshot</text>
+  </g>
+
+  <!-- ── LANE 8: SLACK (mid=948) ── -->
+
+  <!-- Card: detect changes -->
+  <g filter="url(#card-shadow)">
+    <rect x="1064" y="930" width="138" height="36" rx="5" fill="#fff" stroke="#059669" stroke-width="1.2"/>
+    <text x="1133" y="945" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Detect changes</text>
+    <text x="1133" y="958" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#059669">new · stale · disappeared</text>
+  </g>
+
+  <!-- Card: build Block Kit -->
+  <g filter="url(#card-shadow)">
+    <rect x="1214" y="930" width="130" height="36" rx="5" fill="#fff" stroke="#059669" stroke-width="1.2"/>
+    <text x="1279" y="945" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">Build Block Kit</text>
+    <text x="1279" y="958" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#059669">risk score · summary</text>
+  </g>
+
+  <!-- Card: POST webhook -->
+  <g filter="url(#card-shadow)">
+    <rect x="1356" y="930" width="128" height="36" rx="5" fill="#fff" stroke="#059669" stroke-width="1.2"/>
+    <text x="1420" y="945" text-anchor="middle" font-weight="500" font-size="10.5" fill="#1a1a18">POST webhook</text>
+    <text x="1420" y="958" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#059669">SLACK_WEBHOOK_URL</text>
+  </g>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       FLOW ARROWS (horizontal within lanes)
+       ═════════════════════════════════════════════════════════ -->
+
+  <!-- Scheduler: card-to-card horizontal -->
+  <line x1="285" y1="116" x2="308" y2="116" stroke="#6b7280" stroke-width="1.3" marker-end="url(#arr)"/>
+  <line x1="438" y1="116" x2="463" y2="116" stroke="#6b7280" stroke-width="1.3" marker-end="url(#arr)"/>
+
+  <!-- CrowdStrike: horizontal chain -->
+  <line x1="468" y1="220" x2="488" y2="220" stroke="#c8411a" stroke-width="1.3" marker-end="url(#arr-accent)"/>
+  <line x1="620" y1="220" x2="640" y2="220" stroke="#c8411a" stroke-width="1.3" marker-end="url(#arr-accent)"/>
+  <line x1="772" y1="220" x2="793" y2="220" stroke="#c8411a" stroke-width="1.3" marker-end="url(#arr-accent)"/>
+
+  <!-- JumpCloud: horizontal chain -->
+  <line x1="468" y1="324" x2="488" y2="324" stroke="#2563eb" stroke-width="1.3" marker-end="url(#arr-blue)"/>
+  <line x1="630" y1="324" x2="650" y2="324" stroke="#2563eb" stroke-width="1.3" marker-end="url(#arr-blue)"/>
+  <line x1="790" y1="324" x2="806" y2="324" stroke="#2563eb" stroke-width="1.3" marker-end="url(#arr-blue)"/>
+
+  <!-- Okta: horizontal chain -->
+  <line x1="470" y1="428" x2="490" y2="428" stroke="#7c3aed" stroke-width="1.3" marker-end="url(#arr-purple)"/>
+  <line x1="632" y1="428" x2="653" y2="428" stroke="#7c3aed" stroke-width="1.3" marker-end="url(#arr-purple)"/>
+  <line x1="793" y1="428" x2="809" y2="428" stroke="#7c3aed" stroke-width="1.3" marker-end="url(#arr-purple)"/>
+
+  <!-- Dedup: serial → MAC → owner → hostname (right-to-left reading, right to left cards) -->
+  <!-- chain: ①→②→③→④ (cards at x: 644,774,560,459) — actually left→right visual order: ④ hostname, ③ owner, ① serial, ② MAC -->
+  <!-- Reordering left→right: ④(459), ③(560), ①(644), ②(774) -->
+  <line x1="553" y1="532" x2="558" y2="532" stroke="#0f766e" stroke-width="1.3" marker-end="url(#arr-teal)"/>
+  <line x1="636" y1="532" x2="642" y2="532" stroke="#0f766e" stroke-width="1.3" marker-end="url(#arr-teal)"/>
+  <line x1="762" y1="532" x2="772" y2="532" stroke="#0f766e" stroke-width="1.3" marker-end="url(#arr-teal)"/>
+  <line x1="884" y1="532" x2="918" y2="532" stroke="#0f766e" stroke-width="1.3" marker-end="url(#arr-teal)"/>
+  <line x1="1050" y1="532" x2="1066" y2="532" stroke="#0f766e" stroke-width="1.3" marker-end="url(#arr-teal)"/>
+  <line x1="1206" y1="532" x2="1216" y2="532" stroke="#0f766e" stroke-width="1.3" marker-end="url(#arr-teal)"/>
+
+  <!-- AI horizontal -->
+  <line x1="1050" y1="636" x2="1066" y2="636" stroke="#d97706" stroke-width="1.3" marker-end="url(#arr-amber)"/>
+  <line x1="1206" y1="636" x2="1216" y2="636" stroke="#d97706" stroke-width="1.3" marker-end="url(#arr-amber)"/>
+
+  <!-- Enricher horizontal -->
+  <line x1="1052" y1="740" x2="1062" y2="740" stroke="#be185d" stroke-width="1.3" marker-end="url(#arr-pink)"/>
+  <line x1="1192" y1="740" x2="1202" y2="740" stroke="#be185d" stroke-width="1.3" marker-end="url(#arr-pink)"/>
+  <line x1="1334" y1="740" x2="1344" y2="740" stroke="#be185d" stroke-width="1.3" marker-end="url(#arr-pink)"/>
+
+  <!-- SQLite horizontal -->
+  <line x1="1202" y1="844" x2="1212" y2="844" stroke="#374151" stroke-width="1.3" marker-end="url(#arr-slate)"/>
+  <line x1="1342" y1="844" x2="1352" y2="844" stroke="#374151" stroke-width="1.3" marker-end="url(#arr-slate)"/>
+
+  <!-- Slack horizontal -->
+  <line x1="1202" y1="948" x2="1212" y2="948" stroke="#059669" stroke-width="1.3" marker-end="url(#arr-green)"/>
+  <line x1="1344" y1="948" x2="1354" y2="948" stroke="#059669" stroke-width="1.3" marker-end="url(#arr-green)"/>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       CROSS-LANE ARROWS (data handoffs between actors)
+       ═════════════════════════════════════════════════════════ -->
+
+  <!--
+    1. Scheduler → CrowdStrike/JumpCloud/Okta (trigger collect)
+       From: "Spawn collectors" card right edge ~x=613, y=116
+       To: left edge of first card in each collector lane at x=330
+  -->
+
+  <!-- Scheduler → CrowdStrike: x=539 down to CrowdStrike lane (y=220) -->
+  <path d="M539,134 L539,168 L332,168 L332,202"
+        fill="none" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4,3"
+        marker-end="url(#arr)"/>
+
+  <!-- Scheduler → JumpCloud: x=539 down to y=272 -->
+  <path d="M539,134 L539,272 L332,272 L332,306"
+        fill="none" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4,3"
+        marker-end="url(#arr)"/>
+
+  <!-- Scheduler → Okta: x=539 down to y=376 -->
+  <path d="M539,134 L539,376 L332,376 L332,410"
+        fill="none" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4,3"
+        marker-end="url(#arr)"/>
+
+  <!--
+    2. CrowdStrike → Dedup: RawDevice[] at x~905, lane 1 mid=220 down to dedup mid=532
+    3. JumpCloud → Dedup: same at x~918
+    4. Okta → Dedup: same at x~921
+    All funnel into "Merge all raw" card x=985, y=532
+    Using bent paths routing through a "collection bus" at x=930
+  -->
+
+  <!-- CrowdStrike RawDevice → Dedup merge -->
+  <path d="M905,220 L930,220 L930,514"
+        fill="none" stroke="#c8411a" stroke-width="1.4"
+        marker-end="url(#arr-accent)"/>
+
+  <!-- JumpCloud RawDevice → Dedup merge -->
+  <path d="M918,324 L935,324 L935,514"
+        fill="none" stroke="#2563eb" stroke-width="1.4"
+        marker-end="url(#arr-blue)"/>
+
+  <!-- Okta RawDevice → Dedup merge -->
+  <path d="M921,428 L940,428 L940,514"
+        fill="none" stroke="#7c3aed" stroke-width="1.4"
+        marker-end="url(#arr-purple)"/>
+
+  <!-- "Bus merge" label -->
+  <text x="953" y="475" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8" fill="#9a9a94" transform="rotate(-90,953,490)">all_raw[ ]</text>
+
+  <!--
+    5. Dedup post-merge → AI (NormalizedDevice[])
+       From right edge of "Post-merge serial" at x=1348, mid=532
+       Down to AI lane mid=636
+  -->
+  <path d="M1283,550 L1283,584 L985,584 L985,618"
+        fill="none" stroke="#0f766e" stroke-width="1.4" stroke-dasharray="5,3"
+        marker-end="url(#arr-teal)"/>
+
+  <!--
+    6. AI → back to Dedup? No. AI merges in-place and returns list.
+       Conceptually: AI "confirm matches" output feeds Enricher.
+       From AI "confirm matches" card down to Enricher "Assign status"
+       x=1283, y=654 → y=688 → x=986, y=688 → y=722
+  -->
+  <path d="M1283,654 L1283,688 L986,688 L986,722"
+        fill="none" stroke="#d97706" stroke-width="1.4" stroke-dasharray="5,3"
+        marker-end="url(#arr-amber)"/>
+
+  <!--
+    7. Enricher → SQLite
+       From Enricher "Server detect" (rightmost) to SQLite "Soft-delete"
+       or conceptually from enriched list to upsert.
+       Use Enricher assign status card at x=986, y=758 → y=792 → x=1133, y=826
+  -->
+  <path d="M986,758 L986,792 L1133,792 L1133,826"
+        fill="none" stroke="#be185d" stroke-width="1.4"
+        marker-end="url(#arr-pink)"/>
+
+  <!--
+    8. SQLite → Slack (detect changes from DB queries)
+       From "Save sync run" right → down → Slack "Detect changes"
+       x=1424, y=862 → y=896 → x=1133, y=930
+  -->
+  <path d="M1424,862 L1424,896 L1133,896 L1133,930"
+        fill="none" stroke="#374151" stroke-width="1.4"
+        marker-end="url(#arr-slate)"/>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       PHASE GUIDELINES (vertical faint rules extending into lanes)
+       ═════════════════════════════════════════════════════════ -->
+  <line x1="320"  y1="64" x2="320"  y2="1000" stroke="#ddddd8" stroke-width="0.8" stroke-dasharray="2,5" opacity="0.6"/>
+  <line x1="640"  y1="64" x2="640"  y2="1000" stroke="#ddddd8" stroke-width="0.8" stroke-dasharray="2,5" opacity="0.6"/>
+  <line x1="880"  y1="64" x2="880"  y2="1000" stroke="#ddddd8" stroke-width="0.8" stroke-dasharray="2,5" opacity="0.6"/>
+  <line x1="1000" y1="64" x2="1000" y2="1000" stroke="#ddddd8" stroke-width="0.8" stroke-dasharray="2,5" opacity="0.6"/>
+  <line x1="1260" y1="64" x2="1260" y2="1000" stroke="#ddddd8" stroke-width="0.8" stroke-dasharray="2,5" opacity="0.6"/>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       ANNOTATION CALLOUTS (small editorial notes)
+       ═════════════════════════════════════════════════════════ -->
+
+  <!-- Note: parallel collection -->
+  <rect x="328" y="155" width="88" height="14" rx="3" fill="#fffbe6"/>
+  <text x="372" y="164" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#b45309">parallel · in thread pool</text>
+
+  <!-- Note: owner priority JC > CS > Okta -->
+  <rect x="644" y="560" width="116" height="14" rx="3" fill="#f0fdf4"/>
+  <text x="702" y="569" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#059669">serial → MAC → owner → fuzzy</text>
+
+  <!-- Note: confidence score -->
+  <rect x="1218" y="560" width="130" height="14" rx="3" fill="#f0fdf4"/>
+  <text x="1283" y="569" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#059669">serial conf=0.85–1.0</text>
+
+  <!-- Note: AI only if key present -->
+  <rect x="920" y="664" width="130" height="14" rx="3" fill="#fffbeb"/>
+  <text x="985" y="673" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#b45309">skipped if no OPENAI_API_KEY</text>
+
+  <!-- Note: soft-delete pattern -->
+  <rect x="1064" y="872" width="138" height="14" rx="3" fill="#f1f5f9"/>
+  <text x="1133" y="881" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#374151">clean snapshot per sync</text>
+
+</svg>
+</div>
+
+<!-- ── legend ── -->
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#c8411a"></div>
+    CrowdStrike · EDR
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#2563eb"></div>
+    JumpCloud · MDM
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#7c3aed"></div>
+    Okta · IDP
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#0f766e"></div>
+    Dedup Engine
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#d97706"></div>
+    AI · OpenAI gpt-4o-mini
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#be185d"></div>
+    Enricher
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#374151"></div>
+    SQLite Storage
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#059669"></div>
+    Slack Webhook
+  </div>
+  <div class="legend-item" style="margin-left:24px;">
+    <div class="legend-arrow-solid"></div>
+    data handoff
+  </div>
+  <div class="legend-item">
+    <div class="legend-arrow-dashed"></div>
+    trigger / optional
+  </div>
+</div>
+
+<p class="caption">
+  Klar Device Normalizer — IT Security · sync runs every 6 hours via APScheduler or on-demand via REST API.
+  All three collectors run in parallel; results merge into the deduplication pipeline before enrichment and storage.
+</p>
+
+</body>
+</html>

@@ -157,8 +157,8 @@ def _verify_token(token: str | None) -> str | None:
 async def auth_middleware(request: Request, call_next: Any) -> Any:
     path = request.url.path
 
-    # Skip auth for public paths, static assets, and if no password configured
-    if not AUTH_PASSWORD:
+    # Skip auth only if no auth method is configured at all
+    if not AUTH_PASSWORD and not _OKTA_OIDC_ENABLED:
         return await call_next(request)
     if path in PUBLIC_PATHS or path.startswith("/assets/"):
         return await call_next(request)
@@ -228,27 +228,43 @@ async def auth_okta_redirect() -> Any:
     if not _OKTA_OIDC_ENABLED:
         return JSONResponse({"error": "Okta OIDC not configured"}, status_code=400)
     import urllib.parse
+
+    # FIX-1: Generate state and store in cookie for CSRF protection
+    state = secrets.token_hex(16)
     params = urllib.parse.urlencode({
         "client_id": OKTA_OIDC_CLIENT_ID,
         "response_type": "code",
         "scope": "openid email profile",
         "redirect_uri": f"{APP_URL}/auth/okta/callback",
-        "state": secrets.token_hex(16),
+        "state": state,
     })
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(f"{OKTA_OIDC_ISSUER}/v1/authorize?{params}")
+    response = RedirectResponse(f"{OKTA_OIDC_ISSUER}/v1/authorize?{params}")
+    response.set_cookie(
+        key="okta_state", value=state, httponly=True, samesite="lax",
+        secure=_IS_HTTPS, max_age=300, path="/",
+    )
+    return response
 
 
 @app.get("/auth/okta/callback")
-async def auth_okta_callback(code: str = "", error: str = "") -> Any:
+async def auth_okta_callback(code: str = "", error: str = "", state: str = "", request: Request = None) -> Any:
     """Handle Okta OIDC callback — exchange code for token."""
+    import html as html_mod
+
+    # FIX-3: Escape all user-controlled values before rendering
     if error:
-        return HTMLResponse(f"<h3>Okta login failed: {error}</h3><a href='/'>Try again</a>")
+        safe_error = html_mod.escape(error)
+        return HTMLResponse(f"<h3>Login failed: {safe_error}</h3><a href='/'>Try again</a>")
     if not code or not _OKTA_OIDC_ENABLED:
         return HTMLResponse("<h3>Invalid callback</h3><a href='/'>Try again</a>")
 
+    # FIX-1: Validate state parameter against cookie
+    expected_state = request.cookies.get("okta_state") if request else None
+    if not expected_state or not secrets.compare_digest(state, expected_state):
+        return HTMLResponse("<h3>Invalid state — possible CSRF attack</h3><a href='/'>Try again</a>")
+
     import httpx
-    # Exchange authorization code for tokens
     try:
         async with httpx.AsyncClient() as client:
             token_resp = await client.post(
@@ -263,8 +279,23 @@ async def auth_okta_callback(code: str = "", error: str = "") -> Any:
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             if token_resp.status_code != 200:
-                return HTMLResponse(f"<h3>Token exchange failed</h3><pre>{token_resp.text}</pre><a href='/'>Try again</a>")
+                return HTMLResponse("<h3>Token exchange failed</h3><a href='/'>Try again</a>")
             tokens = token_resp.json()
+
+            # FIX-2: Validate ID token claims
+            id_token_raw = tokens.get("id_token")
+            if id_token_raw:
+                try:
+                    # Decode without verification first to check claims
+                    # (signature is implicitly trusted since we got this token
+                    # directly from Okta over TLS in a server-to-server call)
+                    claims = jwt.decode(id_token_raw, options={"verify_signature": False})
+                    if claims.get("iss") != OKTA_OIDC_ISSUER:
+                        return HTMLResponse("<h3>Invalid token issuer</h3><a href='/'>Try again</a>")
+                    if claims.get("aud") != OKTA_OIDC_CLIENT_ID:
+                        return HTMLResponse("<h3>Invalid token audience</h3><a href='/'>Try again</a>")
+                except jwt.InvalidTokenError:
+                    return HTMLResponse("<h3>Invalid ID token</h3><a href='/'>Try again</a>")
 
             # Get user info
             userinfo_resp = await client.get(
@@ -274,23 +305,32 @@ async def auth_okta_callback(code: str = "", error: str = "") -> Any:
             if userinfo_resp.status_code != 200:
                 return HTMLResponse("<h3>Failed to get user info</h3><a href='/'>Try again</a>")
             userinfo = userinfo_resp.json()
-    except Exception as exc:
-        return HTMLResponse(f"<h3>Okta error: {exc}</h3><a href='/'>Try again</a>")
+    except Exception:
+        # FIX-3: Don't leak exception details
+        return HTMLResponse("<h3>Authentication failed</h3><a href='/'>Try again</a>")
 
-    email = userinfo.get("email") or userinfo.get("preferred_username") or "okta-user"
+    email = userinfo.get("email") or userinfo.get("preferred_username") or ""
+
+    # FIX-5: Validate user email domain
+    allowed_domains = os.getenv("OKTA_ALLOWED_DOMAINS", "").strip()
+    if allowed_domains:
+        domains = [d.strip().lower() for d in allowed_domains.split(",") if d.strip()]
+        email_domain = email.split("@")[-1].lower() if "@" in email else ""
+        if domains and email_domain not in domains:
+            return HTMLResponse("<h3>Access denied — your domain is not authorized</h3><a href='/'>Back</a>")
+
+    if not email:
+        return HTMLResponse("<h3>No email in Okta profile</h3><a href='/'>Try again</a>")
+
     token = _create_token(email)
 
     from fastapi.responses import RedirectResponse
     response = RedirectResponse("/")
     response.set_cookie(
-        key="klar_session",
-        value=token,
-        httponly=True,
-        secure=_IS_HTTPS,
-        samesite="lax",
-        max_age=JWT_EXPIRY_HOURS * 3600,
-        path="/",
+        key="klar_session", value=token, httponly=True,
+        secure=_IS_HTTPS, samesite="lax", max_age=JWT_EXPIRY_HOURS * 3600, path="/",
     )
+    response.delete_cookie("okta_state", path="/")
     return response
 
 
@@ -307,7 +347,7 @@ def _login_page() -> str:
         <a href="/auth/okta" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:transparent;border:1.5px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--white);font-size:13px;font-weight:500;text-decoration:none;transition:all 0.2s;font-family:inherit"
            onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.background='rgba(255,255,255,0.03)'"
            onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.background='transparent'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3a7 7 0 110 14 7 7 0 010-14z" fill="currentColor"/></svg>
+          <svg width="40" height="14" viewBox="0 0 200 70" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M34.8 0C15.6 0 0 15.6 0 34.8s15.6 34.8 34.8 34.8 34.8-15.6 34.8-34.8S54 0 34.8 0zm0 52.2c-9.6 0-17.4-7.8-17.4-17.4s7.8-17.4 17.4-17.4 17.4 7.8 17.4 17.4-7.8 17.4-17.4 17.4zm70.8-36.6h-.6c-4.2 0-7.8 1.2-10.8 3.6V2.4h-15v64.8h15V39c0-5.4 3.6-9 8.4-9 1.2 0 2.4.6 3 .6h.6l4.8-15h-5.4zm29.4 0c-3 0-6 .6-9 1.8l-1.2.6 4.2 12 1.2-.6c1.8-.6 3.6-1.2 5.4-1.2 3 0 4.2 1.2 4.2 3v1.2l-3.6.6c-10.2 1.8-18 6-18 15 0 7.8 5.4 13.2 13.8 13.2 4.8 0 7.8-1.8 9.6-3.6v3h13.8V34.2c0-12.6-7.2-18.6-20.4-18.6zm5.4 36c-1.8 1.2-3.6 1.8-6 1.8-2.4 0-4.2-1.2-4.2-3.6 0-3.6 4.2-5.4 10.2-6.6v8.4z" fill="#007DC1"/></svg>
           Sign in with Okta
         </a>
       </div>"""

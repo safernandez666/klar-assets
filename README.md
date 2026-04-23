@@ -1,5 +1,7 @@
 # Klar Device Normalizer
 
+> **🌐 Language / Idioma:** [English](README.md) | [Español](README.es.md)
+
 Fleet visibility across JumpCloud (MDM), CrowdStrike (EDR) & Okta (IDP) — unified in one secure dashboard.
 
 ![Dashboard](docs/screenshots/dashboard.png)

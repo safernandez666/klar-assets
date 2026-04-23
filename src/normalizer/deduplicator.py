@@ -195,6 +195,9 @@ class Deduplicator:
                 key = f"{device.last_user.lower()}|{dev_os}"
                 owner_os_index.setdefault(key, []).append(group_idx)
 
+        # Sort: devices with serial first, so serial index is populated early
+        devices = sorted(devices, key=lambda d: (0 if _usable_serial(d.serial_number) else 1, d.source))
+
         for dev in devices:
             matched_group: int | None = None
             match_reason = ""

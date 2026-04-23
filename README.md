@@ -233,18 +233,31 @@ curl -X POST http://localhost:8080/api/slack/test
 
 ## Architecture & Documentation
 
-Interactive SVG diagrams available in [`docs/`](docs/):
+Interactive SVG diagrams available in [`docs/`](docs/) — click any image to open the full interactive version.
 
-| Diagram | Description |
-|---------|-------------|
-| [Architecture](docs/architecture.html) | System overview — sources, pipeline, storage, presentation |
-| [Flowchart](docs/flowchart.html) | Sync pipeline — 12 steps with decisions and parallel fan-out |
-| [Sequence (Okta OIDC)](docs/sequence-okta-oidc.html) | Authentication flow — 21 steps across Browser, Server, Okta |
-| [State Machine](docs/state-machine.html) | Device status transitions — 10 states, 21 transitions |
-| [ER Diagram](docs/er-diagram.html) | Database schema — 4 tables, 44 fields, relationships |
-| [Swimlane](docs/swimlane.html) | Sync process across 9 actors with phase columns |
-| [Timeline](docs/timeline.html) | Sync cycle timing with duration bars |
-| [Layer Stack](docs/layer-stack.html) | Technology stack in 6 animated layers |
+### System Architecture
+[![Architecture](docs/screenshots/diagram-architecture.png)](docs/architecture.html)
+
+### Sync Pipeline Flowchart
+[![Flowchart](docs/screenshots/diagram-flowchart.png)](docs/flowchart.html)
+
+### Device Status Transitions
+[![State Machine](docs/screenshots/diagram-state-machine.png)](docs/state-machine.html)
+
+### Database Schema
+[![ER Diagram](docs/screenshots/diagram-er.png)](docs/er-diagram.html)
+
+### Technology Stack
+[![Layer Stack](docs/screenshots/diagram-layer-stack.png)](docs/layer-stack.html)
+
+### Okta OIDC Authentication Flow
+[![Sequence](docs/screenshots/diagram-sequence.png)](docs/sequence-okta-oidc.html)
+
+### Sync Process Swimlane
+[![Swimlane](docs/screenshots/diagram-swimlane.png)](docs/swimlane.html)
+
+### Sync Cycle Timeline
+[![Timeline](docs/screenshots/diagram-timeline.png)](docs/timeline.html)
 
 ```
 Collectors (parallel)          Dedup Engine         AI Matcher         Enricher

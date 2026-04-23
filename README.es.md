@@ -233,18 +233,31 @@ curl -X POST http://localhost:8080/api/slack/test
 
 ## Arquitectura y Documentación
 
-Diagramas SVG interactivos disponibles en [`docs/`](docs/):
+Diagramas SVG interactivos disponibles en [`docs/`](docs/) — click en cualquier imagen para abrir la versión interactiva.
 
-| Diagrama | Descripción |
-|----------|-------------|
-| [Arquitectura](docs/architecture.html) | Vista general — fuentes, pipeline, storage, presentación |
-| [Flowchart](docs/flowchart.html) | Pipeline de sync — 12 pasos con decisiones y paralelismo |
-| [Secuencia (Okta OIDC)](docs/sequence-okta-oidc.html) | Flujo de autenticación — 21 pasos entre Browser, Server, Okta |
-| [Máquina de Estados](docs/state-machine.html) | Transiciones de status — 10 estados, 21 transiciones |
-| [ER Diagram](docs/er-diagram.html) | Schema de base de datos — 4 tablas, 44 campos, relaciones |
-| [Swimlane](docs/swimlane.html) | Proceso de sync en 9 actores con fases |
-| [Timeline](docs/timeline.html) | Timing del ciclo de sync con barras de duración |
-| [Layer Stack](docs/layer-stack.html) | Stack tecnológico en 6 capas animadas |
+### Arquitectura del Sistema
+[![Arquitectura](docs/screenshots/diagram-architecture.png)](docs/architecture.html)
+
+### Flowchart del Pipeline de Sync
+[![Flowchart](docs/screenshots/diagram-flowchart.png)](docs/flowchart.html)
+
+### Transiciones de Status de Dispositivos
+[![Máquina de Estados](docs/screenshots/diagram-state-machine.png)](docs/state-machine.html)
+
+### Schema de Base de Datos
+[![ER Diagram](docs/screenshots/diagram-er.png)](docs/er-diagram.html)
+
+### Stack Tecnológico
+[![Layer Stack](docs/screenshots/diagram-layer-stack.png)](docs/layer-stack.html)
+
+### Flujo de Autenticación Okta OIDC
+[![Secuencia](docs/screenshots/diagram-sequence.png)](docs/sequence-okta-oidc.html)
+
+### Swimlane del Proceso de Sync
+[![Swimlane](docs/screenshots/diagram-swimlane.png)](docs/swimlane.html)
+
+### Timeline del Ciclo de Sync
+[![Timeline](docs/screenshots/diagram-timeline.png)](docs/timeline.html)
 
 ```
 Collectors (paralelo)          Motor de Dedup       AI Matcher         Enricher

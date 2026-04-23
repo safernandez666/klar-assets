@@ -10,6 +10,15 @@ export function formatDate(iso: string | null | undefined): string {
   return new Date(iso).toLocaleString();
 }
 
+export function normalizeOs(os: string | null | undefined): string {
+  if (!os) return "Unknown";
+  const lower = os.toLowerCase().trim();
+  if (["mac", "mac os x", "macos", "darwin", "osx"].some((w) => lower.includes(w))) return "macOS";
+  if (["windows", "win"].some((w) => lower.includes(w))) return "Windows";
+  if (["linux", "ubuntu", "centos", "rhel", "debian"].some((w) => lower.includes(w))) return "Linux";
+  return os;
+}
+
 const SOURCE_ABBREV: Record<string, string> = {
   crowdstrike: "CS",
   jumpcloud: "JC",

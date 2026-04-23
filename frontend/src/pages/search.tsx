@@ -14,7 +14,7 @@ import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { formatDate, shortSource } from "../lib/utils";
+import { formatDate, shortSource, normalizeOs } from "../lib/utils";
 import { api } from "../lib/api";
 import type { Device } from "../types";
 
@@ -109,12 +109,16 @@ export default function SearchPage() {
     loadDevices();
   }, [loadDevices]);
 
+  const STATUS_ORDER: Record<string, number> = {
+    NO_EDR: 0, NO_MDM: 1, IDP_ONLY: 2, STALE: 3, MANAGED: 4, FULLY_MANAGED: 5, SERVER: 6, UNKNOWN: 7,
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return devices.filter((d) => {
       if (statusFilter && d.status !== statusFilter) return false;
       if (sourceFilter && !(d.sources || []).includes(sourceFilter)) return false;
-      if (osFilter && !(d.os_type || "").toLowerCase().includes(osFilter.toLowerCase())) return false;
+      if (osFilter && normalizeOs(d.os_type) !== osFilter) return false;
       if (ackFilter === "acked" && !(d as any).acknowledged) return false;
       if (ackFilter === "not_acked" && (d as any).acknowledged) return false;
       if (q) {
@@ -126,7 +130,7 @@ export default function SearchPage() {
         if (!fields.includes(q)) return false;
       }
       return true;
-    });
+    }).sort((a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99));
   }, [devices, search, statusFilter, sourceFilter, osFilter, ackFilter]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -134,7 +138,7 @@ export default function SearchPage() {
   const pageItems = filtered.slice(start, start + PAGE_SIZE);
 
   const uniqueOs = useMemo(() => {
-    const s = new Set(devices.map((d) => d.os_type).filter(Boolean));
+    const s = new Set(devices.map((d) => normalizeOs(d.os_type)));
     return [...s].sort();
   }, [devices]);
 
@@ -278,7 +282,7 @@ export default function SearchPage() {
                           {d.owner_name && <div className="text-[10px] text-muted">{d.owner_name}</div>}
                         </td>
                         <td className="p-3 font-mono text-[10px] text-muted">{d.serial_number || "N/A"}</td>
-                        <td className="p-3 text-xs text-muted">{d.os_type || "N/A"}</td>
+                        <td className="p-3 text-xs text-muted">{normalizeOs(d.os_type)}</td>
                         <td className="p-3">
                           <div className="flex gap-1">
                             {(d.sources || []).map((s) => (

@@ -122,6 +122,54 @@ Copy `.env.example` to `.env` and fill in:
 | `WEB_HOST` | No | Bind address (default: 0.0.0.0) |
 | `WEB_PORT` | No | Port (default: 8080) |
 
+## Slack Notifications
+
+After each sync (every 6 hours or manual), a Slack message is sent with rich Block Kit formatting. Configure `SLACK_WEBHOOK_URL` in `.env` to enable.
+
+### Message Types
+
+#### After Every Sync
+The standard sync report includes:
+- **Fleet summary** — total devices, managed count, coverage percentage
+- **Coverage gaps** — how many devices are missing EDR or MDM
+- **Status breakdown** — count per status (MANAGED, NO_EDR, etc.)
+- **Source health** — which sources responded OK and which failed
+
+#### New Devices Detected
+When a device appears for the first time:
+- **Risky new devices** (NO_EDR, NO_MDM, IDP_ONLY) are highlighted with hostname, owner, and status
+- **Managed new devices** are reported as a count
+
+> :new: **3 New Devices Without Full Coverage**
+> :warning: `MacBook-Pro-New.local` — john@klar.mx — **NO_EDR**
+> :warning: `DESKTOP-XYZ` — no owner — **NO_MDM**
+
+#### Managed Devices Disappeared
+When a device that was MANAGED or FULLY_MANAGED stops reporting:
+
+> :rotating_light: **2 Managed Devices Disappeared**
+> :rotating_light: `santiago-macbook.local` — santiago@klar.mx
+> :rotating_light: `LAPTOP-ABC` — maria@klar.mx
+
+#### Devices Went Stale
+When a device crosses the 90-day inactivity threshold:
+
+> :hourglass: **1 Device Went Stale**
+> :hourglass: `old-laptop.local` — inactive for 91 days
+
+#### All Clear
+When nothing changed since the last sync:
+
+> :white_check_mark: No changes since last sync
+
+### Test Alert
+
+Send a test message to verify your webhook:
+
+```bash
+curl -X POST http://localhost:8080/api/slack/test
+```
+
 ## API Endpoints
 
 | Endpoint | Method | Description |

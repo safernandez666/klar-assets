@@ -2,6 +2,8 @@
 
 Fleet visibility across JumpCloud (MDM), CrowdStrike (EDR) & Okta (IDP) — unified in one secure dashboard.
 
+![Dashboard](docs/screenshots/dashboard.png)
+
 ## What it does
 
 Collects device data from three sources in parallel, deduplicates by serial/MAC/owner/hostname, and normalizes into a unified asset inventory for desktop/laptop devices. Mobile devices are filtered out.
@@ -31,6 +33,29 @@ Collects device data from three sources in parallel, deduplicates by serial/MAC/
 - **Slack alerts** after each sync: new devices, disappearances, stale devices
 - **Server/VM detection** — auto-classifies infrastructure by hostname patterns
 - **Login** with username/password (JWT sessions, HTTPS-ready)
+
+## Screenshots
+
+### Login
+![Login](docs/screenshots/login.png)
+
+### Dashboard — Status Cards, Risk Score & Quality Metrics
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Distribution Charts & Sources Health
+![Charts](docs/screenshots/charts.png)
+
+### Quick Actions (AI-powered)
+![Quick Actions](docs/screenshots/quick-actions.png)
+
+### Device Inventory
+![Inventory](docs/screenshots/inventory.png)
+
+### Asset Search
+![Search](docs/screenshots/search.png)
+
+### People — Compliance View
+![People](docs/screenshots/people.png)
 
 ## Quick Start
 

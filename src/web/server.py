@@ -29,6 +29,12 @@ JWT_EXPIRY_HOURS = 24
 DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _IS_HTTPS = APP_URL.startswith("https://")
 
+# Okta OIDC
+OKTA_OIDC_ISSUER = os.getenv("OKTA_OIDC_ISSUER", "")
+OKTA_OIDC_CLIENT_ID = os.getenv("OKTA_OIDC_CLIENT_ID", "")
+OKTA_OIDC_CLIENT_SECRET = os.getenv("OKTA_OIDC_CLIENT_SECRET", "")
+_OKTA_OIDC_ENABLED = bool(OKTA_OIDC_ISSUER and OKTA_OIDC_CLIENT_ID and OKTA_OIDC_CLIENT_SECRET)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -127,7 +133,7 @@ def _get_repo() -> DeviceRepository:
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
-PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/favicon.svg"}
+PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/favicon.svg"}
 
 
 def _create_token(username: str) -> str:
@@ -207,7 +213,97 @@ async def auth_logout() -> Any:
     return response
 
 
+# ── Okta OIDC ────────────────────────────────────────────────────────────
+
+@app.get("/auth/okta")
+async def auth_okta_redirect() -> Any:
+    """Redirect user to Okta for authentication."""
+    if not _OKTA_OIDC_ENABLED:
+        return JSONResponse({"error": "Okta OIDC not configured"}, status_code=400)
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "client_id": OKTA_OIDC_CLIENT_ID,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "redirect_uri": f"{APP_URL}/auth/okta/callback",
+        "state": secrets.token_hex(16),
+    })
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(f"{OKTA_OIDC_ISSUER}/v1/authorize?{params}")
+
+
+@app.get("/auth/okta/callback")
+async def auth_okta_callback(code: str = "", error: str = "") -> Any:
+    """Handle Okta OIDC callback — exchange code for token."""
+    if error:
+        return HTMLResponse(f"<h3>Okta login failed: {error}</h3><a href='/'>Try again</a>")
+    if not code or not _OKTA_OIDC_ENABLED:
+        return HTMLResponse("<h3>Invalid callback</h3><a href='/'>Try again</a>")
+
+    import httpx
+    # Exchange authorization code for tokens
+    try:
+        async with httpx.AsyncClient() as client:
+            token_resp = await client.post(
+                f"{OKTA_OIDC_ISSUER}/v1/token",
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": f"{APP_URL}/auth/okta/callback",
+                    "client_id": OKTA_OIDC_CLIENT_ID,
+                    "client_secret": OKTA_OIDC_CLIENT_SECRET,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            if token_resp.status_code != 200:
+                return HTMLResponse(f"<h3>Token exchange failed</h3><pre>{token_resp.text}</pre><a href='/'>Try again</a>")
+            tokens = token_resp.json()
+
+            # Get user info
+            userinfo_resp = await client.get(
+                f"{OKTA_OIDC_ISSUER}/v1/userinfo",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            )
+            if userinfo_resp.status_code != 200:
+                return HTMLResponse("<h3>Failed to get user info</h3><a href='/'>Try again</a>")
+            userinfo = userinfo_resp.json()
+    except Exception as exc:
+        return HTMLResponse(f"<h3>Okta error: {exc}</h3><a href='/'>Try again</a>")
+
+    email = userinfo.get("email") or userinfo.get("preferred_username") or "okta-user"
+    token = _create_token(email)
+
+    from fastapi.responses import RedirectResponse
+    response = RedirectResponse("/")
+    response.set_cookie(
+        key="klar_session",
+        value=token,
+        httponly=True,
+        secure=_IS_HTTPS,
+        samesite="lax",
+        max_age=JWT_EXPIRY_HOURS * 3600,
+        path="/",
+    )
+    return response
+
+
 def _login_page() -> str:
+    okta_section = ""
+    if _OKTA_OIDC_ENABLED:
+        okta_section = """
+      <div style="margin-top:20px;text-align:center">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <div style="flex:1;height:1px;background:rgba(255,255,255,0.08)"></div>
+          <span style="font-size:11px;color:var(--gray-4);text-transform:uppercase;letter-spacing:1px">or</span>
+          <div style="flex:1;height:1px;background:rgba(255,255,255,0.08)"></div>
+        </div>
+        <a href="/auth/okta" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:transparent;border:1.5px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--white);font-size:13px;font-weight:500;text-decoration:none;transition:all 0.2s;font-family:inherit"
+           onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.background='rgba(255,255,255,0.03)'"
+           onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3a7 7 0 110 14 7 7 0 010-14z" fill="currentColor"/></svg>
+          Sign in with Okta
+        </a>
+      </div>"""
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -330,6 +426,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
         </div>
         <button class="btn" type="submit" id="btn">Sign in</button>
       </form>
+      {okta_section}
       <div class="footer">Klar — IT Security Team</div>
     </div>
   </div>
@@ -354,7 +451,7 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
 });
 </script>
 </body>
-</html>"""
+</html>""".replace("{okta_section}", okta_section)
 
 
 # ── API Routes ───────────────────────────────────────────────────────────────

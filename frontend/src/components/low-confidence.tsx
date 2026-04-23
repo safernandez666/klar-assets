@@ -78,8 +78,8 @@ export function LowConfidence({ devices }: LowConfidenceProps) {
                   <th className="pb-3 font-medium">Sources</th>
                   <th className="pb-3 font-medium">Status</th>
                   <th className="pb-3 font-medium">Last Seen</th>
-                  <th className="pb-3 font-medium text-right">Confidence</th>
-                  <th className="pb-3 font-medium">Reason</th>
+                  <th className="pb-3 pr-4 font-medium text-right">Confidence</th>
+                  <th className="pb-3 pl-4 font-medium">Reason</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,7 +123,7 @@ export function LowConfidence({ devices }: LowConfidenceProps) {
                           {d.confidence_score?.toFixed(2) ?? "0.00"}
                         </span>
                       </td>
-                      <td className="py-3 text-xs text-muted">
+                      <td className="py-3 pl-4 text-xs text-muted">
                         {d.match_reason || ""}
                       </td>
                     </tr>

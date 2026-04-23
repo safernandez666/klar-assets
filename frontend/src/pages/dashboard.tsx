@@ -30,23 +30,28 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [summaryRes, lastSyncRes, devicesRes, trendsRes, historyRes, insightsRes] = await Promise.all([
+      // Fast: load core data first (summary, sync, devices)
+      const [summaryRes, lastSyncRes, devicesRes] = await Promise.all([
         api.getSummary(),
         api.getLastSync(),
         api.getDevices(),
-        api.getTrends(),
-        api.getHistory(),
-        api.getInsights(),
       ]);
       setSummary(summaryRes);
       setLastSync(lastSyncRes.last_sync);
       setDevices(devicesRes.devices || []);
+      setLoading(false);
+
+      // Slow: load secondary data in background (trends, history, insights)
+      const [trendsRes, historyRes, insightsRes] = await Promise.all([
+        api.getTrends(),
+        api.getHistory(),
+        api.getInsights(),
+      ]);
       setTrends(trendsRes);
       setHistory(historyRes.history || []);
       setInsights(insightsRes.actions || []);
     } catch (e) {
       console.error(e);
-    } finally {
       setLoading(false);
     }
   }, []);

@@ -586,16 +586,15 @@ async def api_gaps() -> Any:
 
 @app.get("/api/people")
 async def api_people() -> Any:
-    """Person-centric view: email → devices → compliance."""
+    """Person-centric view: email → devices → compliance. Includes unassigned."""
     repo = _get_repo()
     devices = repo.get_all_devices()
     acked = repo.get_acknowledged()
 
     by_owner: dict[str, list[dict[str, Any]]] = {}
     for d in devices:
-        email = d.get("owner_email")
-        if email:
-            by_owner.setdefault(email.lower(), []).append(d)
+        email = d.get("owner_email") or "unassigned"
+        by_owner.setdefault(email.lower(), []).append(d)
 
     people = []
     for email, devs in sorted(by_owner.items()):

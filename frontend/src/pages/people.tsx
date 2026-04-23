@@ -57,7 +57,11 @@ function PersonRow({ person }: { person: Person }) {
             ? <ShieldCheck className="h-4 w-4 text-emerald-500" />
             : <ShieldAlert className="h-4 w-4 text-red-500" />}
         </td>
-        <td className="p-3 font-medium text-xs">{person.email}</td>
+        <td className="p-3 font-medium text-xs">
+          {person.email === "unassigned"
+            ? <span className="italic text-muted">Unassigned ({person.device_count} devices)</span>
+            : person.email}
+        </td>
         <td className="p-3 text-xs text-center">{person.device_count}</td>
         <td className="p-3 text-xs text-center">{person.managed_count}</td>
         <td className="p-3 text-center">
@@ -154,7 +158,11 @@ export default function PeoplePage() {
     return data.people.filter((p) => {
       if (complianceFilter === "compliant" && !p.compliant) return false;
       if (complianceFilter === "non_compliant" && p.compliant) return false;
-      if (q && !p.email.toLowerCase().includes(q)) return false;
+      if (q) {
+        const emailMatch = p.email.toLowerCase().includes(q);
+        const hostnameMatch = p.devices.some((d) => d.hostname.toLowerCase().includes(q));
+        if (!emailMatch && !hostnameMatch) return false;
+      }
       return true;
     });
   }, [data, search, complianceFilter]);

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klar Device Normalizer — Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f5f5f3;
+  --paper-2: #ececea;
+  --ink: #0f0f0f;
+  --muted: #4f5d75;
+  --soft: #7a8399;
+  --rule: rgba(15,15,15,0.10);
+  --accent: #0f0f0f;
+  --accent-tint: rgba(15,15,15,0.05);
+  --green: #10b981;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --blue: #3b82f6;
+  --violet: #8b5cf6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif; padding: 48px; }
+h1 { font-family: 'Instrument Serif', serif; font-size: 2rem; font-weight: 400; margin-bottom: 8px; }
+.subtitle { font-size: 13px; color: var(--muted); margin-bottom: 48px; }
+
+svg { display: block; margin: 0 auto; }
+.node-label { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; fill: var(--ink); }
+.node-sub { font-family: 'JetBrains Mono', monospace; font-size: 8px; fill: var(--soft); }
+.arrow-label { font-family: 'JetBrains Mono', monospace; font-size: 7.5px; fill: var(--muted); letter-spacing: 0.04em; }
+.zone-label { font-family: 'JetBrains Mono', monospace; font-size: 7px; fill: var(--soft); text-transform: uppercase; letter-spacing: 0.18em; font-weight: 500; }
+.callout { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 12px; fill: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>Klar Device Normalizer</h1>
+<p class="subtitle">System architecture — data collection, normalization, and presentation</p>
+
+<svg width="920" height="640" viewBox="0 0 920 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Zone: External Sources -->
+  <rect x="20" y="60" width="200" height="320" rx="8" stroke="var(--rule)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
+  <rect x="32" y="52" width="120" height="16" fill="var(--paper)"/>
+  <text x="38" y="63" class="zone-label">External Sources</text>
+
+  <!-- CrowdStrike -->
+  <rect x="44" y="92" width="152" height="52" rx="6" fill="white" stroke="var(--red)" stroke-width="1.2"/>
+  <text x="120" y="114" text-anchor="middle" class="node-label" fill="var(--red)">CrowdStrike</text>
+  <text x="120" y="128" text-anchor="middle" class="node-sub">EDR — Falconpy SDK</text>
+
+  <!-- JumpCloud -->
+  <rect x="44" y="172" width="152" height="52" rx="6" fill="white" stroke="var(--blue)" stroke-width="1.2"/>
+  <text x="120" y="194" text-anchor="middle" class="node-label" fill="var(--blue)">JumpCloud</text>
+  <text x="120" y="208" text-anchor="middle" class="node-sub">MDM — REST API</text>
+
+  <!-- Okta -->
+  <rect x="44" y="252" width="152" height="52" rx="6" fill="white" stroke="var(--amber)" stroke-width="1.2"/>
+  <text x="120" y="274" text-anchor="middle" class="node-label" style="fill: var(--amber)">Okta</text>
+  <text x="120" y="288" text-anchor="middle" class="node-sub">IDP — Devices API</text>
+
+  <!-- OpenAI -->
+  <rect x="44" y="332" width="152" height="40" rx="6" fill="white" stroke="var(--violet)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="120" y="356" text-anchor="middle" class="node-label" fill="var(--violet)">OpenAI</text>
+
+  <!-- Zone: Processing Pipeline -->
+  <rect x="260" y="60" width="400" height="320" rx="8" stroke="var(--ink)" stroke-width="1.2" fill="var(--accent-tint)"/>
+  <rect x="272" y="52" width="140" height="16" fill="var(--paper)"/>
+  <text x="278" y="63" class="zone-label">Processing Pipeline</text>
+
+  <!-- Collectors -->
+  <rect x="284" y="92" width="136" height="72" rx="6" fill="white" stroke="var(--ink)" stroke-width="1"/>
+  <text x="352" y="118" text-anchor="middle" class="node-label">Collectors</text>
+  <text x="352" y="132" text-anchor="middle" class="node-sub">ThreadPoolExecutor</text>
+  <text x="352" y="144" text-anchor="middle" class="node-sub">rate-limit aware</text>
+
+  <!-- Deduplicator -->
+  <rect x="284" y="188" width="136" height="60" rx="6" fill="white" stroke="var(--ink)" stroke-width="1"/>
+  <text x="352" y="212" text-anchor="middle" class="node-label">Deduplicator</text>
+  <text x="352" y="226" text-anchor="middle" class="node-sub">serial / MAC / owner</text>
+  <text x="352" y="238" text-anchor="middle" class="node-sub">+ post-merge pass</text>
+
+  <!-- AI Matcher -->
+  <rect x="284" y="272" width="136" height="48" rx="6" fill="rgba(139,92,246,0.06)" stroke="var(--violet)" stroke-width="1"/>
+  <text x="352" y="294" text-anchor="middle" class="node-label" fill="var(--violet)">AI Matcher</text>
+  <text x="352" y="308" text-anchor="middle" class="node-sub">OpenAI GPT-4o-mini</text>
+
+  <!-- Enricher -->
+  <rect x="448" y="92" width="136" height="60" rx="6" fill="white" stroke="var(--ink)" stroke-width="1"/>
+  <text x="516" y="114" text-anchor="middle" class="node-label">Enricher</text>
+  <text x="516" y="128" text-anchor="middle" class="node-sub">status / gaps / server</text>
+  <text x="516" y="140" text-anchor="middle" class="node-sub">detection</text>
+
+  <!-- Sync Engine -->
+  <rect x="448" y="180" width="136" height="48" rx="6" fill="var(--accent-tint)" stroke="var(--ink)" stroke-width="1.2"/>
+  <text x="516" y="202" text-anchor="middle" class="node-label">Sync Engine</text>
+  <text x="516" y="216" text-anchor="middle" class="node-sub">orchestrator</text>
+
+  <!-- Cache -->
+  <rect x="448" y="256" width="136" height="44" rx="6" fill="white" stroke="var(--muted)" stroke-width="1"/>
+  <text x="516" y="278" text-anchor="middle" class="node-label" fill="var(--muted)">Cache</text>
+  <text x="516" y="290" text-anchor="middle" class="node-sub">in-memory, per sync</text>
+
+  <!-- Alerts -->
+  <rect x="448" y="324" width="136" height="44" rx="6" fill="white" stroke="var(--muted)" stroke-width="1"/>
+  <text x="516" y="346" text-anchor="middle" class="node-label" fill="var(--muted)">Slack Alerts</text>
+  <text x="516" y="358" text-anchor="middle" class="node-sub">Block Kit messages</text>
+
+  <!-- Zone: Storage -->
+  <rect x="700" y="60" width="200" height="140" rx="8" stroke="var(--rule)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
+  <rect x="712" y="52" width="60" height="16" fill="var(--paper)"/>
+  <text x="718" y="63" class="zone-label">Storage</text>
+
+  <!-- SQLite -->
+  <rect x="724" y="88" width="152" height="52" rx="6" fill="rgba(15,15,15,0.04)" stroke="var(--muted)" stroke-width="1"/>
+  <text x="800" y="110" text-anchor="middle" class="node-label">SQLite</text>
+  <text x="800" y="124" text-anchor="middle" class="node-sub">WAL mode · devices · sync_runs</text>
+
+  <!-- Status Snapshots -->
+  <rect x="724" y="152" width="152" height="36" rx="6" fill="rgba(15,15,15,0.04)" stroke="var(--muted)" stroke-width="1"/>
+  <text x="800" y="174" text-anchor="middle" class="node-sub">status_snapshots · ack</text>
+
+  <!-- Zone: Presentation -->
+  <rect x="700" y="240" width="200" height="200" rx="8" stroke="var(--rule)" stroke-width="1" stroke-dasharray="6 4" fill="none"/>
+  <rect x="712" y="232" width="88" height="16" fill="var(--paper)"/>
+  <text x="718" y="243" class="zone-label">Presentation</text>
+
+  <!-- FastAPI -->
+  <rect x="724" y="264" width="152" height="48" rx="6" fill="var(--accent-tint)" stroke="var(--ink)" stroke-width="1.2"/>
+  <text x="800" y="286" text-anchor="middle" class="node-label">FastAPI</text>
+  <text x="800" y="300" text-anchor="middle" class="node-sub">REST API · Auth · OIDC</text>
+
+  <!-- React Dashboard -->
+  <rect x="724" y="328" width="152" height="48" rx="6" fill="white" stroke="var(--green)" stroke-width="1.2"/>
+  <text x="800" y="350" text-anchor="middle" class="node-label" fill="var(--green)">React Dashboard</text>
+  <text x="800" y="364" text-anchor="middle" class="node-sub">Vite · Tailwind · Recharts</text>
+
+  <!-- PDF / Excel -->
+  <rect x="724" y="392" width="72" height="36" rx="6" fill="white" stroke="var(--muted)" stroke-width="1"/>
+  <text x="760" y="414" text-anchor="middle" class="node-sub">PDF</text>
+
+  <rect x="804" y="392" width="72" height="36" rx="6" fill="white" stroke="var(--muted)" stroke-width="1"/>
+  <text x="840" y="414" text-anchor="middle" class="node-sub">CSV/XLSX</text>
+
+  <!-- Arrows: Sources → Collectors -->
+  <line x1="196" y1="118" x2="284" y2="118" stroke="var(--red)" stroke-width="1" marker-end="url(#arr-red)"/>
+  <line x1="196" y1="198" x2="284" y2="132" stroke="var(--blue)" stroke-width="1" marker-end="url(#arr-blue)"/>
+  <line x1="196" y1="278" x2="284" y2="142" stroke="var(--amber)" stroke-width="1" marker-end="url(#arr-amber)"/>
+
+  <!-- Collectors → Dedup -->
+  <line x1="352" y1="164" x2="352" y2="188" stroke="var(--ink)" stroke-width="1" marker-end="url(#arr)"/>
+  <text x="360" y="180" class="arrow-label">raw devices</text>
+
+  <!-- Dedup → AI Matcher -->
+  <line x1="352" y1="248" x2="352" y2="272" stroke="var(--violet)" stroke-width="1" marker-end="url(#arr-violet)"/>
+  <text x="360" y="264" class="arrow-label">low confidence</text>
+
+  <!-- OpenAI → AI Matcher -->
+  <line x1="196" y1="352" x2="284" y2="296" stroke="var(--violet)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-violet)"/>
+
+  <!-- AI Matcher → Enricher (up and right) -->
+  <path d="M420 296 L440 296 L440 122 L448 122" stroke="var(--ink)" stroke-width="1" fill="none" marker-end="url(#arr)"/>
+  <text x="444" y="212" class="arrow-label" transform="rotate(-90,444,212)">normalized</text>
+
+  <!-- Enricher → Sync Engine -->
+  <line x1="516" y1="152" x2="516" y2="180" stroke="var(--ink)" stroke-width="1" marker-end="url(#arr)"/>
+
+  <!-- Sync Engine → Cache -->
+  <line x1="516" y1="228" x2="516" y2="256" stroke="var(--muted)" stroke-width="1" marker-end="url(#arr-muted)"/>
+
+  <!-- Sync Engine → Alerts -->
+  <line x1="516" y1="228" x2="516" y2="324" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-muted)"/>
+
+  <!-- Sync Engine → SQLite -->
+  <line x1="584" y1="204" x2="724" y2="114" stroke="var(--ink)" stroke-width="1" marker-end="url(#arr)"/>
+  <text x="650" y="148" class="arrow-label">upsert</text>
+
+  <!-- FastAPI ← SQLite -->
+  <line x1="724" y1="140" x2="724" y2="264" stroke="var(--muted)" stroke-width="1" marker-end="url(#arr-muted)"/>
+
+  <!-- FastAPI → React -->
+  <line x1="800" y1="312" x2="800" y2="328" stroke="var(--green)" stroke-width="1" marker-end="url(#arr-green)"/>
+  <text x="808" y="322" class="arrow-label">JSON API</text>
+
+  <!-- Scheduler callout -->
+  <text x="460" y="372" class="callout">APScheduler runs sync every 6h</text>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--ink)"/></marker>
+    <marker id="arr-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--red)"/></marker>
+    <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--blue)"/></marker>
+    <marker id="arr-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--amber)"/></marker>
+    <marker id="arr-violet" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--violet)"/></marker>
+    <marker id="arr-muted" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--muted)"/></marker>
+    <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="var(--green)"/></marker>
+  </defs>
+
+  <!-- Auth zone label -->
+  <text x="800" y="456" text-anchor="middle" class="node-sub">Okta OIDC · JWT · Local auth</text>
+
+</svg>
+
+</body>
+</html>

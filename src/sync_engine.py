@@ -14,6 +14,7 @@ from src.collectors.okta import OktaCollector
 from src.models import NormalizedDevice, RawDevice
 from src.normalizer.deduplicator import Deduplicator
 from src.normalizer.enricher import Enricher
+from src.ai_matcher import ai_match
 from src.alerts import alert_after_sync
 from src.storage.repository import DeviceRepository
 
@@ -78,6 +79,8 @@ class SyncEngine:
                     sources_failed.append(source_name)
 
         normalized = self.deduplicator.deduplicate(all_raw)
+        # AI-enhanced matching for low-confidence single-source devices
+        normalized = ai_match(normalized)
         enriched = self.enricher.enrich(normalized)
 
         # Assign canonical IDs if empty

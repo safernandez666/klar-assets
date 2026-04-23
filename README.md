@@ -99,6 +99,38 @@ docker compose up -d
 docker compose logs -f
 ```
 
+### Kubernetes
+
+```bash
+# 1. Edit secrets with your API keys
+vim k8s/secret.yaml
+
+# 2. Edit configmap with your FQDN
+vim k8s/configmap.yaml
+
+# 3. Push image to your registry
+docker tag klar-device-normalizer your-registry/klar-device-normalizer:latest
+docker push your-registry/klar-device-normalizer:latest
+# Update image in k8s/deployment.yaml
+
+# 4. Deploy
+kubectl apply -f k8s/
+```
+
+The `k8s/` directory includes:
+
+| File | Description |
+|------|-------------|
+| `namespace.yaml` | `klar` namespace |
+| `secret.yaml` | API keys, passwords (fill before applying) |
+| `configmap.yaml` | Non-secret config (URLs, sync interval) |
+| `pvc.yaml` | 1Gi persistent volume for SQLite |
+| `deployment.yaml` | Single replica, Recreate strategy, resource limits, health probes |
+| `service.yaml` | ClusterIP service (port 80 → 8080) |
+| `ingress.yaml` | Ingress with FQDN + TLS (cert-manager ready) |
+
+> **Note:** SQLite requires a single writer, so the deployment uses `Recreate` strategy with 1 replica. For multi-replica setups, consider migrating to PostgreSQL.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and fill in:

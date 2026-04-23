@@ -30,28 +30,23 @@ export default function Dashboard() {
   const loadData = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
     try {
-      // Fast: load core data first (summary, sync, devices)
-      const [summaryRes, lastSyncRes, devicesRes] = await Promise.all([
+      const [summaryRes, lastSyncRes, devicesRes, trendsRes, historyRes, insightsRes] = await Promise.all([
         api.getSummary(),
         api.getLastSync(),
         api.getDevices(),
-      ]);
-      setSummary(summaryRes);
-      setLastSync(lastSyncRes.last_sync);
-      setDevices(devicesRes.devices || []);
-      setLoading(false);
-
-      // Slow: load secondary data in background (trends, history, insights)
-      const [trendsRes, historyRes, insightsRes] = await Promise.all([
         api.getTrends(),
         api.getHistory(),
         api.getInsights(),
       ]);
+      setSummary(summaryRes);
+      setLastSync(lastSyncRes.last_sync);
+      setDevices(devicesRes.devices || []);
       setTrends(trendsRes);
       setHistory(historyRes.history || []);
       setInsights(insightsRes.actions || []);
     } catch (e) {
       console.error(e);
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -435,10 +430,10 @@ export default function Dashboard() {
           <div ref={contentRef} className="space-y-8">
             <StatusCards summary={summary} trends={trends} />
             <RiskGauge summary={summary} />
-            {history.length > 1 && <StatusHistory history={history} />}
             <PieCharts summary={summary} />
             <QualityMetrics devices={devices} lastSync={lastSync} />
             <SourcesHealth summary={summary} lastSync={lastSync} />
+            {history.length > 1 && <StatusHistory history={history} />}
             <DeviceInventory devices={devices} />
             <LowConfidence devices={devices} />
           </div>

@@ -42,6 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     def _job() -> None:
         try:
             engine.run()
+            refresh_cache()
         except Exception:
             pass
 
@@ -56,13 +57,53 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if SyncEngine.should_skip_startup_sync(DB_PATH):
             from structlog import get_logger
             get_logger(__name__).info("startup_sync_skipped", reason="last_sync_within_2h")
+            refresh_cache()  # Cache existing data
         else:
-            _job()
+            _job()  # _job already calls refresh_cache
+    else:
+        refresh_cache()
     yield
     scheduler.shutdown()
 
 
 app = FastAPI(title="Klar Device Normalizer", lifespan=lifespan)
+
+# ── In-memory cache — refreshed after each sync ──────────────────────────
+_cache: dict[str, Any] = {}
+
+
+def refresh_cache() -> None:
+    """Pre-compute expensive data so API responses are instant."""
+    try:
+        repo = DeviceRepository(DB_PATH)
+        devices = repo.get_all_devices()
+        summary = repo.get_summary()
+        by_status = summary.get("by_status", {})
+        total_devices = summary.get("total", 0)
+        if total_devices > 0:
+            weighted = sum(by_status.get(s, 0) * w for s, w in RISK_WEIGHTS.items())
+            summary["risk_score"] = round(weighted / total_devices, 1)
+        else:
+            summary["risk_score"] = 0
+        history = repo.get_status_history(limit=30)
+        prev = repo.get_previous_snapshot()
+        trends: dict[str, int] = {}
+        if prev:
+            for status_key, col_name in [("FULLY_MANAGED", "fully_managed"), ("MANAGED", "managed"),
+                ("NO_EDR", "no_edr"), ("NO_MDM", "no_mdm"), ("IDP_ONLY", "idp_only"),
+                ("STALE", "stale"), ("SERVER", "server")]:
+                trends[status_key] = by_status.get(status_key, 0) - prev.get(col_name, 0)
+
+        _cache["summary"] = summary
+        _cache["trends"] = {"trends": trends, "has_previous": prev is not None}
+        _cache["history"] = {"history": history}
+        _cache["insights"] = {"actions": generate_insights(devices, summary, history)}
+        from structlog import get_logger
+        get_logger(__name__).info("cache_refreshed")
+    except Exception as exc:
+        from structlog import get_logger
+        get_logger(__name__).warning("cache_refresh_failed", error=str(exc))
+
 
 # Serve static assets (JS/CSS bundles)
 if (DIST_DIR / "assets").exists():
@@ -373,6 +414,8 @@ async def api_summary() -> Any:
 
 @app.get("/api/history")
 async def api_history(limit: int = 30) -> Any:
+    if "history" in _cache:
+        return JSONResponse(content=_cache["history"])
     repo = _get_repo()
     history = repo.get_status_history(limit=limit)
     return JSONResponse(content={"history": history})
@@ -380,6 +423,8 @@ async def api_history(limit: int = 30) -> Any:
 
 @app.get("/api/trends")
 async def api_trends() -> Any:
+    if "trends" in _cache:
+        return JSONResponse(content=_cache["trends"])
     repo = _get_repo()
     prev = repo.get_previous_snapshot()
     summary = repo.get_summary()
@@ -541,6 +586,8 @@ async def api_gaps() -> Any:
 
 @app.get("/api/insights")
 async def api_insights() -> Any:
+    if "insights" in _cache:
+        return JSONResponse(content=_cache["insights"])
     repo = _get_repo()
     devices = repo.get_all_devices()
     summary = repo.get_summary()
@@ -683,6 +730,7 @@ async def api_sync_trigger(background_tasks: BackgroundTasks) -> Any:
     def _run() -> None:
         try:
             SyncEngine(DB_PATH).run()
+            refresh_cache()
         except Exception:
             pass
 

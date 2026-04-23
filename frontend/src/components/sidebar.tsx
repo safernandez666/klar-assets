@@ -17,6 +17,8 @@ import {
   Moon,
   Sun,
   Search,
+  LogOut,
+  User,
 } from "lucide-react";
 import type { Insight } from "../types";
 
@@ -229,8 +231,8 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
           </div>
         </div>
 
-        {/* Theme toggle at bottom */}
-        <div className="mt-auto mb-4">
+        {/* Bottom section: theme + user + logout */}
+        <div className="mt-auto mb-4 flex flex-col items-center gap-1">
           <button
             type="button"
             onClick={toggleTheme}
@@ -240,6 +242,32 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
             {dark ? <Sun className="h-5 w-5 text-amber-300" /> : <Moon className="h-5 w-5 text-blue-400" />}
             <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
               {dark ? "Light mode" : "Dark mode"}
+            </span>
+          </button>
+
+          <div className="my-1 h-px w-6 bg-border" />
+
+          {/* User avatar */}
+          <div className="group relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+            <User className="h-4 w-4 text-accent" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              admin
+            </span>
+          </div>
+
+          {/* Logout */}
+          <button
+            type="button"
+            onClick={async () => {
+              await fetch("/auth/logout", { method: "POST" });
+              window.location.href = "/";
+            }}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="Sign out"
+          >
+            <LogOut className="h-4 w-4 text-red-400" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Sign out
             </span>
           </button>
         </div>

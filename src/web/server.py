@@ -21,11 +21,13 @@ from src.storage.repository import DeviceRepository
 from src.sync_engine import SyncEngine
 
 DB_PATH = os.getenv("DB_PATH", "data/devices.db")
+APP_URL = os.getenv("APP_URL", "http://localhost:8080")
 AUTH_USERNAME = os.getenv("AUTH_USERNAME", "admin")
 AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
 JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
 JWT_EXPIRY_HOURS = 24
 DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_IS_HTTPS = APP_URL.startswith("https://")
 
 
 @asynccontextmanager
@@ -181,6 +183,7 @@ async def auth_login(body: LoginRequest) -> Any:
         key="klar_session",
         value=token,
         httponly=True,
+        secure=_IS_HTTPS,
         samesite="lax",
         max_age=JWT_EXPIRY_HOURS * 3600,
         path="/",

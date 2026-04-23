@@ -12,7 +12,7 @@ import type { Device } from "../types";
 const PAGE_SIZE = 10;
 
 const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" | "secondary"; label: string }> = {
-  FULLY_MANAGED: { variant: "success", label: "FULLY MANAGED" },
+  FULLY_MANAGED: { variant: "success", label: "FULL" },
   MANAGED: { variant: "success", label: "MANAGED" },
   NO_EDR: { variant: "error", label: "NO EDR" },
   NO_MDM: { variant: "warning", label: "NO MDM" },

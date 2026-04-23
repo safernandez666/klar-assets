@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import { KLAR_LOGO_WHITE } from "../assets/klar-logo-white";
 import { Layout } from "../components/layout";
 import { Sidebar } from "../components/sidebar";
+import { ToastContainer, toast } from "../components/toasts";
 import { StatusCards } from "../components/status-cards";
 import { StatusHistory } from "../components/status-history";
 import { PieCharts } from "../components/pie-charts";
@@ -44,6 +45,18 @@ export default function Dashboard() {
       setTrends(trendsRes);
       setHistory(historyRes.history || []);
       setInsights(insightsRes.actions || []);
+      // Notify about critical issues on first load
+      if (showSpinner) {
+        const bs = summaryRes?.by_status || {};
+        const noEdr = bs.NO_EDR || 0;
+        const noMdm = bs.NO_MDM || 0;
+        if (noEdr > 0) {
+          toast({ type: "error", title: `${noEdr} devices without EDR`, message: "Check Quick Actions for details.", duration: 6000 });
+        }
+        if (noMdm > 0) {
+          toast({ type: "warning", title: `${noMdm} devices without MDM`, duration: 5000 });
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -59,9 +72,11 @@ export default function Dashboard() {
     setSyncing(true);
     try {
       await api.triggerSync();
+      toast({ type: "info", title: "Sync started", message: "Collecting from all sources..." });
       setTimeout(async () => {
         await loadData();
         setSyncing(false);
+        toast({ type: "success", title: "Sync complete", message: "Dashboard updated with fresh data." });
       }, 4000);
     } catch (e) {
       console.error(e);
@@ -74,6 +89,7 @@ export default function Dashboard() {
     try {
       const res = await api.getInsights();
       setInsights(res.actions || []);
+      toast({ type: "success", title: "Analysis complete", message: `${res.actions?.length || 0} insights generated.` });
     } catch (e) {
       console.error(e);
     } finally {
@@ -416,6 +432,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <ToastContainer />
       <Sidebar
         insights={insights}
         onRefreshInsights={handleRefreshInsights}

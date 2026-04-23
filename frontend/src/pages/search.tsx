@@ -7,6 +7,7 @@ import {
   ShieldOff,
   X,
   ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -287,9 +288,19 @@ export default function SearchPage() {
                         </td>
                         <td className="p-3"><Badge variant={cfg.variant}>{cfg.label}</Badge></td>
                         <td className="p-3">
-                          <span className={`text-xs font-semibold ${d.confidence_score >= 0.8 ? "text-emerald-500" : d.confidence_score >= 0.5 ? "text-amber-500" : "text-red-500"}`}>
-                            {d.confidence_score?.toFixed(2)}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            {d.match_reason?.startsWith("ai_match") && (
+                              <span className="group relative">
+                                <Sparkles className="h-3 w-3 text-violet-400" />
+                                <span className="pointer-events-none absolute bottom-full right-0 mb-1 whitespace-nowrap rounded bg-card border border-border px-2 py-1 text-[10px] text-muted opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-10">
+                                  AI: {d.match_reason.replace("ai_match:", "")}
+                                </span>
+                              </span>
+                            )}
+                            <span className={`text-xs font-semibold ${d.confidence_score >= 0.8 ? "text-emerald-500" : d.confidence_score >= 0.5 ? "text-amber-500" : "text-red-500"}`}>
+                              {d.confidence_score?.toFixed(2)}
+                            </span>
+                          </div>
                         </td>
                         <td className="p-3 text-[10px] text-muted">{formatDate(d.last_seen)}</td>
                         <td className="p-3 text-center">

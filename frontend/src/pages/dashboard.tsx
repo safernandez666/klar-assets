@@ -27,8 +27,8 @@ export default function Dashboard() {
   const [refreshingInsights, setRefreshingInsights] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
     try {
       // Fast: load core data first (summary, sync, devices)
       const [summaryRes, lastSyncRes, devicesRes] = await Promise.all([
@@ -57,7 +57,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    loadData(true);
   }, [loadData]);
 
   const handleSync = useCallback(async () => {

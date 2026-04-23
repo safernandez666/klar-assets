@@ -129,8 +129,8 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
   return (
     <>
       {/* Fixed sidebar rail */}
-      <div className="fixed left-0 top-0 z-40 flex h-screen w-14 flex-col items-center border-r border-border bg-card/95 pt-20 backdrop-blur">
-        <div className="flex flex-col items-center gap-1">
+      <div className="fixed left-0 top-0 z-40 flex h-screen w-14 flex-col items-center border-r border-border bg-card/95 pt-20 pb-4 backdrop-blur">
+        <div className="flex flex-col items-center gap-1 flex-1">
           {/* Sync */}
           <button
             type="button"

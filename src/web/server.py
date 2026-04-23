@@ -310,7 +310,37 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
 async def api_devices(status: str | None = None, source: str | None = None) -> Any:
     repo = _get_repo()
     devices = repo.get_all_devices(status=status, source=source)
+    # Mark acknowledged devices
+    acked = repo.get_acknowledged_details()
+    for d in devices:
+        cid = d.get("canonical_id", "")
+        if cid in acked:
+            d["acknowledged"] = True
+            d["ack_reason"] = acked[cid]["reason"]
+            d["ack_by"] = acked[cid]["by"]
+            d["ack_at"] = acked[cid]["at"]
+        else:
+            d["acknowledged"] = False
     return JSONResponse(content={"devices": devices})
+
+
+class AckRequest(BaseModel):
+    reason: str = ""
+    by: str = ""
+
+
+@app.post("/api/devices/{canonical_id}/ack")
+async def ack_device(canonical_id: str, body: AckRequest) -> Any:
+    repo = _get_repo()
+    repo.acknowledge_device(canonical_id, reason=body.reason, by=body.by)
+    return JSONResponse(content={"ok": True, "canonical_id": canonical_id})
+
+
+@app.delete("/api/devices/{canonical_id}/ack")
+async def unack_device(canonical_id: str) -> Any:
+    repo = _get_repo()
+    repo.unacknowledge_device(canonical_id)
+    return JSONResponse(content={"ok": True, "canonical_id": canonical_id})
 
 
 RISK_WEIGHTS: dict[str, int] = {

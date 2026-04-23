@@ -94,14 +94,16 @@ class DeviceRepository:
         conn.close()
         return [self._row_to_dict(row) for row in rows]
 
-    def get_summary(self) -> dict[str, Any]:
+    def get_summary(self, exclude_acknowledged: bool = True) -> dict[str, Any]:
         conn = self._connect()
+        ack_filter = ""
+        if exclude_acknowledged:
+            ack_filter = " AND canonical_id NOT IN (SELECT canonical_id FROM acknowledged_devices)"
         status_counts = conn.execute(
-            "SELECT status, COUNT(*) as cnt FROM devices WHERE deleted_at IS NULL GROUP BY status"
+            f"SELECT status, COUNT(*) as cnt FROM devices WHERE deleted_at IS NULL{ack_filter} GROUP BY status"
         ).fetchall()
-        # Source counts: count devices where sources JSON contains the source
         all_rows = conn.execute(
-            "SELECT sources FROM devices WHERE deleted_at IS NULL"
+            f"SELECT sources FROM devices WHERE deleted_at IS NULL{ack_filter}"
         ).fetchall()
         conn.close()
 
@@ -117,6 +119,36 @@ class DeviceRepository:
                 source_counts[s] = source_counts.get(s, 0) + 1
         summary["by_source"] = source_counts
         return summary
+
+    # ── Acknowledge ──────────────────────────────────────────────────
+
+    def acknowledge_device(self, canonical_id: str, reason: str = "", by: str = "") -> None:
+        conn = self._connect()
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "INSERT OR REPLACE INTO acknowledged_devices (canonical_id, reason, acknowledged_by, acknowledged_at) VALUES (?, ?, ?, ?)",
+            (canonical_id, reason, by, now),
+        )
+        conn.commit()
+        conn.close()
+
+    def unacknowledge_device(self, canonical_id: str) -> None:
+        conn = self._connect()
+        conn.execute("DELETE FROM acknowledged_devices WHERE canonical_id = ?", (canonical_id,))
+        conn.commit()
+        conn.close()
+
+    def get_acknowledged(self) -> set[str]:
+        conn = self._connect()
+        rows = conn.execute("SELECT canonical_id FROM acknowledged_devices").fetchall()
+        conn.close()
+        return {row["canonical_id"] for row in rows}
+
+    def get_acknowledged_details(self) -> dict[str, dict[str, str]]:
+        conn = self._connect()
+        rows = conn.execute("SELECT * FROM acknowledged_devices").fetchall()
+        conn.close()
+        return {row["canonical_id"]: {"reason": row["reason"], "by": row["acknowledged_by"], "at": row["acknowledged_at"]} for row in rows}
 
     def get_low_confidence(self, threshold: float = 0.5) -> list[dict[str, Any]]:
         conn = self._connect()

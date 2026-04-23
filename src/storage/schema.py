@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS status_snapshots (
     server INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS acknowledged_devices (
+    canonical_id TEXT PRIMARY KEY,
+    reason TEXT NOT NULL DEFAULT '',
+    acknowledged_by TEXT NOT NULL DEFAULT '',
+    acknowledged_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_devices_owner_email ON devices(owner_email);
 CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
 CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen);

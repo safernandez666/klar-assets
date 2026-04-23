@@ -16,6 +16,7 @@ import {
   RotateCw,
   Moon,
   Sun,
+  Search,
 } from "lucide-react";
 import type { Insight } from "../types";
 
@@ -140,6 +141,18 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
               {syncing ? "Syncing..." : "Sync now"}
             </span>
           </button>
+
+          {/* Asset Search */}
+          <a
+            href="/search"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="Asset Search"
+          >
+            <Search className="h-5 w-5 text-violet-400" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Asset Search
+            </span>
+          </a>
 
           {/* Quick Actions */}
           <button

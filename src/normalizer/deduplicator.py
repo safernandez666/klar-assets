@@ -324,7 +324,67 @@ class Deduplicator:
         for gidx, group in enumerate(groups):
             nd = self._merge_group(group, okta_emails, group_match_reasons[gidx])
             normalized.append(nd)
+
+        # Post-merge: combine devices that share the same serial but ended up
+        # in different groups (e.g. due to okta_device_id matching first)
+        normalized = self._post_merge_by_serial(normalized)
         return normalized
+
+    def _post_merge_by_serial(self, devices: list[NormalizedDevice]) -> list[NormalizedDevice]:
+        """Merge normalized devices that share the same serial number."""
+        serial_groups: dict[str, list[int]] = {}
+        for i, d in enumerate(devices):
+            if d.serial_number and BaseCollector.is_valid_serial(d.serial_number):
+                sn = d.serial_number.lower()
+                serial_groups.setdefault(sn, []).append(i)
+
+        merged_indices: set[int] = set()
+        for sn, indices in serial_groups.items():
+            if len(indices) <= 1:
+                continue
+            # Merge all into the first one
+            primary_idx = indices[0]
+            primary = devices[primary_idx]
+            for secondary_idx in indices[1:]:
+                secondary = devices[secondary_idx]
+                # Merge secondary into primary
+                for h in secondary.hostnames:
+                    if h not in primary.hostnames:
+                        primary.hostnames.append(h)
+                for m in secondary.mac_addresses:
+                    if m not in primary.mac_addresses:
+                        primary.mac_addresses.append(m)
+                for s in secondary.sources:
+                    if s not in primary.sources:
+                        primary.sources.append(s)
+                for k, v in secondary.source_ids.items():
+                    if k not in primary.source_ids:
+                        primary.source_ids[k] = v
+                if not primary.owner_email and secondary.owner_email:
+                    primary.owner_email = secondary.owner_email
+                    primary.owner_name = secondary.owner_name
+                if secondary.last_seen and (not primary.last_seen or secondary.last_seen > primary.last_seen):
+                    primary.last_seen = secondary.last_seen
+                if secondary.first_seen and (not primary.first_seen or secondary.first_seen < primary.first_seen):
+                    primary.first_seen = secondary.first_seen
+                merged_indices.add(secondary_idx)
+
+            # Update confidence based on merged sources
+            n_sources = len(primary.sources)
+            if n_sources >= 3:
+                primary.confidence_score = 1.0
+                primary.match_reason = "serial_number:post_merge"
+            elif n_sources >= 2:
+                primary.confidence_score = 0.85
+                primary.match_reason = "serial_number:post_merge"
+            primary.canonical_id = _make_canonical_id(
+                [RawDevice(device_id="", hostname=h, serial_number=primary.serial_number,
+                           mac_addresses=[], os_type="", os_version="", last_user="",
+                           last_seen=None, source=s, source_device_id=primary.source_ids.get(s, ""), raw_data={})
+                 for h in primary.hostnames for s in primary.sources]
+            )
+
+        return [d for i, d in enumerate(devices) if i not in merged_indices]
 
     def _merge_group(
         self,

@@ -42,11 +42,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     engine = SyncEngine(DB_PATH)
 
     def _job() -> None:
+        global _syncing
+        _syncing = True
         try:
             engine.run()
             refresh_cache()
         except Exception:
             pass
+        finally:
+            _syncing = False
 
     scheduler.add_job(
         _job,
@@ -59,9 +63,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if SyncEngine.should_skip_startup_sync(DB_PATH):
             from structlog import get_logger
             get_logger(__name__).info("startup_sync_skipped", reason="last_sync_within_2h")
-            refresh_cache()  # Cache existing data
+            refresh_cache()
         else:
-            _job()  # _job already calls refresh_cache
+            # Run startup sync in background — don't block server startup
+            import threading
+            from structlog import get_logger
+            get_logger(__name__).info("startup_sync_background")
+            threading.Thread(target=_job, daemon=True).start()
     else:
         refresh_cache()
     yield
@@ -72,6 +80,7 @@ app = FastAPI(title="Klar Device Normalizer", lifespan=lifespan)
 
 # ── In-memory cache — refreshed after each sync ──────────────────────────
 _cache: dict[str, Any] = {}
+_syncing = False
 
 
 def refresh_cache() -> None:
@@ -412,6 +421,7 @@ async def api_summary() -> Any:
     else:
         score = 0
     summary["risk_score"] = score
+    summary["syncing"] = _syncing
     return JSONResponse(content=summary)
 
 

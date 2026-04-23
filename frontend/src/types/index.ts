@@ -24,6 +24,7 @@ export interface Summary {
   by_source: Record<string, number>;
   total: number;
   risk_score: number;
+  syncing?: boolean;
 }
 
 export interface SyncRun {

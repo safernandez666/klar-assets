@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -85,7 +86,7 @@ def build_sync_blocks(
 
     blocks: list[dict[str, Any]] = [
         _blocks_header(f"{icon} Klar Device Normalizer"),
-        _blocks_section(f"Sync completed — *{sync_status.upper()}*"),
+        _blocks_section(f"Sync completed — *{sync_status.upper()}* — <!date^{int(datetime.now(timezone.utc).timestamp())}^{{date_short_pretty}} {{time}}|{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}>"),
         _blocks_divider(),
         _blocks_section(
             f"{rs_emoji}  *Risk Score:*  `{risk_score}`  —  *{rs_label}*\n\n"

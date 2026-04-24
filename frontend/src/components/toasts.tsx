@@ -46,7 +46,9 @@ export function ToastContainer() {
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       setToasts((prev) => [...prev, { ...t, id }]);
     };
-    return () => { _addToast = null; };
+    // Expose globally for sidebar (which doesn't import toast directly)
+    (window as any).__klar_toast = toast;
+    return () => { _addToast = null; delete (window as any).__klar_toast; };
   }, []);
 
   const dismiss = (id: string) => {

@@ -255,8 +255,16 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
               try {
                 const r = await fetch("/api/slack/test", { method: "POST" });
                 const d = await r.json();
-                alert(d.sent ? "Slack message sent!" : d.error || "Failed");
-              } catch { alert("Connection error"); }
+                if (typeof window !== "undefined" && (window as any).__klar_toast) {
+                  (window as any).__klar_toast(d.sent
+                    ? { type: "success", title: "Slack message sent", duration: 3000 }
+                    : { type: "error", title: d.error || "Failed to send", duration: 4000 });
+                }
+              } catch {
+                if (typeof window !== "undefined" && (window as any).__klar_toast) {
+                  (window as any).__klar_toast({ type: "error", title: "Connection error", duration: 4000 });
+                }
+              }
             }}
             className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-green-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
             aria-label="Send Slack Alert"

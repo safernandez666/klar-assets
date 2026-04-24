@@ -1,0 +1,10 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: klar-assets
+  namespace: klar-assets
+spec:
+  host: klar-assets.klar-assets.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: DISABLE

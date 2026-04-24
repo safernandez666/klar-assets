@@ -1,0 +1,41 @@
+name: Deploy CI
+
+on:
+  push:
+    branches:
+      - main
+env:
+  dockerFileLocation: "./Dockerfile" # where is your dockerfile
+  serviceName: "klar-assets"
+
+jobs:
+  build:
+    uses: klar-mx/github-actions/.github/workflows/build-multiplatform-docker-image.yaml@main
+    secrets: inherit
+    with:
+      push: true
+      
+  deploy:
+    name: Plan and deploy changes
+    concurrency:
+      group: "terraform-neutral" # NOTE: change to your environment
+    runs-on: [self-hosted, default]
+    steps:
+      - uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: '${{ secrets.ORG_SSH_KEY }}'
+      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        with:
+          repository: 'klar-mx/github-actions'
+          ref: 'v2'
+          path: '.actions'
+          ssh-key: '${{ secrets.ORG_SSH_KEY }}'
+      - uses: ./.actions/plan_infra
+        with:
+          environment: 'neutral' # NOTE: change to your environment
+      - uses: ./.actions/deploy_infra
+        with:
+          environment: 'neutral' # NOTE: change to your environment
+          image: '${{ needs.build.outputs.imageTag }}'
+          secrets: ${{ toJSON(secrets) }}

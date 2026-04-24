@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Klar Device Normalizer — Sync Cycle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f5f3;
+      --ink:       #111110;
+      --ink-mid:   #555552;
+      --ink-faint: #aaa9a6;
+      --rule:      #d8d8d5;
+
+      --cs:        #d94f1e;
+      --cs-bg:     #fdf0ec;
+      --okta:      #1d4ed8;
+      --okta-bg:   #eff4ff;
+      --jc:        #15803d;
+      --jc-bg:     #f0faf4;
+      --proc:      #404040;
+      --proc-bg:   #f0f0ee;
+      --out:       #6d28d9;
+      --out-bg:    #f3f0fe;
+
+      --ff-sans:  'DM Sans', sans-serif;
+      --ff-mono:  'JetBrains Mono', monospace;
+      --ff-serif: 'Instrument Serif', serif;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--ff-sans);
+      min-height: 100vh;
+    }
+
+    body {
+      padding: 52px 56px 72px;
+    }
+
+    /* ─── Header ─── */
+    .hd {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      border-bottom: 1.5px solid var(--ink);
+      padding-bottom: 18px;
+      margin-bottom: 32px;
+    }
+    .hd-eyebrow {
+      font-family: var(--ff-mono);
+      font-size: 9.5px;
+      font-weight: 500;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+      margin-bottom: 6px;
+    }
+    .hd-title {
+      font-family: var(--ff-serif);
+      font-size: 30px;
+      font-style: italic;
+      line-height: 1.1;
+    }
+    .hd-title em {
+      font-family: var(--ff-sans);
+      font-style: normal;
+      font-weight: 300;
+      font-size: 26px;
+    }
+    .hd-meta {
+      text-align: right;
+      font-family: var(--ff-mono);
+      font-size: 9px;
+      color: var(--ink-mid);
+      line-height: 2;
+    }
+
+    /* ─── Legend ─── */
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--ff-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .04em;
+      color: var(--ink-mid);
+    }
+    .lg-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink:0; }
+    .lg-bar  { width: 20px; height: 8px; border-radius: 2px; flex-shrink:0; opacity:.45; }
+    .legend-sep { width: 1px; height: 16px; background: var(--rule); }
+
+    /* ─── Diagram scroll wrapper ─── */
+    .diagram-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin-bottom: 0;
+    }
+
+    /* ─── Output strip ─── */
+    .output-strip {
+      display: flex;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+    .output-strip-label {
+      background: var(--out-bg);
+      border-right: 1px solid #ccc5f8;
+      padding: 14px 16px;
+      font-family: var(--ff-mono);
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--out);
+      writing-mode: vertical-lr;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+    }
+    .output-items {
+      display: flex;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    .output-item {
+      padding: 12px 18px;
+      border-right: 1px solid var(--rule);
+      flex: 1;
+      min-width: 150px;
+    }
+    .output-item:last-child { border-right: none; }
+    .output-item-n {
+      font-family: var(--ff-mono);
+      font-size: 9px;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 4px;
+    }
+    .output-item-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .output-item-sub {
+      font-family: var(--ff-mono);
+      font-size: 9px;
+      color: var(--ink-mid);
+      margin-top: 2px;
+    }
+
+    /* ─── Footer ─── */
+    .ft {
+      margin-top: 32px;
+      border-top: 1px solid var(--rule);
+      padding-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--ff-mono);
+      font-size: 9px;
+      color: var(--ink-faint);
+    }
+
+    /* ─── Animations ─── */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scaleBarX {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+    @keyframes popDot {
+      from { transform: scale(0); opacity: 0; }
+      50%  { transform: scale(1.2); }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .hd    { animation: fadeSlideUp .5s ease both; }
+    .legend { animation: fadeSlideUp .5s .1s ease both; }
+
+    .bar-cs   { transform-origin: left center; animation: scaleBarX .6s .3s cubic-bezier(.22,.61,.36,1) both; }
+    .bar-jc   { transform-origin: left center; animation: scaleBarX .9s .45s cubic-bezier(.22,.61,.36,1) both; }
+    .bar-okta { transform-origin: left center; animation: scaleBarX 1.1s .35s cubic-bezier(.22,.61,.36,1) both; }
+
+    .dot { animation: popDot .35s cubic-bezier(.34,1.56,.64,1) both; }
+    .dot-d1  { animation-delay: .5s; }
+    .dot-d2  { animation-delay: .58s; }
+    .dot-d3  { animation-delay: .66s; }
+    .dot-d4  { animation-delay: .74s; }
+    .dot-d5  { animation-delay: .82s; }
+    .dot-d6  { animation-delay: .90s; }
+    .dot-d7  { animation-delay: .96s; }
+    .dot-d8  { animation-delay: 1.02s; }
+    .dot-d9  { animation-delay: 1.08s; }
+    .dot-d10 { animation-delay: 1.14s; }
+
+    .output-strip { animation: fadeSlideUp .5s 1.2s ease both; }
+    .ft           { animation: fadeSlideUp .5s 1.3s ease both; }
+  </style>
+</head>
+<body>
+
+<!-- ─── Header ─── -->
+<header class="hd">
+  <div>
+    <div class="hd-eyebrow">Klar · IT Security · Internal Reference</div>
+    <h1 class="hd-title">Sync Cycle Anatomy<br><em>Device Normalizer Pipeline</em></h1>
+  </div>
+  <div class="hd-meta">
+    Total runtime ≈ 97 seconds<br>
+    Sources: CrowdStrike · Okta · JumpCloud<br>
+    2026-04-22
+  </div>
+</header>
+
+<!-- ─── Legend ─── -->
+<div class="legend">
+  <div class="legend-item"><div class="lg-dot" style="background:var(--cs)"></div>CrowdStrike</div>
+  <div class="legend-item"><div class="lg-dot" style="background:var(--okta)"></div>Okta</div>
+  <div class="legend-item"><div class="lg-dot" style="background:var(--jc)"></div>JumpCloud</div>
+  <div class="legend-item"><div class="lg-dot" style="background:var(--proc)"></div>Processing</div>
+  <div class="legend-item"><div class="lg-dot" style="background:var(--out)"></div>Output</div>
+  <div class="legend-sep"></div>
+  <div class="legend-item"><div class="lg-bar" style="background:var(--okta)"></div>Duration bar</div>
+</div>
+
+<!-- ─── Diagram ─── -->
+<!--
+  SVG coordinate system:
+    viewBox: 0 0 1360 520
+    usable x range: 60 (left label col) → 1320 = 1260px wide
+    time scale: 0–97s → 1260px → 12.990px/s
+    x(t) = 60 + t * 12.990
+
+  Key x positions:
+    t=0  → 60
+    t=2  → 86
+    t=5  → 125
+    t=60 → 840
+    t=90 → 1229
+    t=91 → 1242
+    t=92 → 1255
+    t=93 → 1268  (clamped to 1268 but we have space)
+    t=96 → 1307
+    t=97 → 1320
+
+  Swim lanes (y centers):
+    Axis (time ruler): y=70
+    Lane A — CrowdStrike: y=130  (thin bar + event)
+    Lane B — JumpCloud:   y=175  (bar + event)
+    Lane C — Okta:        y=220  (bar + event)
+    ── convergence line
+    Lane D — Processing:  y=310
+    Lane E — Output:      y=390 (output strip handled in HTML below)
+-->
+<div class="diagram-scroll">
+<svg
+  width="1360" height="480"
+  viewBox="0 0 1360 480"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="Klar Device Normalizer sync cycle horizontal timeline"
+>
+  <!-- ═══════════════════════════════════════════════
+       BACKGROUND REGIONS
+  ════════════════════════════════════════════════ -->
+
+  <!-- Ingestion region: t=0–90 → x=60–1229 -->
+  <rect x="60" y="48" width="1169" height="286" rx="3" fill="#efefed" opacity="0.7"/>
+
+  <!-- Processing region: t=91–93 → x=1242–1281 -->
+  <rect x="1242" y="48" width="39" height="286" rx="3" fill="#e6e6e4" opacity="0.9"/>
+
+  <!-- Enrichment region: t=96 → x=1307–1320 -->
+  <!-- (merged with output strip below) -->
+
+  <!-- Phase labels -->
+  <text x="644" y="63" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" font-weight="600"
+        letter-spacing=".14em" text-transform="uppercase" fill="#aaa9a6">
+    — INGESTION —
+  </text>
+  <text x="1261" y="63" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8" font-weight="600"
+        letter-spacing=".1em" fill="#888885">
+    PROC.
+  </text>
+  <text x="1320" y="63" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8" font-weight="600"
+        letter-spacing=".1em" fill="#8b6fd0">
+    OUT.
+  </text>
+
+  <!-- ═══════════════════════════════════════════════
+       TIME AXIS (y=70)
+  ════════════════════════════════════════════════ -->
+  <line x1="60" y1="86" x2="1340" y2="86" stroke="#cacac7" stroke-width="1"/>
+
+  <!-- Major ticks with labels -->
+  <!-- t=0 x=60 -->
+  <line x1="60"   y1="82" x2="60"   y2="90" stroke="#111" stroke-width="1.5"/>
+  <text x="60"   y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="10" font-weight="600" fill="#111">T+0</text>
+
+  <!-- t=2 x=86 -->
+  <line x1="86"   y1="82" x2="86"   y2="90" stroke="#d94f1e" stroke-width="1.5" opacity=".7"/>
+  <text x="86"   y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9.5" font-weight="600" fill="#d94f1e" opacity=".8">2s</text>
+
+  <!-- t=5 x=125 -->
+  <line x1="125"  y1="82" x2="125"  y2="90" stroke="#555" stroke-width="1.5"/>
+  <text x="125"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9.5" font-weight="600" fill="#111">5s</text>
+
+  <!-- minor ticks: 10,20,30,40,50 -->
+  <line x1="190"  y1="84" x2="190"  y2="88" stroke="#ccc" stroke-width="1"/>
+  <text x="190"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#aaa">10s</text>
+
+  <line x1="320"  y1="84" x2="320"  y2="88" stroke="#ccc" stroke-width="1"/>
+  <text x="320"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#aaa">20s</text>
+
+  <line x1="450"  y1="84" x2="450"  y2="88" stroke="#ccc" stroke-width="1"/>
+  <text x="450"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#aaa">30s</text>
+
+  <line x1="579"  y1="84" x2="579"  y2="88" stroke="#ccc" stroke-width="1"/>
+  <text x="579"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#aaa">40s</text>
+
+  <line x1="709"  y1="84" x2="709"  y2="88" stroke="#ccc" stroke-width="1"/>
+  <text x="709"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#aaa">50s</text>
+
+  <!-- t=60 x=840 — JC completes -->
+  <line x1="840"  y1="82" x2="840"  y2="90" stroke="#15803d" stroke-width="1.5" opacity=".6"/>
+  <text x="840"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9.5" font-weight="600" fill="#15803d" opacity=".9">60s</text>
+
+  <!-- minor 70, 80 -->
+  <line x1="970"  y1="84" x2="970"  y2="88" stroke="#ccc" stroke-width="1"/>
+  <text x="970"  y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#aaa">70s</text>
+
+  <line x1="1099" y1="84" x2="1099" y2="88" stroke="#ccc" stroke-width="1"/>
+  <text x="1099" y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#aaa">80s</text>
+
+  <!-- t=90 x=1229 — Okta completes -->
+  <line x1="1229" y1="82" x2="1229" y2="90" stroke="#1d4ed8" stroke-width="1.5" opacity=".6"/>
+  <text x="1229" y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9.5" font-weight="600" fill="#1d4ed8" opacity=".9">90s</text>
+
+  <!-- t=91,92,93 -->
+  <line x1="1242" y1="83" x2="1242" y2="89" stroke="#555" stroke-width="1"/>
+  <text x="1242" y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#555">91</text>
+
+  <line x1="1255" y1="83" x2="1255" y2="89" stroke="#555" stroke-width="1"/>
+  <text x="1255" y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#555">92</text>
+
+  <line x1="1268" y1="83" x2="1268" y2="89" stroke="#555" stroke-width="1"/>
+  <text x="1268" y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#555">93</text>
+
+  <!-- t=96,97 -->
+  <line x1="1307" y1="82" x2="1307" y2="90" stroke="#6d28d9" stroke-width="1" opacity=".5"/>
+  <text x="1307" y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#6d28d9" opacity=".8">96</text>
+
+  <line x1="1320" y1="82" x2="1320" y2="90" stroke="#6d28d9" stroke-width="1.5" opacity=".7"/>
+  <text x="1320" y="76" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9.5" font-weight="600" fill="#6d28d9" opacity=".9">97s</text>
+
+  <!-- ═══════════════════════════════════════════════
+       SWIM LANE LABELS (left col)
+  ════════════════════════════════════════════════ -->
+  <text x="54" y="137" text-anchor="end" font-family="'JetBrains Mono',monospace"
+        font-size="8.5" font-weight="600" letter-spacing=".08em" fill="#d94f1e" opacity=".8">CS</text>
+  <text x="54" y="181" text-anchor="end" font-family="'JetBrains Mono',monospace"
+        font-size="8.5" font-weight="600" letter-spacing=".08em" fill="#15803d" opacity=".8">JC</text>
+  <text x="54" y="225" text-anchor="end" font-family="'JetBrains Mono',monospace"
+        font-size="8.5" font-weight="600" letter-spacing=".08em" fill="#1d4ed8" opacity=".8">OKTA</text>
+
+  <text x="54" y="320" text-anchor="end" font-family="'JetBrains Mono',monospace"
+        font-size="8.5" font-weight="600" letter-spacing=".08em" fill="#404040" opacity=".7">PROC</text>
+  <text x="54" y="410" text-anchor="end" font-family="'JetBrains Mono',monospace"
+        font-size="8.5" font-weight="600" letter-spacing=".08em" fill="#6d28d9" opacity=".8">OUT</text>
+
+  <!-- ═══════════════════════════════════════════════
+       LANE SEPARATOR
+  ════════════════════════════════════════════════ -->
+  <!-- separator between ingestion lanes -->
+  <line x1="58" y1="157" x2="1340" y2="157" stroke="#e0e0dd" stroke-width="1"/>
+  <line x1="58" y1="200" x2="1340" y2="200" stroke="#e0e0dd" stroke-width="1"/>
+
+  <!-- separator between ingestion and processing -->
+  <line x1="58" y1="275" x2="1340" y2="275" stroke="#ccccca" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- separator between processing and output -->
+  <line x1="58" y1="365" x2="1340" y2="365" stroke="#d4c8fc" stroke-width="1" stroke-dasharray="4,4" opacity=".7"/>
+
+  <!-- ═══════════════════════════════════════════════
+       CROWDSTRIKE LANE  (y ≈ 125–145)
+       t=0 → t=2  (x=60 → x=86)
+  ════════════════════════════════════════════════ -->
+
+  <!-- CS bar: t=0 to t=2 width=26 -->
+  <g class="bar-cs">
+    <rect x="60" y="123" width="26" height="18" rx="2.5"
+          fill="var(--cs)" opacity=".18"/>
+    <rect x="60" y="123" width="26" height="18" rx="2.5"
+          fill="none" stroke="var(--cs)" stroke-width="1" opacity=".5"/>
+  </g>
+
+  <!-- CS start dot t=0 -->
+  <g class="dot dot-d1">
+    <circle cx="60" cy="132" r="5.5" fill="var(--cs)" stroke="var(--bg)" stroke-width="2"/>
+  </g>
+
+  <!-- CS end dot t=2 + event card -->
+  <g class="dot dot-d2">
+    <circle cx="86" cy="132" r="6" fill="var(--cs)" stroke="var(--bg)" stroke-width="2"/>
+  </g>
+  <!-- drop line from dot to label below lane -->
+  <line x1="86" y1="138" x2="86" y2="157" stroke="var(--cs)" stroke-width=".8" opacity=".35"/>
+
+  <!-- T+0 label -->
+  <text x="60" y="113" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="var(--ink)">T+0s</text>
+  <text x="60" y="104" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">Sync start</text>
+
+  <!-- T+2 label -->
+  <text x="86" y="113" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="var(--cs)">T+2s</text>
+  <text x="86" y="104" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">CrowdStrike</text>
+  <text x="86" y="95" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" fill="var(--ink-mid)">~354 devices</text>
+
+  <!-- ═══════════════════════════════════════════════
+       JUMPCLOUD LANE  (y ≈ 165–195)
+       t=5 → t=60  (x=125 → x=840)
+  ════════════════════════════════════════════════ -->
+
+  <!-- JC bar -->
+  <g class="bar-jc">
+    <rect x="125" y="163" width="715" height="18" rx="2.5"
+          fill="var(--jc)" opacity=".15"/>
+    <rect x="125" y="163" width="715" height="18" rx="2.5"
+          fill="none" stroke="var(--jc)" stroke-width="1" opacity=".4"/>
+    <text x="482" y="175.5" text-anchor="middle"
+          font-family="'JetBrains Mono',monospace" font-size="8" font-weight="600"
+          fill="var(--jc)" opacity=".8" letter-spacing=".08em">JC · 55s</text>
+  </g>
+
+  <!-- JC start dot t=5 -->
+  <g class="dot dot-d3">
+    <circle cx="125" cy="172" r="5.5" fill="var(--jc)" stroke="var(--bg)" stroke-width="2"/>
+  </g>
+
+  <!-- JC end dot t=60 -->
+  <g class="dot dot-d5">
+    <circle cx="840" cy="172" r="6" fill="var(--jc)" stroke="var(--bg)" stroke-width="2"/>
+  </g>
+
+  <!-- T+60 label (above axis) -->
+  <text x="840" y="113" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="var(--jc)">T+60s</text>
+  <text x="840" y="104" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">JumpCloud done</text>
+  <text x="840" y="95" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" fill="var(--ink-mid)">~362 · users resolved</text>
+
+  <!-- ═══════════════════════════════════════════════
+       OKTA LANE  (y ≈ 207–237)
+       t=5 → t=90  (x=125 → x=1229)
+  ════════════════════════════════════════════════ -->
+
+  <!-- Okta bar — longest -->
+  <g class="bar-okta">
+    <rect x="125" y="207" width="1104" height="18" rx="2.5"
+          fill="var(--okta)" opacity=".12"/>
+    <rect x="125" y="207" width="1104" height="18" rx="2.5"
+          fill="none" stroke="var(--okta)" stroke-width="1" opacity=".35"/>
+    <text x="677" y="219.5" text-anchor="middle"
+          font-family="'JetBrains Mono',monospace" font-size="8" font-weight="600"
+          fill="var(--okta)" opacity=".8" letter-spacing=".08em">OKTA RATE-LIMITED · 85s</text>
+  </g>
+
+  <!-- T+5 shared start label (JC + Okta) -->
+  <text x="125" y="260" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="var(--ink)">T+5s</text>
+  <text x="125" y="271" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">Okta + JC start</text>
+  <text x="125" y="282" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" fill="var(--ink-mid)">~488 · ~362 devices</text>
+  <!-- tick line down from t=5 -->
+  <line x1="125" y1="88" x2="125" y2="257" stroke="#ddd" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- Okta start dot t=5 -->
+  <g class="dot dot-d3">
+    <circle cx="125" cy="216" r="5.5" fill="var(--okta)" stroke="var(--bg)" stroke-width="2"/>
+  </g>
+
+  <!-- Okta end dot t=90 -->
+  <g class="dot dot-d6">
+    <circle cx="1229" cy="216" r="6" fill="var(--okta)" stroke="var(--bg)" stroke-width="2"/>
+    <!-- rate-limit badge -->
+    <rect x="1233" y="207" width="52" height="14" rx="2" fill="var(--okta)" opacity=".12"/>
+    <text x="1259" y="217.5" text-anchor="middle"
+          font-family="'JetBrains Mono',monospace" font-size="7.5" font-weight="600"
+          fill="var(--okta)" opacity=".9">rate-limit</text>
+  </g>
+
+  <!-- T+90 label -->
+  <line x1="1229" y1="88" x2="1229" y2="253" stroke="#ddd" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="1229" y="260" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="var(--okta)">T+90s</text>
+  <text x="1229" y="271" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">Okta users done</text>
+
+  <!-- ═══════════════════════════════════════════════
+       CONVERGENCE  — funnel into processing
+  ════════════════════════════════════════════════ -->
+  <!-- Three lines converging from t=90/91 area to x=1242, y=310 -->
+  <path d="M 1229 132 C 1236 132 1236 310 1242 310"
+        stroke="#ccc" stroke-width="1.2" fill="none" stroke-dasharray="4,3"/>
+  <path d="M 1229 172 C 1236 172 1236 310 1242 310"
+        stroke="#ccc" stroke-width="1.2" fill="none" stroke-dasharray="4,3"/>
+  <path d="M 1229 216 C 1236 216 1236 310 1242 310"
+        stroke="#ccc" stroke-width="1.2" fill="none" stroke-dasharray="4,3"/>
+
+  <!-- ═══════════════════════════════════════════════
+       PROCESSING LANE  (y = 300–340)
+       t=91: Mobile filter  x=1242
+       t=92: Dedup + Merge  x=1255
+       t=93: AI Matcher     x=1268
+  ════════════════════════════════════════════════ -->
+
+  <!-- connector line through processing events -->
+  <line x1="1242" y1="310" x2="1307" y2="310"
+        stroke="#bbb" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- T+91 Mobile filter -->
+  <g class="dot dot-d7">
+    <circle cx="1242" cy="310" r="6" fill="var(--proc)" stroke="var(--bg)" stroke-width="2"/>
+  </g>
+  <text x="1242" y="330" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" font-weight="600" fill="var(--proc)">T+91s</text>
+  <text x="1242" y="342" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">Mobile filter</text>
+
+  <!-- T+92 Dedup + Merge (two dots stacked slightly) -->
+  <g class="dot dot-d8">
+    <circle cx="1255" cy="305" r="5.5" fill="var(--proc)" stroke="var(--bg)" stroke-width="2"/>
+    <circle cx="1255" cy="318" r="5.5" fill="var(--proc)" stroke="var(--bg)" stroke-width="2" opacity=".55"/>
+  </g>
+  <text x="1255" y="333" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" font-weight="600" fill="var(--proc)">T+92s</text>
+  <text x="1255" y="345" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">Dedup · Merge</text>
+  <text x="1255" y="356" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8" fill="var(--ink-mid)">by serial</text>
+
+  <!-- T+93 AI Matcher -->
+  <g class="dot dot-d9">
+    <circle cx="1268" cy="310" r="6.5" fill="var(--proc)" stroke="var(--bg)" stroke-width="2"/>
+    <!-- outer ring for AI emphasis -->
+    <circle cx="1268" cy="310" r="9.5" fill="none" stroke="var(--proc)" stroke-width=".75" opacity=".3"/>
+  </g>
+  <text x="1268" y="330" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" font-weight="600" fill="var(--proc)">T+93s</text>
+  <text x="1268" y="342" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">AI Matcher</text>
+  <text x="1268" y="353" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8" fill="var(--ink-mid)">OpenAI · candidates</text>
+
+  <!-- ═══════════════════════════════════════════════
+       ENRICHMENT + UPSERT  t=96  x=1307
+  ════════════════════════════════════════════════ -->
+  <!-- connector from AI matcher to enricher -->
+  <line x1="1268" y1="310" x2="1307" y2="310"
+        stroke="#bbb" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- connector from enricher down to output -->
+  <path d="M 1307 310 C 1307 340 1307 370 1307 390"
+        stroke="#c4b5fd" stroke-width="1.2" fill="none" stroke-dasharray="4,3"/>
+
+  <g class="dot dot-d10">
+    <circle cx="1307" cy="310" r="6" fill="var(--out)" stroke="var(--bg)" stroke-width="2"/>
+    <circle cx="1307" cy="325" r="5" fill="var(--out)" stroke="var(--bg)" stroke-width="2" opacity=".6"/>
+  </g>
+  <text x="1307" y="345" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" font-weight="600" fill="var(--out)">T+96s</text>
+  <text x="1307" y="357" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">Enricher · SQLite</text>
+  <text x="1307" y="368" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8" fill="var(--ink-mid)">statuses · upsert</text>
+
+  <!-- ═══════════════════════════════════════════════
+       T+97 OUTPUT CLUSTER  x=1320
+       (visual marker; details in HTML strip below)
+  ════════════════════════════════════════════════ -->
+  <!-- five stacked small dots -->
+  <g class="dot dot-d10">
+    <circle cx="1320" cy="393" r="5" fill="var(--out)" stroke="var(--bg)" stroke-width="1.5"/>
+    <circle cx="1320" cy="405" r="5" fill="var(--out)" stroke="var(--bg)" stroke-width="1.5" opacity=".78"/>
+    <circle cx="1320" cy="417" r="5" fill="var(--out)" stroke="var(--bg)" stroke-width="1.5" opacity=".56"/>
+    <circle cx="1320" cy="429" r="5" fill="var(--out)" stroke="var(--bg)" stroke-width="1.5" opacity=".34"/>
+    <circle cx="1320" cy="441" r="5" fill="var(--out)" stroke="var(--bg)" stroke-width="1.5" opacity=".18"/>
+    <!-- bracket -->
+    <line x1="1329" y1="393" x2="1333" y2="393" stroke="var(--out)" stroke-width=".8" opacity=".5"/>
+    <line x1="1329" y1="441" x2="1333" y2="441" stroke="var(--out)" stroke-width=".8" opacity=".5"/>
+    <line x1="1332" y1="393" x2="1332" y2="441" stroke="var(--out)" stroke-width=".8" opacity=".5"/>
+  </g>
+  <text x="1320" y="462" text-anchor="middle"
+        font-family="'JetBrains Mono',monospace" font-size="8.5" font-weight="600" fill="var(--out)">T+97s</text>
+  <text x="1320" y="474" text-anchor="middle"
+        font-family="'DM Sans',sans-serif" font-size="11" fill="var(--ink)">5 outputs</text>
+
+</svg>
+</div>
+
+<!-- ─── T+97 Output strip ─── -->
+<div class="output-strip">
+  <div class="output-strip-label">T+97s &nbsp;·&nbsp; Output</div>
+  <div class="output-items">
+    <div class="output-item">
+      <div class="output-item-n">01</div>
+      <div class="output-item-name">Status Snapshot</div>
+      <div class="output-item-sub">saved to history</div>
+    </div>
+    <div class="output-item">
+      <div class="output-item-n">02</div>
+      <div class="output-item-name">Change Detection</div>
+      <div class="output-item-sub">new · disappeared · stale</div>
+    </div>
+    <div class="output-item">
+      <div class="output-item-n">03</div>
+      <div class="output-item-name">Slack Alert</div>
+      <div class="output-item-sub">sent if changes detected</div>
+    </div>
+    <div class="output-item">
+      <div class="output-item-n">04</div>
+      <div class="output-item-name">Cache Refreshed</div>
+      <div class="output-item-sub">in-memory state updated</div>
+    </div>
+    <div class="output-item">
+      <div class="output-item-n">05</div>
+      <div class="output-item-name">Dashboard Ready</div>
+      <div class="output-item-sub">API + frontend live</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Footer ─── -->
+<footer class="ft">
+  <span>Klar Device Normalizer · Sync Cycle Reference · IT Security</span>
+  <span>Okta fetch is rate-limited by API tier — dominant bottleneck at 85s of 97s total</span>
+</footer>
+
+</body>
+</html>

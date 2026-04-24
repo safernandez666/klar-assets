@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: klar-assets
+  name: klar-assets
+  namespace: klar-assets
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: klar-assets
+  sessionAffinity: None
+  type: ClusterIP
+...

@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: klar-assets
+  namespace: klar-assets
+spec:
+  gateways:
+  - istio-system/public-gateway
+  hosts:
+  - klar-assets.security.neutral.klar.technology
+  http:
+  - route:
+    - destination:
+        host: klar-assets.klar-assets.svc.cluster.local
+        port:
+          number: 8080

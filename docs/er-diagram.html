@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klar Device Normalizer — Database Schema</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:       #f5f5f3;
+  --ink:         #0f0f0f;
+  --muted:       #4f5d75;
+  --soft:        #7a8399;
+  --rule:        rgba(15,15,15,0.10);
+  --blue:        #3b82f6;
+  --violet:      #8b5cf6;
+  --amber:       #f59e0b;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  padding: 48px 48px 80px;
+  min-height: 100vh;
+}
+h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 2rem;
+  font-weight: 400;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 48px;
+}
+.diagram-wrap { overflow-x: auto; }
+svg { display: block; margin: 0 auto; }
+
+/* SVG text styles */
+.tbl-name     { font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 700; fill: #fff; letter-spacing: 0.03em; }
+.tbl-sub      { font-family: 'JetBrains Mono', monospace; font-size: 8px; fill: rgba(255,255,255,0.5); letter-spacing: 0.08em; }
+.f-name       { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; fill: #0f0f0f; }
+.f-type       { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; fill: #7a8399; }
+.f-pk         { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; fill: #f59e0b; }
+.f-fk         { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; fill: #3b82f6; }
+.rel-lbl      { font-family: 'JetBrains Mono', monospace; font-size: 8px; fill: #4f5d75; letter-spacing: 0.05em; }
+.leg-lbl      { font-family: 'DM Sans', sans-serif; font-size: 11px; fill: #4f5d75; }
+</style>
+</head>
+<body>
+
+<h1>Klar Device Normalizer</h1>
+<p class="subtitle">Database schema — entity-relationship diagram</p>
+
+<div class="diagram-wrap">
+<!--
+  LAYOUT MATH  (row height R=26, header H=48, sep line at H+0)
+  ──────────────────────────────────────────────────────────────
+  devices (19 fields):   y0=40  h = H + 19*R + 4 = 48+494+4 = 546   bottom=586
+  sync_runs (9 fields):  y0=40  h = H + 9*R  + 4 = 48+234+4 = 286   bottom=326
+  status_snapshots(12):  y0=346 h = H + 12*R + 4 = 48+312+4 = 364   bottom=710
+  acknowledged(4 fields):y0=610 h = H + 4*R  + 4 = 48+104+4 = 156   bottom=766
+
+  Column A (devices + acknowledged):  x=40,  right=370
+  Column B (sync_runs + status_snap): x=700, right=980
+
+  Connector gap between cols: x=400..680
+
+  FK line (status_snapshots → sync_runs): route via x=686
+    leaves status_snapshots left at (700, 414) → sync_run_id row midpoint
+    arrives sync_runs left at (700, 188) → id row midpoint (y0+48+R/2+R*0+R/2)
+    Actually: sync_runs id row text y=107+13=top of first field area
+    We use field midpoints: firstfield_mid = y0+H+R/2
+
+  Logical ref (acknowledged.canonical_id → devices.canonical_id):
+    leaves acknowledged right at (370, 649) → canonical_id row midpoint
+    arrives devices right at (370, 153) → canonical_id row midpoint
+    routes via x=392
+-->
+<svg width="1040" height="800" viewBox="0 0 1040 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+  <marker id="arr-fk" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0.5 L8,3.5 L0,6.5 Z" fill="#3b82f6"/>
+  </marker>
+  <marker id="arr-logic" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0.5 L8,3.5 L0,6.5 Z" fill="#8b5cf6"/>
+  </marker>
+</defs>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TABLE: devices
+     x=40  y=40  w=330  h=546  (19 fields × R26 + H48 + 4pad)
+     Fields start at y=40+48=88 (+4 sep), first text at 88+4+17=109
+     Row tops:  88, 114, 140, 166, 192, 218, 244, 270, 296, 322,
+                348, 374, 400, 426, 452, 478, 504, 530, 556
+     ══════════════════════════════════════════════════════════ -->
+
+<!-- card shadow -->
+<rect x="43" y="43" width="330" height="546" rx="9" fill="rgba(15,15,15,0.055)"/>
+<!-- card body -->
+<rect x="40" y="40" width="330" height="546" rx="8" fill="white" stroke="#e2e2df" stroke-width="1.2"/>
+<!-- header fill -->
+<rect x="40" y="40" width="330" height="48" rx="8" fill="#0f0f0f"/>
+<rect x="40" y="68" width="330" height="20" fill="#0f0f0f"/><!-- flatten bottom corners -->
+<text x="58" y="62" class="tbl-name">devices</text>
+<text x="58" y="78" class="tbl-sub">PRIMARY ENTITY TABLE</text>
+
+<!-- separator after header -->
+<line x1="40" y1="88" x2="370" y2="88" stroke="#e2e2df" stroke-width="1"/>
+
+<!-- ── field rows (R=26) ─────────────────────────── -->
+<!-- id -->
+<text x="58" y="109" class="f-pk">PK</text>
+<text x="82" y="109" class="f-name">id</text>
+<text x="230" y="109" class="f-type">INTEGER</text>
+<line x1="40" y1="114" x2="370" y2="114" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- canonical_id -->
+<text x="58" y="135" class="f-name">canonical_id</text>
+<text x="230" y="135" class="f-type">TEXT UNIQUE</text>
+<line x1="40" y1="140" x2="370" y2="140" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- hostnames -->
+<text x="58" y="161" class="f-name">hostnames</text>
+<text x="230" y="161" class="f-type">JSON</text>
+<line x1="40" y1="166" x2="370" y2="166" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- serial_number -->
+<text x="58" y="187" class="f-name">serial_number</text>
+<text x="230" y="187" class="f-type">TEXT</text>
+<line x1="40" y1="192" x2="370" y2="192" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- mac_addresses -->
+<text x="58" y="213" class="f-name">mac_addresses</text>
+<text x="230" y="213" class="f-type">JSON</text>
+<line x1="40" y1="218" x2="370" y2="218" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- owner_email -->
+<text x="58" y="239" class="f-name">owner_email</text>
+<text x="230" y="239" class="f-type">TEXT</text>
+<line x1="40" y1="244" x2="370" y2="244" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- owner_name -->
+<text x="58" y="265" class="f-name">owner_name</text>
+<text x="230" y="265" class="f-type">TEXT</text>
+<line x1="40" y1="270" x2="370" y2="270" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- os_type -->
+<text x="58" y="291" class="f-name">os_type</text>
+<text x="230" y="291" class="f-type">TEXT</text>
+<line x1="40" y1="296" x2="370" y2="296" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- sources -->
+<text x="58" y="317" class="f-name">sources</text>
+<text x="230" y="317" class="f-type">JSON</text>
+<line x1="40" y1="322" x2="370" y2="322" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- source_ids -->
+<text x="58" y="343" class="f-name">source_ids</text>
+<text x="230" y="343" class="f-type">JSON</text>
+<line x1="40" y1="348" x2="370" y2="348" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- status -->
+<text x="58" y="369" class="f-name">status</text>
+<text x="230" y="369" class="f-type">TEXT</text>
+<line x1="40" y1="374" x2="370" y2="374" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- confidence_score -->
+<text x="58" y="395" class="f-name">confidence_score</text>
+<text x="230" y="395" class="f-type">REAL</text>
+<line x1="40" y1="400" x2="370" y2="400" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- match_reason -->
+<text x="58" y="421" class="f-name">match_reason</text>
+<text x="230" y="421" class="f-type">TEXT</text>
+<line x1="40" y1="426" x2="370" y2="426" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- is_active_vpn -->
+<text x="58" y="447" class="f-name">is_active_vpn</text>
+<text x="230" y="447" class="f-type">BOOLEAN</text>
+<line x1="40" y1="452" x2="370" y2="452" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- coverage_gaps -->
+<text x="58" y="473" class="f-name">coverage_gaps</text>
+<text x="230" y="473" class="f-type">JSON</text>
+<line x1="40" y1="478" x2="370" y2="478" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- days_since_seen -->
+<text x="58" y="499" class="f-name">days_since_seen</text>
+<text x="230" y="499" class="f-type">INTEGER</text>
+<line x1="40" y1="504" x2="370" y2="504" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- first_seen -->
+<text x="58" y="525" class="f-name">first_seen</text>
+<text x="230" y="525" class="f-type">DATETIME</text>
+<line x1="40" y1="530" x2="370" y2="530" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- last_seen -->
+<text x="58" y="551" class="f-name">last_seen</text>
+<text x="230" y="551" class="f-type">DATETIME</text>
+<line x1="40" y1="556" x2="370" y2="556" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- deleted_at -->
+<text x="58" y="577" class="f-name">deleted_at</text>
+<text x="230" y="577" class="f-type">DATETIME</text>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TABLE: sync_runs
+     x=700  y=40  w=300  h=286  (9 fields × R26 + H48 + 4pad)
+     First text row mid: 40+48+4+17 = 109
+     ══════════════════════════════════════════════════════════ -->
+
+<rect x="703" y="43" width="300" height="286" rx="9" fill="rgba(15,15,15,0.055)"/>
+<rect x="700" y="40" width="300" height="286" rx="8" fill="white" stroke="#e2e2df" stroke-width="1.2"/>
+<rect x="700" y="40" width="300" height="48" rx="8" fill="#1a1a2e"/>
+<rect x="700" y="68" width="300" height="20" fill="#1a1a2e"/>
+<text x="718" y="62" class="tbl-name">sync_runs</text>
+<text x="718" y="78" class="tbl-sub">INGESTION RUN LOG</text>
+<line x1="700" y1="88" x2="1000" y2="88" stroke="#e2e2df" stroke-width="1"/>
+
+<!-- id -->
+<text x="718" y="109" class="f-pk">PK</text>
+<text x="742" y="109" class="f-name">id</text>
+<text x="860" y="109" class="f-type">INTEGER</text>
+<line x1="700" y1="114" x2="1000" y2="114" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- started_at -->
+<text x="718" y="135" class="f-name">started_at</text>
+<text x="860" y="135" class="f-type">DATETIME</text>
+<line x1="700" y1="140" x2="1000" y2="140" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- finished_at -->
+<text x="718" y="161" class="f-name">finished_at</text>
+<text x="860" y="161" class="f-type">DATETIME</text>
+<line x1="700" y1="166" x2="1000" y2="166" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- status -->
+<text x="718" y="187" class="f-name">status</text>
+<text x="860" y="187" class="f-type">TEXT</text>
+<line x1="700" y1="192" x2="1000" y2="192" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- total_raw_devices -->
+<text x="718" y="213" class="f-name">total_raw_devices</text>
+<text x="860" y="213" class="f-type">INTEGER</text>
+<line x1="700" y1="218" x2="1000" y2="218" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- duplicates_removed -->
+<text x="718" y="239" class="f-name">duplicates_removed</text>
+<text x="860" y="239" class="f-type">INTEGER</text>
+<line x1="700" y1="244" x2="1000" y2="244" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- final_count -->
+<text x="718" y="265" class="f-name">final_count</text>
+<text x="860" y="265" class="f-type">INTEGER</text>
+<line x1="700" y1="270" x2="1000" y2="270" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- sources_ok -->
+<text x="718" y="291" class="f-name">sources_ok</text>
+<text x="860" y="291" class="f-type">JSON</text>
+<line x1="700" y1="296" x2="1000" y2="296" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- sources_failed -->
+<text x="718" y="317" class="f-name">sources_failed</text>
+<text x="860" y="317" class="f-type">JSON</text>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TABLE: status_snapshots
+     x=700  y=360  w=300  h=364  (12 fields × R26 + H48 + 4pad)
+     First text mid: 360+48+4+17 = 429
+     ══════════════════════════════════════════════════════════ -->
+
+<rect x="703" y="363" width="300" height="364" rx="9" fill="rgba(15,15,15,0.055)"/>
+<rect x="700" y="360" width="300" height="364" rx="8" fill="white" stroke="#e2e2df" stroke-width="1.2"/>
+<rect x="700" y="360" width="300" height="48" rx="8" fill="#0d3349"/>
+<rect x="700" y="388" width="300" height="20" fill="#0d3349"/>
+<text x="718" y="382" class="tbl-name">status_snapshots</text>
+<text x="718" y="398" class="tbl-sub">PER-RUN AGGREGATED COUNTS</text>
+<line x1="700" y1="408" x2="1000" y2="408" stroke="#e2e2df" stroke-width="1"/>
+
+<!-- id -->
+<text x="718" y="429" class="f-pk">PK</text>
+<text x="742" y="429" class="f-name">id</text>
+<text x="860" y="429" class="f-type">INTEGER</text>
+<line x1="700" y1="434" x2="1000" y2="434" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- sync_run_id  (FK) -->
+<text x="718" y="455" class="f-fk">FK</text>
+<text x="742" y="455" class="f-name">sync_run_id</text>
+<text x="860" y="455" class="f-type">INTEGER</text>
+<line x1="700" y1="460" x2="1000" y2="460" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- recorded_at -->
+<text x="718" y="481" class="f-name">recorded_at</text>
+<text x="860" y="481" class="f-type">DATETIME</text>
+<line x1="700" y1="486" x2="1000" y2="486" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- total -->
+<text x="718" y="507" class="f-name">total</text>
+<text x="860" y="507" class="f-type">INTEGER</text>
+<line x1="700" y1="512" x2="1000" y2="512" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- fully_managed -->
+<text x="718" y="533" class="f-name">fully_managed</text>
+<text x="860" y="533" class="f-type">INTEGER</text>
+<line x1="700" y1="538" x2="1000" y2="538" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- managed -->
+<text x="718" y="559" class="f-name">managed</text>
+<text x="860" y="559" class="f-type">INTEGER</text>
+<line x1="700" y1="564" x2="1000" y2="564" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- no_edr -->
+<text x="718" y="585" class="f-name">no_edr</text>
+<text x="860" y="585" class="f-type">INTEGER</text>
+<line x1="700" y1="590" x2="1000" y2="590" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- no_mdm -->
+<text x="718" y="611" class="f-name">no_mdm</text>
+<text x="860" y="611" class="f-type">INTEGER</text>
+<line x1="700" y1="616" x2="1000" y2="616" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- idp_only -->
+<text x="718" y="637" class="f-name">idp_only</text>
+<text x="860" y="637" class="f-type">INTEGER</text>
+<line x1="700" y1="642" x2="1000" y2="642" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- stale -->
+<text x="718" y="663" class="f-name">stale</text>
+<text x="860" y="663" class="f-type">INTEGER</text>
+<line x1="700" y1="668" x2="1000" y2="668" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- unknown -->
+<text x="718" y="689" class="f-name">unknown</text>
+<text x="860" y="689" class="f-type">INTEGER</text>
+<line x1="700" y1="694" x2="1000" y2="694" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- server -->
+<text x="718" y="715" class="f-name">server</text>
+<text x="860" y="715" class="f-type">INTEGER</text>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TABLE: acknowledged_devices
+     x=40  y=610  w=330  h=156  (4 fields × R26 + H48 + 4pad)
+     First text mid: 610+48+4+17 = 679
+     ══════════════════════════════════════════════════════════ -->
+
+<rect x="43" y="613" width="330" height="156" rx="9" fill="rgba(15,15,15,0.055)"/>
+<rect x="40" y="610" width="330" height="156" rx="8" fill="white" stroke="#e2e2df" stroke-width="1.2"/>
+<rect x="40" y="610" width="330" height="48" rx="8" fill="#2d1b4e"/>
+<rect x="40" y="638" width="330" height="20" fill="#2d1b4e"/>
+<text x="58" y="632" class="tbl-name">acknowledged_devices</text>
+<text x="58" y="648" class="tbl-sub">MANUAL ACKNOWLEDGEMENTS</text>
+<line x1="40" y1="658" x2="370" y2="658" stroke="#e2e2df" stroke-width="1"/>
+
+<!-- canonical_id (PK) -->
+<text x="58" y="679" class="f-pk">PK</text>
+<text x="82" y="679" class="f-name">canonical_id</text>
+<text x="230" y="679" class="f-type">TEXT</text>
+<line x1="40" y1="684" x2="370" y2="684" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- reason -->
+<text x="58" y="705" class="f-name">reason</text>
+<text x="230" y="705" class="f-type">TEXT</text>
+<line x1="40" y1="710" x2="370" y2="710" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- acknowledged_by -->
+<text x="58" y="731" class="f-name">acknowledged_by</text>
+<text x="230" y="731" class="f-type">TEXT</text>
+<line x1="40" y1="736" x2="370" y2="736" stroke="#ebebea" stroke-width="0.6"/>
+
+<!-- acknowledged_at -->
+<text x="58" y="757" class="f-name">acknowledged_at</text>
+<text x="230" y="757" class="f-type">DATETIME</text>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     RELATIONSHIP LINES
+     ══════════════════════════════════════════════════════════
+
+  1. FK: status_snapshots.sync_run_id → sync_runs.id
+     Anchor A: left of status_snapshots, sync_run_id row midpoint y=450
+     Anchor B: left of sync_runs, id row midpoint y=101
+     Route: exit x=700 going left, jog to x=686, travel up, re-enter at x=700
+
+     sync_run_id row: top=434, bot=460 → mid=447
+     sync_runs id row: top=88, bot=114 → mid=101  ...well bottom of table=326
+
+     sync_runs bottom = 40+286 = 326
+     status_snapshots top = 360
+     Gap between them: y 326..360
+
+     Route: A=(700, 447) → left to (684, 447) → up to (684, 101) → right to (700, 101)
+
+  2. Logical: acknowledged_devices.canonical_id → devices.canonical_id
+     acknowledged canonical_id row mid y = 671
+     devices canonical_id row mid y = 127
+     Route: right of acknowledged (370, 671) → right to (392, 671) → up to (392, 127) → left to (370, 127)
+-->
+
+<!-- 1. FK: status_snapshots.sync_run_id → sync_runs.id -->
+<polyline
+  points="700,447 684,447 684,101 700,101"
+  stroke="#3b82f6"
+  stroke-width="1.5"
+  fill="none"
+  marker-end="url(#arr-fk)"
+/>
+<!-- cardinality: N side (status_snapshots) -->
+<text x="688" y="444" class="rel-lbl">N</text>
+<!-- cardinality: 1 side (sync_runs) -->
+<text x="688" y="116" class="rel-lbl">1</text>
+<!-- mid label -->
+<text
+  x="674" y="278"
+  class="rel-lbl"
+  text-anchor="middle"
+  transform="rotate(-90 674 278)"
+>sync_run_id → sync_runs.id</text>
+
+
+<!-- 2. Logical: acknowledged_devices.canonical_id → devices.canonical_id -->
+<polyline
+  points="370,671 392,671 392,127 370,127"
+  stroke="#8b5cf6"
+  stroke-width="1.5"
+  stroke-dasharray="7 3"
+  fill="none"
+  marker-end="url(#arr-logic)"
+/>
+<!-- labels -->
+<text x="396" y="410" class="rel-lbl" transform="rotate(90 396 410)">canonical_id  (logical ref)</text>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     LEGEND
+     x=460  y=40  w=210  h=118
+     ══════════════════════════════════════════════════════════ -->
+
+<rect x="458" y="38" width="215" height="124" rx="7" fill="white" stroke="#e2e2df" stroke-width="1"/>
+<text x="476" y="62" class="tbl-name" style="fill:#0f0f0f;font-size:10.5px">Legend</text>
+
+<!-- FK solid -->
+<line x1="476" y1="82" x2="524" y2="82" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr-fk)"/>
+<text x="532" y="86" class="leg-lbl">Foreign key (enforced)</text>
+
+<!-- Logical dashed -->
+<line x1="476" y1="106" x2="524" y2="106" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="7 3" marker-end="url(#arr-logic)"/>
+<text x="532" y="110" class="leg-lbl">Logical reference</text>
+
+<!-- PK badge -->
+<text x="476" y="132" class="f-pk" style="font-size:9px">PK</text>
+<text x="494" y="132" class="leg-lbl">Primary key</text>
+
+<!-- FK badge -->
+<text x="476" y="152" class="f-fk" style="font-size:9.5px">FK</text>
+<text x="494" y="152" class="leg-lbl">Foreign key field</text>
+
+
+</svg>
+</div>
+
+</body>
+</html>

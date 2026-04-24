@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Okta OIDC Authentication Flow — Sequence Diagram</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:      #f5f5f3;
+  --paper-2:    #ececea;
+  --ink:        #0f0f0f;
+  --muted:      #4f5d75;
+  --soft:       #7a8399;
+  --rule:       rgba(15,15,15,0.10);
+  --rule-med:   rgba(15,15,15,0.18);
+  --accent:     #0f0f0f;
+  --green:      #10b981;
+  --amber:      #f59e0b;
+  --blue:       #3b82f6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  padding: 56px 48px 72px;
+  min-height: 100vh;
+}
+h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 2rem;
+  font-weight: 400;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 52px;
+  font-weight: 400;
+}
+svg { display: block; margin: 0 auto; overflow: visible; }
+
+/* SVG text classes */
+.actor-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+.actor-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  fill: var(--soft);
+}
+.msg-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  fill: var(--ink);
+}
+.msg-mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  fill: var(--muted);
+}
+.note-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  fill: var(--soft);
+}
+.step-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  fill: var(--soft);
+  font-weight: 500;
+}
+.phase-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  fill: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.legend-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  fill: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<h1>Okta OIDC Authentication Flow</h1>
+<p class="subtitle">Authorization Code Flow with state validation and JWT session — FastAPI + Okta IDP</p>
+
+<!--
+  Layout constants (all in px, SVG user units):
+  Canvas: 900 × 1040
+  Actor columns: Browser=140, FastAPI=450, Okta=760
+  Lifeline y-start: 88, y-end: 970
+  Message rows start at y=160, spacing=38px
+  Actor boxes: width=150, height=54, rx=6
+-->
+
+<svg width="900" height="1040" viewBox="0 0 900 1040" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Standard rightward arrowhead -->
+    <marker id="arr-right" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 Z" fill="var(--ink)"/>
+    </marker>
+    <!-- Standard leftward arrowhead -->
+    <marker id="arr-left" markerWidth="8" markerHeight="8" refX="1" refY="3.5" orient="auto-start-reverse">
+      <path d="M8,0 L8,7 L0,3.5 Z" fill="var(--ink)"/>
+    </marker>
+    <!-- Muted rightward arrowhead (server self-notes, dashed returns) -->
+    <marker id="arr-muted-r" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 Z" fill="var(--muted)"/>
+    </marker>
+    <marker id="arr-muted-l" markerWidth="8" markerHeight="8" refX="1" refY="3.5" orient="auto-start-reverse">
+      <path d="M8,0 L8,7 L0,3.5 Z" fill="var(--muted)"/>
+    </marker>
+    <!-- Green arrowhead -->
+    <marker id="arr-green-r" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 Z" fill="var(--green)"/>
+    </marker>
+    <marker id="arr-green-l" markerWidth="8" markerHeight="8" refX="1" refY="3.5" orient="auto-start-reverse">
+      <path d="M8,0 L8,7 L0,3.5 Z" fill="var(--green)"/>
+    </marker>
+    <!-- Amber arrowhead -->
+    <marker id="arr-amber-r" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 Z" fill="var(--amber)"/>
+    </marker>
+    <marker id="arr-amber-l" markerWidth="8" markerHeight="8" refX="1" refY="3.5" orient="auto-start-reverse">
+      <path d="M8,0 L8,7 L0,3.5 Z" fill="var(--amber)"/>
+    </marker>
+    <!-- Blue arrowhead -->
+    <marker id="arr-blue-r" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 Z" fill="var(--blue)"/>
+    </marker>
+    <marker id="arr-blue-l" markerWidth="8" markerHeight="8" refX="1" refY="3.5" orient="auto-start-reverse">
+      <path d="M8,0 L8,7 L0,3.5 Z" fill="var(--blue)"/>
+    </marker>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════════
+       ACTOR BOXES  (y=20 … y=88)
+       ═══════════════════════════════════════════════════════ -->
+
+  <!-- Browser -->
+  <rect x="65" y="20" width="150" height="58" rx="6"
+        fill="white" stroke="rgba(15,15,15,0.20)" stroke-width="1.2"/>
+  <text x="140" y="44" text-anchor="middle" class="actor-label">Browser</text>
+  <text x="140" y="59" text-anchor="middle" class="actor-sub">User Agent</text>
+
+  <!-- FastAPI Server -->
+  <rect x="375" y="20" width="150" height="58" rx="6"
+        fill="white" stroke="rgba(15,15,15,0.20)" stroke-width="1.2"/>
+  <text x="450" y="44" text-anchor="middle" class="actor-label">FastAPI Server</text>
+  <text x="450" y="59" text-anchor="middle" class="actor-sub">Python backend</text>
+
+  <!-- Okta IDP -->
+  <rect x="685" y="20" width="150" height="58" rx="6"
+        fill="white" stroke="var(--amber)" stroke-width="1.4"/>
+  <text x="760" y="44" text-anchor="middle" class="actor-label" fill="var(--amber)" style="font-family:'DM Sans',sans-serif;font-weight:700;">Okta IDP</text>
+  <text x="760" y="59" text-anchor="middle" class="actor-sub">OIDC Provider</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LIFELINES  (vertical dashed lines)
+       ═══════════════════════════════════════════════════════ -->
+  <line x1="140" y1="78" x2="140" y2="990" stroke="rgba(15,15,15,0.14)" stroke-width="1" stroke-dasharray="5 5"/>
+  <line x1="450" y1="78" x2="450" y2="990" stroke="rgba(15,15,15,0.14)" stroke-width="1" stroke-dasharray="5 5"/>
+  <line x1="760" y1="78" x2="760" y2="990" stroke="rgba(15,15,15,0.14)" stroke-width="1" stroke-dasharray="5 5"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PHASE BANDS  (light background rectangles)
+       ═══════════════════════════════════════════════════════ -->
+
+  <!-- Phase 1: Initial Request (rows 1-2, y≈108–168) -->
+  <rect x="28" y="100" width="844" height="82" rx="4" fill="rgba(15,15,15,0.025)"/>
+  <text x="38" y="114" class="phase-label">Phase 1 — Initial Request</text>
+
+  <!-- Phase 2: Initiate Auth (rows 3-5, y≈190–270) -->
+  <rect x="28" y="190" width="844" height="100" rx="4" fill="rgba(59,130,246,0.035)"/>
+  <text x="38" y="204" class="phase-label" style="fill:#3b82f6;">Phase 2 — Initiate Auth</text>
+
+  <!-- Phase 3: Okta Login (rows 6-9, y≈298–414) -->
+  <rect x="28" y="294" width="844" height="136" rx="4" fill="rgba(245,158,11,0.04)"/>
+  <text x="38" y="308" class="phase-label" style="fill:var(--amber);">Phase 3 — Okta Login</text>
+
+  <!-- Phase 4: Callback & Token Exchange (rows 10-16, y≈438–662) -->
+  <rect x="28" y="434" width="844" height="262" rx="4" fill="rgba(16,185,129,0.035)"/>
+  <text x="38" y="448" class="phase-label" style="fill:var(--green);">Phase 4 — Callback &amp; Token Exchange</text>
+
+  <!-- Phase 5: Session & Access (rows 17-21, y≈704–858) -->
+  <rect x="28" y="698" width="844" height="200" rx="4" fill="rgba(15,15,15,0.025)"/>
+  <text x="38" y="712" class="phase-label">Phase 5 — Session &amp; Dashboard Access</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MESSAGES
+       Row spacing: 44px between message centers
+       First message y = 136
+       ═══════════════════════════════════════════════════════ -->
+
+  <!-- ── Row 1: Browser → Server: GET / (no session) ── y=136 -->
+  <text x="128" y="129" text-anchor="end" class="step-num">1</text>
+  <line x1="148" y1="136" x2="434" y2="136" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="291" y="130" text-anchor="middle" class="msg-label">GET /</text>
+  <text x="291" y="146" text-anchor="middle" class="msg-mono">no session cookie</text>
+
+  <!-- ── Row 2: Server → Browser: Login page HTML ── y=172 -->
+  <text x="462" y="165" text-anchor="start" class="step-num">2</text>
+  <line x1="442" y1="172" x2="156" y2="172" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="6 3" marker-end="url(#arr-muted-l)"/>
+  <text x="291" y="166" text-anchor="middle" class="msg-label" style="fill:var(--muted);">200 OK — Login page HTML</text>
+  <text x="291" y="181" text-anchor="middle" class="msg-mono">renders /login with "Sign in with Okta" button</text>
+
+  <!-- ── Row 3: Browser → Server: GET /auth/okta ── y=214 -->
+  <text x="128" y="207" text-anchor="end" class="step-num">3</text>
+  <line x1="148" y1="214" x2="434" y2="214" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="291" y="208" text-anchor="middle" class="msg-label">GET /auth/okta</text>
+  <text x="291" y="224" text-anchor="middle" class="msg-mono">user clicks "Sign in with Okta"</text>
+
+  <!-- ── Row 4: Server self-note: generate state, store in cookie ── y=252 -->
+  <text x="462" y="245" text-anchor="start" class="step-num">4</text>
+  <rect x="468" y="241" width="220" height="22" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
+  <text x="578" y="256" text-anchor="middle" class="note-text">generate state=UUID; store in cookie</text>
+
+  <!-- ── Row 5: Server → Browser: 302 Redirect to Okta /authorize ── y=284 -->
+  <text x="462" y="277" text-anchor="start" class="step-num">5</text>
+  <line x1="442" y1="284" x2="156" y2="284" stroke="var(--blue)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-blue-l)"/>
+  <text x="291" y="277" text-anchor="middle" class="msg-label" style="fill:var(--blue);">302 Redirect → Okta /authorize</text>
+  <text x="291" y="293" text-anchor="middle" class="msg-mono">Location: {okta_domain}/oauth2/v1/authorize?…</text>
+
+  <!-- ── Row 6: Browser → Okta: GET /authorize ── y=322 -->
+  <text x="128" y="315" text-anchor="end" class="step-num">6</text>
+  <line x1="148" y1="322" x2="744" y2="322" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="446" y="316" text-anchor="middle" class="msg-label">GET /oauth2/v1/authorize</text>
+  <text x="446" y="332" text-anchor="middle" class="msg-mono">client_id, redirect_uri, scope, state, response_type=code</text>
+
+  <!-- ── Row 7: Okta → Browser: Login form ── y=360 -->
+  <text x="748" y="353" text-anchor="start" class="step-num">7</text>
+  <line x1="744" y1="360" x2="156" y2="360" stroke="var(--amber)" stroke-width="1.2" stroke-dasharray="6 3" marker-end="url(#arr-amber-l)"/>
+  <text x="446" y="354" text-anchor="middle" class="msg-label" style="fill:var(--amber);">200 OK — Okta login form</text>
+  <text x="446" y="370" text-anchor="middle" class="msg-mono">renders username / password fields</text>
+
+  <!-- ── Row 8: Browser → Okta: POST credentials ── y=398 -->
+  <text x="128" y="391" text-anchor="end" class="step-num">8</text>
+  <line x1="148" y1="398" x2="744" y2="398" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="446" y="392" text-anchor="middle" class="msg-label">POST credentials</text>
+  <text x="446" y="408" text-anchor="middle" class="msg-mono">username + password (Okta-side MFA if configured)</text>
+
+  <!-- ── Row 9: Okta → Browser: 302 to /auth/okta/callback ── y=424 -->
+  <text x="748" y="417" text-anchor="start" class="step-num">9</text>
+  <line x1="744" y1="424" x2="156" y2="424" stroke="var(--amber)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-amber-l)"/>
+  <text x="446" y="417" text-anchor="middle" class="msg-label" style="fill:var(--amber);">302 Redirect → /auth/okta/callback</text>
+  <text x="446" y="433" text-anchor="middle" class="msg-mono">?code=AUTH_CODE&amp;state=UUID</text>
+
+  <!-- ── Row 10: Browser → Server: GET /auth/okta/callback ── y=462 -->
+  <text x="128" y="455" text-anchor="end" class="step-num">10</text>
+  <line x1="148" y1="462" x2="434" y2="462" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="291" y="456" text-anchor="middle" class="msg-label">GET /auth/okta/callback</text>
+  <text x="291" y="472" text-anchor="middle" class="msg-mono">?code=AUTH_CODE&amp;state=UUID</text>
+
+  <!-- ── Row 11: Server self-note: Validate state ── y=496 -->
+  <text x="462" y="489" text-anchor="start" class="step-num">11</text>
+  <rect x="468" y="485" width="220" height="22" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
+  <text x="578" y="500" text-anchor="middle" class="note-text">validate state == cookie value (CSRF check)</text>
+
+  <!-- ── Row 12: Server → Okta: POST /v1/token ── y=524 -->
+  <text x="462" y="517" text-anchor="start" class="step-num">12</text>
+  <line x1="458" y1="524" x2="744" y2="524" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="601" y="518" text-anchor="middle" class="msg-label">POST /oauth2/v1/token</text>
+  <text x="601" y="534" text-anchor="middle" class="msg-mono">grant_type=authorization_code, code, redirect_uri</text>
+
+  <!-- ── Row 13: Okta → Server: {access_token, id_token} ── y=562 -->
+  <text x="748" y="555" text-anchor="start" class="step-num">13</text>
+  <line x1="744" y1="562" x2="458" y2="562" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#arr-green-l)"/>
+  <text x="601" y="555" text-anchor="middle" class="msg-label" style="fill:var(--green);">200 OK — token response</text>
+  <text x="601" y="571" text-anchor="middle" class="msg-mono">{"access_token":"…", "id_token":"…", "token_type":"Bearer"}</text>
+
+  <!-- ── Row 14: Server self-note: Validate id_token ── y=596 -->
+  <text x="462" y="589" text-anchor="start" class="step-num">14</text>
+  <rect x="468" y="585" width="220" height="22" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
+  <text x="578" y="600" text-anchor="middle" class="note-text">verify id_token JWT: iss, aud, exp, sig</text>
+
+  <!-- ── Row 15: Server → Okta: GET /v1/userinfo ── y=624 -->
+  <text x="462" y="617" text-anchor="start" class="step-num">15</text>
+  <line x1="458" y1="624" x2="744" y2="624" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="601" y="618" text-anchor="middle" class="msg-label">GET /oauth2/v1/userinfo</text>
+  <text x="601" y="634" text-anchor="middle" class="msg-mono">Authorization: Bearer {access_token}</text>
+
+  <!-- ── Row 16: Okta → Server: {email, name} ── y=658 -->
+  <text x="748" y="651" text-anchor="start" class="step-num">16</text>
+  <line x1="744" y1="658" x2="458" y2="658" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#arr-green-l)"/>
+  <text x="601" y="652" text-anchor="middle" class="msg-label" style="fill:var(--green);">200 OK — user claims</text>
+  <text x="601" y="668" text-anchor="middle" class="msg-mono">{"email":"user@klar.mx", "name":"…", "sub":"…"}</text>
+
+  <!-- ── Row 17: Server self-note: Check domain allowlist ── y=724 -->
+  <text x="462" y="717" text-anchor="start" class="step-num">17</text>
+  <rect x="468" y="713" width="220" height="22" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
+  <text x="578" y="728" text-anchor="middle" class="note-text">assert email.endswith("@klar.mx")</text>
+
+  <!-- ── Row 18: Server self-note: Create JWT session ── y=754 -->
+  <text x="462" y="747" text-anchor="start" class="step-num">18</text>
+  <rect x="468" y="743" width="220" height="22" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
+  <text x="578" y="758" text-anchor="middle" class="note-text">create signed JWT → klar_session cookie</text>
+
+  <!-- ── Row 19: Server → Browser: 302 + Set-Cookie ── y=784 -->
+  <text x="462" y="777" text-anchor="start" class="step-num">19</text>
+  <line x1="442" y1="784" x2="156" y2="784" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-green-l)"/>
+  <text x="291" y="777" text-anchor="middle" class="msg-label" style="fill:var(--green);">302 Redirect → /</text>
+  <text x="291" y="793" text-anchor="middle" class="msg-mono">Set-Cookie: klar_session=JWT; HttpOnly; Secure</text>
+
+  <!-- ── Row 20: Browser → Server: GET / (with cookie) ── y=824 -->
+  <text x="128" y="817" text-anchor="end" class="step-num">20</text>
+  <line x1="148" y1="824" x2="434" y2="824" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="291" y="818" text-anchor="middle" class="msg-label">GET /</text>
+  <text x="291" y="834" text-anchor="middle" class="msg-mono">Cookie: klar_session=JWT</text>
+
+  <!-- ── Row 21: Server → Browser: Dashboard ── y=862 -->
+  <text x="462" y="855" text-anchor="start" class="step-num">21</text>
+  <line x1="442" y1="862" x2="156" y2="862" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="6 3" marker-end="url(#arr-muted-l)"/>
+  <text x="291" y="856" text-anchor="middle" class="msg-label" style="fill:var(--muted);">200 OK — Dashboard</text>
+  <text x="291" y="872" text-anchor="middle" class="msg-mono">asset inventory view, authenticated</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       ACTOR FOOTERS (repeat at bottom)
+       ═══════════════════════════════════════════════════════ -->
+  <rect x="65" y="900" width="150" height="42" rx="6"
+        fill="white" stroke="rgba(15,15,15,0.20)" stroke-width="1.2"/>
+  <text x="140" y="926" text-anchor="middle" class="actor-label">Browser</text>
+
+  <rect x="375" y="900" width="150" height="42" rx="6"
+        fill="white" stroke="rgba(15,15,15,0.20)" stroke-width="1.2"/>
+  <text x="450" y="926" text-anchor="middle" class="actor-label">FastAPI Server</text>
+
+  <rect x="685" y="900" width="150" height="42" rx="6"
+        fill="white" stroke="var(--amber)" stroke-width="1.4"/>
+  <text x="760" y="926" text-anchor="middle" class="actor-label" fill="var(--amber)" style="font-weight:700;">Okta IDP</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LEGEND
+       ═══════════════════════════════════════════════════════ -->
+  <rect x="28" y="956" width="844" height="68" rx="4" fill="rgba(15,15,15,0.025)"/>
+
+  <!-- solid black arrow = HTTP request -->
+  <line x1="48" y1="978" x2="90" y2="978" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
+  <text x="98" y="982" class="legend-label">HTTP request (GET / POST)</text>
+
+  <!-- dashed muted = response -->
+  <line x1="48" y1="1002" x2="90" y2="1002" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="6 3" marker-end="url(#arr-muted-r)"/>
+  <text x="98" y="1006" class="legend-label">HTTP response / redirect</text>
+
+  <!-- green dashed = token/auth response -->
+  <line x1="250" y1="978" x2="292" y2="978" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#arr-green-r)"/>
+  <text x="300" y="982" class="legend-label">Token / auth response</text>
+
+  <!-- amber dashed = Okta redirect -->
+  <line x1="250" y1="1002" x2="292" y2="1002" stroke="var(--amber)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-amber-r)"/>
+  <text x="300" y="1006" class="legend-label">Okta redirect</text>
+
+  <!-- blue dashed -->
+  <line x1="460" y1="978" x2="502" y2="978" stroke="var(--blue)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-blue-r)"/>
+  <text x="510" y="982" class="legend-label">Server → browser redirect (302)</text>
+
+  <!-- note box -->
+  <rect x="460" y="991" width="130" height="16" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
+  <text x="525" y="1003" text-anchor="middle" class="note-text">server-side computation note</text>
+</svg>
+
+</body>
+</html>

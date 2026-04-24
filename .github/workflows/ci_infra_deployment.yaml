@@ -42,26 +42,28 @@ jobs:
 
 
   deploy:
-    name: Plan and deploy changes
+    name: Deploy neutral jobs (Terragrunt)
+    needs: build
     concurrency:
-      group: "terraform-neutral" # NOTE: change to your environment
-    runs-on: [klarmx-4-4gi-4gi]
+      group: terraform-neutral-jobs
+    runs-on: klarmx-default
     steps:
+      - run: |
+          tfenv install 1.9.8
+          tfenv use 1.9.8
+          terraform --version
+          # Terragrunt parses `terraform version`; tfenv's shim can prepend colored install logs and break parsing.
+          echo "TERRAGRUNT_TFPATH=$HOME/.tfenv/versions/1.9.8/terraform" >> $GITHUB_ENV
       - uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: '${{ secrets.ORG_SSH_KEY }}'
       - uses: actions/checkout@v2
-      - uses: actions/checkout@v2
+      - name: Set up Python (for lambda-layers pip install in Terragrunt)
+        uses: actions/setup-python@v5
         with:
-          repository: 'klar-mx/github-actions'
-          ref: 'main'
-          path: '.actions'
-          ssh-key: '${{ secrets.ORG_SSH_KEY }}'
-      - uses: ./.actions/plan_infra
+          python-version: '3.11'
+      - uses: klar-mx/github-actions/deploy_infra@main
         with:
-          environment: 'neutral' # NOTE: change to your environment
-      - uses: ./.actions/deploy_infra
-        with:
-          environment: 'neutral' # NOTE: change to your environment
-          image: '${{ needs.build.outputs.imageTag }}'
+          environment: 'klar-infra-neutral'
+          image: "${{ needs.build.outputs.ecr }}/${{ needs.build.outputs.repository }}:${{ needs.build.outputs.imageTag }}"
           secrets: ${{ toJSON(secrets) }}

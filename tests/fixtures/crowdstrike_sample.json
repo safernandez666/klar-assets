@@ -1,0 +1,122 @@
+[
+  {
+    "aid": "abc123def456",
+    "hostname": "LAPTOP-001",
+    "serial_number": "SN123456789",
+    "mac_address": "AA:BB:CC:DD:EE:01",
+    "os_type": "Windows",
+    "os_version": "10.0.19044",
+    "last_interactive_user_name": "john.doe@company.com",
+    "last_seen": "2026-04-21T10:00:00Z"
+  },
+  {
+    "aid": "abc123def457",
+    "hostname": "LAPTOP-002",
+    "serial_number": "SN987654321",
+    "mac_address": "AA:BB:CC:DD:EE:02",
+    "os_type": "macOS",
+    "os_version": "14.4",
+    "last_interactive_user_name": "jane.smith@company.com",
+    "last_seen": "2026-04-20T08:30:00Z"
+  },
+  {
+    "aid": "abc123def458",
+    "hostname": "DESKTOP-003",
+    "serial_number": "SN111111111",
+    "mac_address": "AA:BB:CC:DD:EE:03",
+    "os_type": "Windows",
+    "os_version": "11.0.22621",
+    "last_interactive_user_name": "admin@company.com",
+    "last_seen": "2026-04-22T06:00:00Z"
+  },
+  {
+    "aid": "abc123def459",
+    "hostname": "laptop-ARG",
+    "serial_number": "SN222222222",
+    "mac_address": "AA:BB:CC:DD:EE:04",
+    "os_type": "Windows",
+    "os_version": "10.0.19044",
+    "last_interactive_user_name": "carlos.perez@company.com",
+    "last_seen": "2026-04-21T14:00:00Z"
+  },
+  {
+    "aid": "abc123def460",
+    "hostname": "MAC-005",
+    "serial_number": "SN333333333",
+    "mac_address": "AA:BB:CC:DD:EE:05",
+    "os_type": "macOS",
+    "os_version": "13.6",
+    "last_interactive_user_name": "ana.garcia@company.com",
+    "last_seen": "2026-04-19T09:00:00Z"
+  },
+  {
+    "aid": "abc123def461",
+    "hostname": "SERVER-01",
+    "serial_number": "SN444444444",
+    "mac_address": "AA:BB:CC:DD:EE:06",
+    "os_type": "Linux",
+    "os_version": "Ubuntu 22.04",
+    "last_interactive_user_name": "root",
+    "last_seen": "2026-04-22T07:00:00Z"
+  },
+  {
+    "aid": "abc123def462",
+    "hostname": "BYOD-007",
+    "serial_number": "SN555555555",
+    "mac_address": "AA:BB:CC:DD:EE:07",
+    "os_type": "Windows",
+    "os_version": "10.0.19044",
+    "last_interactive_user_name": "contractor@external.com",
+    "last_seen": "2026-04-18T10:00:00Z"
+  },
+  {
+    "aid": "abc123def463",
+    "hostname": "LAPTOP-008",
+    "serial_number": "SN666666666",
+    "mac_address": "AA:BB:CC:DD:EE:08",
+    "os_type": "macOS",
+    "os_version": "14.5",
+    "last_interactive_user_name": "dev@company.com",
+    "last_seen": "2026-04-21T16:00:00Z"
+  },
+  {
+    "aid": "abc123def464",
+    "hostname": "TABLET-009",
+    "serial_number": "SN777777777",
+    "mac_address": "AA:BB:CC:DD:EE:09",
+    "os_type": "iOS",
+    "os_version": "17.4",
+    "last_interactive_user_name": "sales@company.com",
+    "last_seen": "2026-04-22T05:00:00Z"
+  },
+  {
+    "aid": "abc123def465",
+    "hostname": "PHONE-010",
+    "serial_number": "SN888888888",
+    "mac_address": "AA:BB:CC:DD:EE:0A",
+    "os_type": "Android",
+    "os_version": "14",
+    "last_interactive_user_name": "support@company.com",
+    "last_seen": "2026-04-21T11:00:00Z"
+  },
+  {
+    "aid": "abc123def466",
+    "hostname": "LAPTOP-011",
+    "serial_number": "SN999999999",
+    "mac_address": "AA:BB:CC:DD:EE:0B",
+    "os_type": "Windows",
+    "os_version": "11.0.22621",
+    "last_interactive_user_name": "manager@company.com",
+    "last_seen": "2026-04-22T08:00:00Z"
+  },
+  {
+    "aid": "abc123def467",
+    "hostname": "WORKSTATION-012",
+    "serial_number": "SN000000000",
+    "mac_address": "AA:BB:CC:DD:EE:0C",
+    "os_type": "Linux",
+    "os_version": "Fedora 39",
+    "last_interactive_user_name": "engineer@company.com",
+    "last_seen": "2026-04-20T12:00:00Z"
+  }
+]

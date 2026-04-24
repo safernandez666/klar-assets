@@ -1,0 +1,82 @@
+[
+  {
+    "username": "john.doe@company.com",
+    "public_ip": "203.0.113.10",
+    "private_ip": "10.0.1.50",
+    "hostname": "LAPTOP-001",
+    "client_os": "Windows",
+    "login_time": "2026-04-22T08:00:00Z"
+  },
+  {
+    "username": "jane.smith@company.com",
+    "public_ip": "203.0.113.11",
+    "private_ip": "10.0.1.51",
+    "hostname": "LAPTOP-002",
+    "client_os": "macOS",
+    "login_time": "2026-04-22T07:30:00Z"
+  },
+  {
+    "username": "carlos.perez@company.com",
+    "public_ip": "203.0.113.12",
+    "private_ip": "10.0.1.52",
+    "hostname": "laptop-ARG",
+    "client_os": "Windows",
+    "login_time": "2026-04-22T06:00:00Z"
+  },
+  {
+    "username": "vpn.user@company.com",
+    "public_ip": "203.0.113.99",
+    "private_ip": "10.0.1.99",
+    "hostname": "PERSONAL-MAC",
+    "client_os": "macOS",
+    "login_time": "2026-04-22T05:00:00Z"
+  },
+  {
+    "username": "remote.worker@company.com",
+    "public_ip": "203.0.113.98",
+    "private_ip": "10.0.1.98",
+    "hostname": "HOME-PC",
+    "client_os": "Windows",
+    "login_time": "2026-04-21T22:00:00Z"
+  },
+  {
+    "username": "contractor@external.com",
+    "public_ip": "203.0.113.97",
+    "private_ip": "10.0.1.97",
+    "hostname": "BYOD-007",
+    "client_os": "Windows",
+    "login_time": "2026-04-20T09:00:00Z"
+  },
+  {
+    "username": "admin@company.com",
+    "public_ip": "203.0.113.13",
+    "private_ip": "10.0.1.53",
+    "hostname": "DESKTOP-003",
+    "client_os": "Windows",
+    "login_time": "2026-04-22T08:15:00Z"
+  },
+  {
+    "username": "sales@company.com",
+    "public_ip": "203.0.113.14",
+    "private_ip": "10.0.1.54",
+    "hostname": "TABLET-009",
+    "client_os": "iOS",
+    "login_time": "2026-04-22T04:00:00Z"
+  },
+  {
+    "username": "support@company.com",
+    "public_ip": "203.0.113.15",
+    "private_ip": "10.0.1.55",
+    "hostname": "PHONE-010",
+    "client_os": "Android",
+    "login_time": "2026-04-22T03:00:00Z"
+  },
+  {
+    "username": "manager@company.com",
+    "public_ip": "203.0.113.16",
+    "private_ip": "10.0.1.56",
+    "hostname": "LAPTOP-011",
+    "client_os": "Windows",
+    "login_time": "2026-04-22T08:30:00Z"
+  }
+]

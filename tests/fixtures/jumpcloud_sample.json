@@ -1,0 +1,82 @@
+[
+  {
+    "id": "jc-system-001",
+    "hostname": "LAPTOP-001",
+    "serialNumber": "SN123456789",
+    "os": "Windows 10",
+    "version": "10.0.19044",
+    "users": ["john.doe@company.com"]
+  },
+  {
+    "id": "jc-system-002",
+    "hostname": "LAPTOP-002",
+    "serialNumber": "SN987654321",
+    "os": "macOS",
+    "version": "14.4",
+    "users": ["jane.smith@company.com"]
+  },
+  {
+    "id": "jc-system-003",
+    "hostname": "desktop-003",
+    "serialNumber": "SN111111111",
+    "os": "Windows 11",
+    "version": "11.0.22621",
+    "users": ["admin@company.com"]
+  },
+  {
+    "id": "jc-system-004",
+    "hostname": "laptop-arg",
+    "serialNumber": "SN222222222",
+    "os": "Windows 10",
+    "version": "10.0.19044",
+    "users": ["carlos.perez@company.com"]
+  },
+  {
+    "id": "jc-system-005",
+    "hostname": "MAC-005",
+    "serialNumber": "SN333333333",
+    "os": "macOS",
+    "version": "13.6",
+    "users": ["ana.garcia@company.com"]
+  },
+  {
+    "id": "jc-system-006",
+    "hostname": "jc-server-01",
+    "serialNumber": "SN444444444",
+    "os": "Ubuntu",
+    "version": "22.04",
+    "users": ["root", "admin@company.com"]
+  },
+  {
+    "id": "jc-system-007",
+    "hostname": "JC-UNKNOWN-001",
+    "serialNumber": "SN-JC-001",
+    "os": "Windows",
+    "version": "10",
+    "users": ["unknown@company.com"]
+  },
+  {
+    "id": "jc-system-008",
+    "hostname": "JC-UNKNOWN-002",
+    "serialNumber": "SN-JC-002",
+    "os": "Linux",
+    "version": "Debian 12",
+    "users": ["ops@company.com"]
+  },
+  {
+    "id": "jc-system-009",
+    "hostname": "kiosk-jc",
+    "serialNumber": "SN-KIOSK-001",
+    "os": "Windows",
+    "version": "10",
+    "users": ["kiosk@company.com"]
+  },
+  {
+    "id": "jc-system-010",
+    "hostname": "LAPTOP-011",
+    "serialNumber": "SN999999999",
+    "os": "Windows",
+    "version": "11",
+    "users": ["manager@company.com"]
+  }
+]

@@ -133,7 +133,7 @@ def _get_repo() -> DeviceRepository:
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
-PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/auth/me", "/favicon.svg", "/healthz"}
+PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/auth/me", "/favicon.svg", "/healthz", "/api/version"}
 
 
 def _create_token(username: str) -> str:
@@ -454,7 +454,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
     </div>
     <div class="status-bar">
       <div class="status-item"><span class="dot"></span> System operational</div>
-      <div class="status-item">v1.0</div>
+      <div class="status-item" id="ver">loading...</div>
     </div>
   </div>
 
@@ -496,6 +496,10 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
   }catch(ex){err.textContent='Connection error';err.style.display='block';
     btn.disabled=false;btn.textContent='Sign in'}
 });
+fetch('/api/version').then(r=>r.json()).then(d=>{
+  const v=d.version==='dev'?'dev':d.version.slice(0,7);
+  document.getElementById('ver').textContent=v;
+}).catch(()=>{document.getElementById('ver').textContent='v1.0'});
 </script>
 </body>
 </html>""".replace("{okta_section}", okta_section)
@@ -503,9 +507,18 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
 
 # ── Health check (public, no auth) ────────────────────────────────────────────
 
+APP_VERSION = os.getenv("APP_VERSION", "dev")
+APP_BUILD_DATE = os.getenv("APP_BUILD_DATE", "")
+
+
 @app.get("/healthz")
 async def healthz() -> Any:
-    return JSONResponse(content={"status": "ok", "syncing": _syncing})
+    return JSONResponse(content={"status": "ok", "syncing": _syncing, "version": APP_VERSION})
+
+
+@app.get("/api/version")
+async def api_version() -> Any:
+    return JSONResponse(content={"version": APP_VERSION, "build_date": APP_BUILD_DATE})
 
 
 # ── API Routes ───────────────────────────────────────────────────────────────

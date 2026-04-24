@@ -17,6 +17,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Version info (passed as build arg)
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+ENV APP_VERSION=${GIT_COMMIT}
+ENV APP_BUILD_DATE=${BUILD_DATE}
+
 # App code
 COPY src/ ./src/
 COPY main.py scheduler.py ./

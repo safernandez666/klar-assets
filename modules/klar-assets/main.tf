@@ -60,7 +60,14 @@ data "aws_kms_secrets" "secret" {
     name    = "APP_URL"
     payload = var.APP_URL
   }
-
+    secret {
+    name    = "CS_CLIENT_ID"
+    payload = var.CS_CLIENT_ID
+  }
+    secret {
+    name    = "CS_CLIENT_SECRET"
+    payload = var.CS_CLIENT_SECRET
+  }
 }
 
 resource "kubectl_manifest" "secret" {
@@ -82,6 +89,9 @@ resource "kubectl_manifest" "secret" {
         OKTA_OIDC_ISSUER: ${data.aws_kms_secrets.secret.plaintext["OKTA_OIDC_ISSUER"]}
         OKTA_ALLOWED_DOMAINS: ${data.aws_kms_secrets.secret.plaintext["OKTA_ALLOWED_DOMAINS"]}
         APP_URL: ${data.aws_kms_secrets.secret.plaintext["APP_URL"]}
+        CS_CLIENT_ID: ${data.aws_kms_secrets.secret.plaintext["CS_CLIENT_ID"]}
+        CS_CLIENT_SECRET: ${data.aws_kms_secrets.secret.plaintext["CS_CLIENT_SECRET"]}
+          
       YAML
 
   sensitive_fields = ["stringData"]

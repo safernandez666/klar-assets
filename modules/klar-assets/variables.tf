@@ -61,4 +61,11 @@ variable "APP_URL" {
   default = ""
 }
 
-
+variable "CS_CLIENT_ID" {
+  type    = string
+  default = ""
+}
+variable "CS_CLIENT_SECRET" {
+  type    = string
+  default = ""
+}

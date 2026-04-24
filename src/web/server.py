@@ -133,7 +133,7 @@ def _get_repo() -> DeviceRepository:
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
-PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/favicon.svg"}
+PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/auth/me", "/favicon.svg", "/healthz"}
 
 
 def _create_token(username: str) -> str:
@@ -499,6 +499,13 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
 </script>
 </body>
 </html>""".replace("{okta_section}", okta_section)
+
+
+# ── Health check (public, no auth) ────────────────────────────────────────────
+
+@app.get("/healthz")
+async def healthz() -> Any:
+    return JSONResponse(content={"status": "ok", "syncing": _syncing})
 
 
 # ── API Routes ───────────────────────────────────────────────────────────────

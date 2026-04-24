@@ -56,6 +56,10 @@ data "aws_kms_secrets" "secret" {
     name    = "SLACK_WEBHOOK_URL"
     payload = var.SLACK_WEBHOOK_URL
   }
+    secret {
+    name    = "APP_URL"
+    payload = var.APP_URL
+  }
 
 }
 
@@ -77,6 +81,7 @@ resource "kubectl_manifest" "secret" {
         SLACK_WEBHOOK_URL: ${data.aws_kms_secrets.secret.plaintext["SLACK_WEBHOOK_URL"]}
         OKTA_OIDC_ISSUER: ${data.aws_kms_secrets.secret.plaintext["OKTA_OIDC_ISSUER"]}
         OKTA_ALLOWED_DOMAINS: ${data.aws_kms_secrets.secret.plaintext["OKTA_ALLOWED_DOMAINS"]}
+        APP_URL: ${data.aws_kms_secrets.secret.plaintext["APP_URL"]}
       YAML
 
   sensitive_fields = ["stringData"]

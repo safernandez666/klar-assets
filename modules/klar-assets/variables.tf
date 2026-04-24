@@ -56,5 +56,9 @@ variable "OKTA_ALLOWED_DOMAINS" {
   type    = string
   default = ""
 }
+variable "APP_URL" {
+  type    = string
+  default = ""
+}
 
 

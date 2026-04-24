@@ -10,7 +10,6 @@ env:
 
 jobs:
   build:
-    build:
     name: Build docker image
     environment: klar-infra-neutral
     runs-on: [klarmx-4-4gi-4gi]
@@ -39,7 +38,7 @@ jobs:
           repoPath="739282534308.dkr.ecr.us-east-2.amazonaws.com/klar-assets" 
           imageTag="${repoPath}:latest"
           docker build -f "${dockerFileLocation}" -t "${imageTag}" .
-          docker push "${imageTag}"
+          docker push "${imageTag}"  
 
 
   deploy:

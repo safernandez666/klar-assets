@@ -22,7 +22,7 @@ COPY src/ ./src/
 COPY main.py scheduler.py ./
 COPY images/ ./images/
 
-# Frontend build output 
+# Frontend build output.  
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 # Data dir

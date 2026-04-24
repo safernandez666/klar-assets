@@ -36,6 +36,12 @@ Recolecta datos de dispositivos de tres fuentes en paralelo, deduplica por seria
 
 ## Screenshots
 
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.jpg)
+
+### Acciones Rápidas (IA)
+![Quick Actions](docs/screenshots/quick-actions.jpg)
+
 ## Inicio Rápido
 
 ### Local

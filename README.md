@@ -36,6 +36,12 @@ Collects device data from three sources in parallel, deduplicates by serial/MAC/
 
 ## Screenshots
 
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.jpg)
+
+### Quick Actions (AI-powered)
+![Quick Actions](docs/screenshots/quick-actions.jpg)
+
 ## Quick Start
 
 ### Local

@@ -303,11 +303,11 @@ class TestDeduplicator:
         assert "jumpcloud" in d.sources
 
     def test_similar_hostnames_dont_merge(self) -> None:
-        """KLAR-AR-001 and KLAR-AR-002 should NOT merge despite similarity."""
+        """CORP-AR-001 and CORP-AR-002 should NOT merge despite similarity."""
         devices = [
             RawDevice(
                 device_id="cs-001",
-                hostname="KLAR-AR-001",
+                hostname="CORP-AR-001",
                 serial_number=None,
                 mac_addresses=[],
                 os_type="Windows",
@@ -320,7 +320,7 @@ class TestDeduplicator:
             ),
             RawDevice(
                 device_id="cs-002",
-                hostname="KLAR-AR-002",
+                hostname="CORP-AR-002",
                 serial_number=None,
                 mac_addresses=[],
                 os_type="Windows",

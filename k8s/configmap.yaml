@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: klar-config
-  namespace: klar
+  name: dn-config
+  namespace: device-normalizer
 data:
   CS_BASE_URL: "https://api.us-2.crowdstrike.com"
-  OKTA_DOMAIN: "klar.okta.com"
-  APP_URL: "https://devices.klar.mx"
+  OKTA_DOMAIN: "example.okta.com"
+  APP_URL: "https://devices.example.com"
   AUTH_USERNAME: "admin"
   SYNC_INTERVAL_HOURS: "6"
   SYNC_ON_STARTUP: "true"

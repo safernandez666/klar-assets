@@ -46,7 +46,7 @@ export function Layout({ children, lastSync, summary }: LayoutProps) {
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight">
-                Klar Device Normalizer
+                Device Normalizer
               </h1>
               <div className="flex items-center gap-3">
                 <p className="text-xs text-muted">

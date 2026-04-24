@@ -10,8 +10,8 @@ services:
     env_file:
       - .env
     volumes:
-      - klar-data:/app/data
+      - dn-data:/app/data
     restart: unless-stopped
 
 volumes:
-  klar-data:
+  dn-data:

@@ -1,10 +1,8 @@
-# Klar Device Normalizer
+# Device Normalizer
 
 > **🌐 Language / Idioma:** [English](README.md) | [Español](README.es.md)
 
 Fleet visibility across JumpCloud (MDM), CrowdStrike (EDR) & Okta (IDP) — unified in one secure dashboard.
-
-![Dashboard](docs/screenshots/dashboard.png)
 
 ## What it does
 
@@ -30,7 +28,7 @@ Collects device data from three sources in parallel, deduplicates by serial/MAC/
 - **Asset Search** with filters by status, source, OS, and full-text search
 - **People view** — person-centric compliance: who has managed devices, who doesn't
 - **Acknowledge** devices to exclude them from metrics (contingency, test devices)
-- **PDF report** with executive summary, charts, device lists, and Klar branding
+- **PDF report** with executive summary, charts, device lists, and custom branding
 - **Export** to CSV and Excel with colored statuses
 - **Slack alerts** after each sync: new devices, disappearances, stale devices
 - **Server/VM detection** — auto-classifies infrastructure by hostname patterns
@@ -38,35 +36,14 @@ Collects device data from three sources in parallel, deduplicates by serial/MAC/
 
 ## Screenshots
 
-### Login
-![Login](docs/screenshots/login.png)
-
-### Dashboard — Status Cards, Risk Score & Quality Metrics
-![Dashboard](docs/screenshots/dashboard.png)
-
-### Distribution Charts & Sources Health
-![Charts](docs/screenshots/charts.png)
-
-### Quick Actions (AI-powered)
-![Quick Actions](docs/screenshots/quick-actions.png)
-
-### Device Inventory
-![Inventory](docs/screenshots/inventory.png)
-
-### Asset Search
-![Search](docs/screenshots/search.png)
-
-### People — Compliance View
-![People](docs/screenshots/people.png)
-
 ## Quick Start
 
 ### Local
 
 ```bash
 # Clone
-git clone https://github.com/safernandez666/klar-assets.git
-cd klar-assets
+git clone https://github.com/safernandez666/device-normalizer.git
+cd device-normalizer
 
 # Python
 python -m venv .venv
@@ -90,7 +67,7 @@ Open http://localhost:8080
 
 ```bash
 # Build
-docker build -t klar-device-normalizer .
+docker build -t device-normalizer .
 
 # Run
 docker compose up -d
@@ -109,8 +86,8 @@ vim k8s/secret.yaml
 vim k8s/configmap.yaml
 
 # 3. Push image to your registry
-docker tag klar-device-normalizer your-registry/klar-device-normalizer:latest
-docker push your-registry/klar-device-normalizer:latest
+docker tag device-normalizer your-registry/device-normalizer:latest
+docker push your-registry/device-normalizer:latest
 # Update image in k8s/deployment.yaml
 
 # 4. Deploy
@@ -121,7 +98,7 @@ The `k8s/` directory includes:
 
 | File | Description |
 |------|-------------|
-| `namespace.yaml` | `klar` namespace |
+| `namespace.yaml` | `device-normalizer` namespace |
 | `secret.yaml` | API keys, passwords (fill before applying) |
 | `configmap.yaml` | Non-secret config (URLs, sync interval) |
 | `pvc.yaml` | 1Gi persistent volume for SQLite |
@@ -140,7 +117,7 @@ Copy `.env.example` to `.env` and fill in:
 | `CS_CLIENT_ID` | Yes | CrowdStrike API client ID |
 | `CS_CLIENT_SECRET` | Yes | CrowdStrike API client secret |
 | `CS_BASE_URL` | Yes | CrowdStrike API base URL |
-| `OKTA_DOMAIN` | Yes | Okta org domain (e.g. klar.okta.com) |
+| `OKTA_DOMAIN` | Yes | Okta org domain (e.g. example.okta.com) |
 | `OKTA_API_TOKEN` | Yes | Okta API token |
 | `JC_API_KEY` | Yes | JumpCloud API key |
 | `APP_URL` | No | Public URL (default: http://localhost:8080) |
@@ -173,15 +150,15 @@ When a device appears for the first time:
 - **Managed new devices** are reported as a count
 
 > :new: **3 New Devices Without Full Coverage**
-> :warning: `MacBook-Pro-New.local` — john@klar.mx — **NO_EDR**
+> :warning: `MacBook-Pro-New.local` — john@example.com — **NO_EDR**
 > :warning: `DESKTOP-XYZ` — no owner — **NO_MDM**
 
 #### Managed Devices Disappeared
 When a device that was MANAGED or FULLY_MANAGED stops reporting:
 
 > :rotating_light: **2 Managed Devices Disappeared**
-> :rotating_light: `santiago-macbook.local` — santiago@klar.mx
-> :rotating_light: `LAPTOP-ABC` — maria@klar.mx
+> :rotating_light: `santiago-macbook.local` — jane@example.com
+> :rotating_light: `LAPTOP-ABC` — maria@example.com
 
 #### Devices Went Stale
 When a device crosses the 90-day inactivity threshold:

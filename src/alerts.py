@@ -86,7 +86,7 @@ def build_sync_blocks(
     rs_label = "Excellent" if risk_score >= 85 else "Good" if risk_score >= 70 else "Fair" if risk_score >= 55 else "At Risk" if risk_score >= 40 else "Critical"
 
     blocks: list[dict[str, Any]] = [
-        _blocks_header(f"{icon} Klar Device Normalizer"),
+        _blocks_header(f"{icon} Device Normalizer"),
         _blocks_section(f"Sync completed — *{sync_status.upper()}* — <!date^{int(datetime.now(timezone.utc).timestamp())}^{{date_short_pretty}} {{time}}|{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}>"),
         _blocks_divider(),
         _blocks_section(
@@ -161,7 +161,7 @@ def build_sync_blocks(
         blocks.append(_blocks_section(":white_check_mark: No changes since last sync"))
 
     blocks.append(_blocks_divider())
-    blocks.append(_blocks_context(["Klar Device Normalizer — IT Security Team"]))
+    blocks.append(_blocks_context(["Device Normalizer — IT Security Team"]))
 
     return blocks
 
@@ -217,6 +217,6 @@ def alert_after_sync(
         no_mdm_count=len(no_mdm),
     )
 
-    fallback = f"Klar Sync: {total} devices, {managed} managed"
+    fallback = f"Sync: {total} devices, {managed} managed"
     send_slack(fallback, blocks=blocks)
     logger.info("slack_alert_sent", no_edr=len(no_edr), disappeared=len(disappeared or []), newly_stale=len(newly_stale or []))

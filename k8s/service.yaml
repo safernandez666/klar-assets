@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: klar-device-normalizer
-  namespace: klar
+  name: device-normalizer
+  namespace: device-normalizer
   labels:
-    app: klar-device-normalizer
+    app: device-normalizer
 spec:
   type: ClusterIP
   selector:
-    app: klar-device-normalizer
+    app: device-normalizer
   ports:
     - port: 80
       targetPort: 8080

@@ -18,7 +18,7 @@ MATCH_PROMPT = """You are a device inventory analyst. You will receive pairs of 
 Consider:
 - Serial number match is very strong evidence (almost certain match if same serial).
 - Owner email match + same OS family is strong evidence.
-- Hostnames can differ wildly: Okta uses display names ("Kim's MacBook Air"), JumpCloud uses network hostnames ("ip-192-168-1-72.us-east-2.compute.internal"), CrowdStrike uses OS hostnames ("MacBook-Pro-de-Klar-5.local").
+- Hostnames can differ wildly: Okta uses display names ("Kim's MacBook Air"), JumpCloud uses network hostnames ("ip-192-168-1-72.us-east-2.compute.internal"), CrowdStrike uses OS hostnames ("MacBook-Pro-de-Corp-5.local").
 - OS type must be compatible (Mac/macOS/Mac OS X/darwin are all the same; Windows/Win are the same).
 - If serial numbers are present in BOTH and they DIFFER, they are DIFFERENT devices. Do not match them.
 - One person CAN have multiple devices. If ambiguous, say NO.

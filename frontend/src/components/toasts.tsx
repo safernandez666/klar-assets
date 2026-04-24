@@ -47,8 +47,8 @@ export function ToastContainer() {
       setToasts((prev) => [...prev, { ...t, id }]);
     };
     // Expose globally for sidebar (which doesn't import toast directly)
-    (window as any).__klar_toast = toast;
-    return () => { _addToast = null; delete (window as any).__klar_toast; };
+    (window as any).__dn_toast = toast;
+    return () => { _addToast = null; delete (window as any).__dn_toast; };
   }, []);
 
   const dismiss = (id: string) => {

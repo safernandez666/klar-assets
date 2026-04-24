@@ -268,14 +268,14 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
               try {
                 const r = await fetch("/api/slack/test", { method: "POST" });
                 const d = await r.json();
-                if (typeof window !== "undefined" && (window as any).__klar_toast) {
-                  (window as any).__klar_toast(d.sent
+                if (typeof window !== "undefined" && (window as any).__dn_toast) {
+                  (window as any).__dn_toast(d.sent
                     ? { type: "success", title: "Slack message sent", duration: 3000 }
                     : { type: "error", title: d.error || "Failed to send", duration: 4000 });
                 }
               } catch {
-                if (typeof window !== "undefined" && (window as any).__klar_toast) {
-                  (window as any).__klar_toast({ type: "error", title: "Connection error", duration: 4000 });
+                if (typeof window !== "undefined" && (window as any).__dn_toast) {
+                  (window as any).__dn_toast({ type: "error", title: "Connection error", duration: 4000 });
                 }
               }
             }}

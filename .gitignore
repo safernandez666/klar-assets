@@ -1,7 +1,6 @@
 # Environment & secrets
 .env
 *.env.local
-Dockerfile
 # Python
 .venv/
 __pycache__/

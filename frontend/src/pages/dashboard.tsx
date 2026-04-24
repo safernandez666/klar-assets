@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
-import { KLAR_LOGO_WHITE } from "../assets/klar-logo-white";
+
 import { Layout } from "../components/layout";
 import { Sidebar } from "../components/sidebar";
 import { ToastContainer, toast } from "../components/toasts";
@@ -128,7 +128,7 @@ export default function Dashboard() {
 
       const footer = () => {
         pdf.setFontSize(7); pdf.setFont("helvetica", "normal"); pdf.setTextColor(...K.light);
-        pdf.text("Klar Device Normalizer", m, ph - 8);
+        pdf.text("Device Normalizer", m, ph - 8);
         pdf.text(`Page ${pageNum}`, pw - m, ph - 8, { align: "right" });
         pdf.setDrawColor(230, 230, 230); pdf.setLineWidth(0.3); pdf.line(m, ph - 12, pw - m, ph - 12);
       };
@@ -248,7 +248,7 @@ export default function Dashboard() {
       // Black header band
       pdf.setFillColor(...K.black); pdf.rect(0, 0, pw, 52, "F");
       // Logo
-      try { pdf.addImage(KLAR_LOGO_WHITE, "PNG", m, 10, 22, 11); } catch { /* */ }
+      
       // Title
       pdf.setFontSize(22); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255, 255, 255);
       pdf.text("Device Inventory Report", m, 35);
@@ -412,7 +412,7 @@ export default function Dashboard() {
         footer();
       }
 
-      pdf.save("klar-device-report.pdf");
+      pdf.save("device-report.pdf");
     } catch (e) {
       console.error("PDF export failed:", e);
     } finally {
@@ -448,7 +448,7 @@ export default function Dashboard() {
             </svg>
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Klar Device Normalizer</h2>
+            <h2 className="text-lg font-semibold">Device Normalizer</h2>
             <p className="text-sm text-muted mt-1">Initial sync in progress...</p>
             <p className="text-xs text-muted mt-2">Collecting devices from JumpCloud, CrowdStrike & Okta.<br/>This may take a few minutes on the first run.</p>
           </div>

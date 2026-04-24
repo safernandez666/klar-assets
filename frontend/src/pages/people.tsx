@@ -215,7 +215,7 @@ export default function PeoplePage() {
                 <Input
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  placeholder="user@klar.mx"
+                  placeholder="user@example.com"
                 />
               </div>
               <div className="w-40">

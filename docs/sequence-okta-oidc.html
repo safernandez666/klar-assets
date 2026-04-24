@@ -295,29 +295,29 @@ svg { display: block; margin: 0 auto; overflow: visible; }
   <text x="748" y="651" text-anchor="start" class="step-num">16</text>
   <line x1="744" y1="658" x2="458" y2="658" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#arr-green-l)"/>
   <text x="601" y="652" text-anchor="middle" class="msg-label" style="fill:var(--green);">200 OK — user claims</text>
-  <text x="601" y="668" text-anchor="middle" class="msg-mono">{"email":"user@klar.mx", "name":"…", "sub":"…"}</text>
+  <text x="601" y="668" text-anchor="middle" class="msg-mono">{"email":"user@example.com", "name":"…", "sub":"…"}</text>
 
   <!-- ── Row 17: Server self-note: Check domain allowlist ── y=724 -->
   <text x="462" y="717" text-anchor="start" class="step-num">17</text>
   <rect x="468" y="713" width="220" height="22" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
-  <text x="578" y="728" text-anchor="middle" class="note-text">assert email.endswith("@klar.mx")</text>
+  <text x="578" y="728" text-anchor="middle" class="note-text">assert email.endswith("@example.com")</text>
 
   <!-- ── Row 18: Server self-note: Create JWT session ── y=754 -->
   <text x="462" y="747" text-anchor="start" class="step-num">18</text>
   <rect x="468" y="743" width="220" height="22" rx="3" fill="rgba(15,15,15,0.06)" stroke="rgba(15,15,15,0.12)" stroke-width="0.8"/>
-  <text x="578" y="758" text-anchor="middle" class="note-text">create signed JWT → klar_session cookie</text>
+  <text x="578" y="758" text-anchor="middle" class="note-text">create signed JWT → dn_session cookie</text>
 
   <!-- ── Row 19: Server → Browser: 302 + Set-Cookie ── y=784 -->
   <text x="462" y="777" text-anchor="start" class="step-num">19</text>
   <line x1="442" y1="784" x2="156" y2="784" stroke="var(--green)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-green-l)"/>
   <text x="291" y="777" text-anchor="middle" class="msg-label" style="fill:var(--green);">302 Redirect → /</text>
-  <text x="291" y="793" text-anchor="middle" class="msg-mono">Set-Cookie: klar_session=JWT; HttpOnly; Secure</text>
+  <text x="291" y="793" text-anchor="middle" class="msg-mono">Set-Cookie: dn_session=JWT; HttpOnly; Secure</text>
 
   <!-- ── Row 20: Browser → Server: GET / (with cookie) ── y=824 -->
   <text x="128" y="817" text-anchor="end" class="step-num">20</text>
   <line x1="148" y1="824" x2="434" y2="824" stroke="var(--ink)" stroke-width="1.4" marker-end="url(#arr-right)"/>
   <text x="291" y="818" text-anchor="middle" class="msg-label">GET /</text>
-  <text x="291" y="834" text-anchor="middle" class="msg-mono">Cookie: klar_session=JWT</text>
+  <text x="291" y="834" text-anchor="middle" class="msg-mono">Cookie: dn_session=JWT</text>
 
   <!-- ── Row 21: Server → Browser: Dashboard ── y=862 -->
   <text x="462" y="855" text-anchor="start" class="step-num">21</text>

@@ -1,33 +1,33 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: klar-device-normalizer
-  namespace: klar
+  name: device-normalizer
+  namespace: device-normalizer
   labels:
-    app: klar-device-normalizer
+    app: device-normalizer
 spec:
   replicas: 1
   strategy:
     type: Recreate  # SQLite doesn't support concurrent writers
   selector:
     matchLabels:
-      app: klar-device-normalizer
+      app: device-normalizer
   template:
     metadata:
       labels:
-        app: klar-device-normalizer
+        app: device-normalizer
     spec:
       containers:
         - name: app
-          image: klar-device-normalizer:latest
+          image: device-normalizer:latest
           ports:
             - containerPort: 8080
               name: http
           envFrom:
             - configMapRef:
-                name: klar-config
+                name: dn-config
             - secretRef:
-                name: klar-secrets
+                name: dn-secrets
           volumeMounts:
             - name: data
               mountPath: /data
@@ -53,4 +53,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: klar-data
+            claimName: dn-data

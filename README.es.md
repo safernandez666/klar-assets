@@ -1,10 +1,8 @@
-# Klar Device Normalizer
+# Device Normalizer
 
 > **🌐 Language / Idioma:** [English](README.md) | [Español](README.es.md)
 
 Visibilidad del parque de dispositivos a través de JumpCloud (MDM), CrowdStrike (EDR) y Okta (IDP) — unificado en un dashboard seguro.
-
-![Dashboard](docs/screenshots/dashboard.png)
 
 ## Qué hace
 
@@ -30,7 +28,7 @@ Recolecta datos de dispositivos de tres fuentes en paralelo, deduplica por seria
 - **Búsqueda de activos** con filtros por estado, fuente, OS y búsqueda full-text
 - **Vista de personas** — compliance por persona: quién tiene dispositivos managed y quién no
 - **Acknowledge** de dispositivos para excluirlos de métricas (contingencia, test)
-- **Reporte PDF** con resumen ejecutivo, gráficos, listas de dispositivos y branding Klar
+- **Reporte PDF** con resumen ejecutivo, gráficos, listas de dispositivos y branding personalizado
 - **Exportación** a CSV y Excel con estados coloreados
 - **Alertas en Slack** después de cada sync: dispositivos nuevos, desapariciones, stale
 - **Detección de servidores/VMs** — clasifica automáticamente infraestructura por patrones de hostname
@@ -38,35 +36,14 @@ Recolecta datos de dispositivos de tres fuentes en paralelo, deduplica por seria
 
 ## Screenshots
 
-### Login
-![Login](docs/screenshots/login.png)
-
-### Dashboard — Cards de Estado, Risk Score y Métricas de Calidad
-![Dashboard](docs/screenshots/dashboard.png)
-
-### Gráficos de Distribución y Salud de Fuentes
-![Charts](docs/screenshots/charts.png)
-
-### Quick Actions (con IA)
-![Quick Actions](docs/screenshots/quick-actions.png)
-
-### Inventario de Dispositivos
-![Inventory](docs/screenshots/inventory.png)
-
-### Búsqueda de Activos
-![Search](docs/screenshots/search.png)
-
-### Personas — Vista de Compliance
-![People](docs/screenshots/people.png)
-
 ## Inicio Rápido
 
 ### Local
 
 ```bash
 # Clonar
-git clone https://github.com/safernandez666/klar-assets.git
-cd klar-assets
+git clone https://github.com/safernandez666/device-normalizer.git
+cd device-normalizer
 
 # Python
 python -m venv .venv
@@ -90,7 +67,7 @@ Abrir http://localhost:8080
 
 ```bash
 # Build
-docker build -t klar-device-normalizer .
+docker build -t device-normalizer .
 
 # Ejecutar
 docker compose up -d
@@ -109,8 +86,8 @@ vim k8s/secret.yaml
 vim k8s/configmap.yaml
 
 # 3. Subir imagen a tu registry
-docker tag klar-device-normalizer tu-registry/klar-device-normalizer:latest
-docker push tu-registry/klar-device-normalizer:latest
+docker tag device-normalizer tu-registry/device-normalizer:latest
+docker push tu-registry/device-normalizer:latest
 # Actualizar imagen en k8s/deployment.yaml
 
 # 4. Deployar
@@ -121,7 +98,7 @@ El directorio `k8s/` incluye:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `namespace.yaml` | Namespace `klar` |
+| `namespace.yaml` | Namespace `device-normalizer` |
 | `secret.yaml` | API keys, contraseñas (completar antes de aplicar) |
 | `configmap.yaml` | Config no secreta (URLs, intervalo de sync) |
 | `pvc.yaml` | Volumen persistente de 1Gi para SQLite |
@@ -140,7 +117,7 @@ Copiar `.env.example` a `.env` y completar:
 | `CS_CLIENT_ID` | Sí | CrowdStrike API client ID |
 | `CS_CLIENT_SECRET` | Sí | CrowdStrike API client secret |
 | `CS_BASE_URL` | Sí | CrowdStrike API base URL |
-| `OKTA_DOMAIN` | Sí | Dominio de Okta (ej: klar.okta.com) |
+| `OKTA_DOMAIN` | Sí | Dominio de Okta (ej: example.okta.com) |
 | `OKTA_API_TOKEN` | Sí | Token de API de Okta |
 | `JC_API_KEY` | Sí | API key de JumpCloud |
 | `APP_URL` | No | URL pública (default: http://localhost:8080) |
@@ -173,15 +150,15 @@ Cuando un dispositivo aparece por primera vez:
 - **Nuevos managed** se reportan como cantidad
 
 > :new: **3 Dispositivos Nuevos Sin Cobertura Completa**
-> :warning: `MacBook-Pro-New.local` — john@klar.mx — **NO_EDR**
+> :warning: `MacBook-Pro-New.local` — john@example.com — **NO_EDR**
 > :warning: `DESKTOP-XYZ` — sin owner — **NO_MDM**
 
 #### Dispositivos Managed Desaparecieron
 Cuando un dispositivo que era MANAGED o FULLY_MANAGED deja de reportar:
 
 > :rotating_light: **2 Dispositivos Managed Desaparecieron**
-> :rotating_light: `santiago-macbook.local` — santiago@klar.mx
-> :rotating_light: `LAPTOP-ABC` — maria@klar.mx
+> :rotating_light: `santiago-macbook.local` — jane@example.com
+> :rotating_light: `LAPTOP-ABC` — maria@example.com
 
 #### Dispositivos se Volvieron Stale
 Cuando un dispositivo cruza los 90 días de inactividad:

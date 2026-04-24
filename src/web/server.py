@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler.shutdown()
 
 
-app = FastAPI(title="Klar Device Normalizer", lifespan=lifespan)
+app = FastAPI(title="Device Normalizer", lifespan=lifespan)
 
 # ── In-memory cache — refreshed after each sync ──────────────────────────
 _cache: dict[str, Any] = {}
@@ -163,7 +163,7 @@ async def auth_middleware(request: Request, call_next: Any) -> Any:
     if path in PUBLIC_PATHS or path.startswith("/assets/"):
         return await call_next(request)
 
-    token = request.cookies.get("klar_session")
+    token = request.cookies.get("dn_session")
     user = _verify_token(token)
 
     if not user:
@@ -195,7 +195,7 @@ async def auth_login(body: LoginRequest) -> Any:
     token = _create_token(body.username)
     response = JSONResponse({"ok": True, "user": body.username})
     response.set_cookie(
-        key="klar_session",
+        key="dn_session",
         value=token,
         httponly=True,
         secure=_IS_HTTPS,
@@ -208,7 +208,7 @@ async def auth_login(body: LoginRequest) -> Any:
 
 @app.get("/auth/me")
 async def auth_me(request: Request) -> Any:
-    token = request.cookies.get("klar_session")
+    token = request.cookies.get("dn_session")
     user = _verify_token(token)
     return JSONResponse({"user": user or "unknown"})
 
@@ -217,7 +217,7 @@ async def auth_me(request: Request) -> Any:
 async def auth_logout() -> Any:
     from fastapi.responses import RedirectResponse
     response = RedirectResponse("/")
-    response.delete_cookie("klar_session", path="/")
+    response.delete_cookie("dn_session", path="/")
     return response
 
 
@@ -328,7 +328,7 @@ async def auth_okta_callback(code: str = "", error: str = "", state: str = "", r
     from fastapi.responses import RedirectResponse
     response = RedirectResponse("/")
     response.set_cookie(
-        key="klar_session", value=token, httponly=True,
+        key="dn_session", value=token, httponly=True,
         secure=_IS_HTTPS, samesite="lax", max_age=JWT_EXPIRY_HOURS * 3600, path="/",
     )
     response.delete_cookie("okta_state", path="/")
@@ -356,7 +356,7 @@ def _login_page() -> str:
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Klar — Sign in</title>
+<title>Sign in</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{--black:#0f0f0f;--white:#fff;--gray-1:#f7f7f5;--gray-2:#ebebea;--gray-3:#c4c4c3;--gray-4:#8a8a89;--gray-5:#555;--red:#c0392b;--green:#10b981}
@@ -448,7 +448,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
 
 <div class="wrapper">
   <div class="left">
-    <div class="brand">Klar</div>
+    <div class="brand">Corp</div>
     <div class="tagline">
       <strong>Device Normalizer</strong><br>
       Fleet visibility across JumpCloud, CrowdStrike &amp; Okta — unified in one secure dashboard.
@@ -475,7 +475,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
         <button class="btn" type="submit" id="btn">Sign in</button>
       </form>
       {okta_section}
-      <div class="footer">Klar — IT Security Team</div>
+      <div class="footer">IT Security Team</div>
     </div>
   </div>
 </div>
@@ -552,7 +552,7 @@ async def ack_device(canonical_id: str, body: AckRequest, request: Request) -> A
     # Use logged-in user if 'by' not provided
     ack_by = body.by
     if not ack_by:
-        token = request.cookies.get("klar_session")
+        token = request.cookies.get("dn_session")
         ack_by = _verify_token(token) or "unknown"
     repo = _get_repo()
     repo.acknowledge_device(canonical_id, reason=body.reason, by=ack_by)
@@ -1072,7 +1072,7 @@ async def api_slack_test() -> Any:
         no_mdm_count=no_mdm,
     )
 
-    fallback = f"Klar Test: {total} devices, {managed} managed"
+    fallback = f"Test: {total} devices, {managed} managed"
     ok = send_slack(fallback, blocks=blocks)
     return JSONResponse(content={"sent": ok, "blocks_count": len(blocks)})
 

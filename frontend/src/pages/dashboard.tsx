@@ -479,8 +479,8 @@ export default function Dashboard() {
         <Layout lastSync={lastSync} summary={summary}>
           <div ref={contentRef} className="space-y-8">
             <StatusCards summary={summary} trends={trends} />
-            <SyncDiff diff={diff} />
             <RiskGauge summary={summary} />
+            <SyncDiff diff={diff} lastSyncFinished={lastSync?.finished_at} />
             <QualityMetrics devices={devices} lastSync={lastSync} />
             <PieCharts summary={summary} />
             <SourcesHealth summary={summary} lastSync={lastSync} />

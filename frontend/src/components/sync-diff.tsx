@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { GitCompare, Plus, Minus, ArrowRight, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -13,10 +14,27 @@ interface DiffData {
 
 interface SyncDiffProps {
   diff: DiffData | null;
+  lastSyncFinished?: string | null;
 }
 
-export function SyncDiff({ diff }: SyncDiffProps) {
-  if (!diff) return null;
+const TEN_MINUTES = 10 * 60 * 1000;
+
+export function SyncDiff({ diff, lastSyncFinished }: SyncDiffProps) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (!lastSyncFinished) return;
+    const check = () => {
+      const elapsed = Date.now() - new Date(lastSyncFinished).getTime();
+      if (elapsed > TEN_MINUTES) setVisible(false);
+      else setVisible(true);
+    };
+    check();
+    const timer = setInterval(check, 30000);
+    return () => clearInterval(timer);
+  }, [lastSyncFinished]);
+
+  if (!diff || !visible) return null;
 
   const hasChanges = diff.new_devices.count > 0 || diff.disappeared.count > 0 ||
     diff.newly_stale.count > 0 || Object.keys(diff.status_changes).length > 0;

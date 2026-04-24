@@ -12,6 +12,7 @@ import { QualityMetrics } from "../components/quality-metrics";
 import { SourcesHealth } from "../components/sources-health";
 import { DeviceInventory } from "../components/device-inventory";
 import { LowConfidence } from "../components/low-confidence";
+import { SyncDiff } from "../components/sync-diff";
 import { api } from "../lib/api";
 import type { Device, Insight, StatusSnapshot, Summary, SyncRun, TrendsResponse } from "../types";
 
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
   const [history, setHistory] = useState<StatusSnapshot[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [diff, setDiff] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -31,13 +33,14 @@ export default function Dashboard() {
   const loadData = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
     try {
-      const [summaryRes, lastSyncRes, devicesRes, trendsRes, historyRes, insightsRes] = await Promise.all([
+      const [summaryRes, lastSyncRes, devicesRes, trendsRes, historyRes, insightsRes, diffRes] = await Promise.all([
         api.getSummary(),
         api.getLastSync(),
         api.getDevices(),
         api.getTrends(),
         api.getHistory(),
         api.getInsights(),
+        api.getDiff(),
       ]);
       setSummary(summaryRes);
       setLastSync(lastSyncRes.last_sync);
@@ -45,6 +48,7 @@ export default function Dashboard() {
       setTrends(trendsRes);
       setHistory(historyRes.history || []);
       setInsights(insightsRes.actions || []);
+      setDiff(diffRes);
       // Notify about critical issues on first load
       if (showSpinner) {
         const bs = summaryRes?.by_status || {};
@@ -472,9 +476,10 @@ export default function Dashboard() {
         exporting={exporting}
       />
       <div className="pl-14">
-        <Layout lastSync={lastSync}>
+        <Layout lastSync={lastSync} summary={summary}>
           <div ref={contentRef} className="space-y-8">
             <StatusCards summary={summary} trends={trends} />
+            <SyncDiff diff={diff} />
             <RiskGauge summary={summary} />
             <QualityMetrics devices={devices} lastSync={lastSync} />
             <PieCharts summary={summary} />

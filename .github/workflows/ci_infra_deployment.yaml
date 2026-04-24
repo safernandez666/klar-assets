@@ -18,6 +18,7 @@ jobs:
       dockerfile-location: "./Dockerfile"
       docker-context-path: "./"
       tag: "latest"
+      build-args: "GIT_COMMIT=${{ github.sha }}"
 
 
   deploy:

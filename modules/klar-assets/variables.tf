@@ -47,3 +47,14 @@ variable "SLACK_WEBHOOK_URL" {
   default = ""
 }
 
+variable "OKTA_OIDC_ISSUER" {
+  type    = string
+  default = ""
+}
+
+variable "OKTA_ALLOWED_DOMAINS" {
+  type    = string
+  default = ""
+}
+
+

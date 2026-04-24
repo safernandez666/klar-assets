@@ -45,9 +45,18 @@ data "aws_kms_secrets" "secret" {
     payload = var.OPENAI_API_KEY
   }
      secret {
+    name    = "OKTA_OIDC_ISSUER"
+    payload = var.OKTA_OIDC_ISSUER
+  }
+    secret {
+    name    = "OKTA_ALLOWED_DOMAINS"
+    payload = var.OKTA_ALLOWED_DOMAINS
+  }
+    secret {
     name    = "SLACK_WEBHOOK_URL"
     payload = var.SLACK_WEBHOOK_URL
   }
+
 }
 
 resource "kubectl_manifest" "secret" {
@@ -66,6 +75,8 @@ resource "kubectl_manifest" "secret" {
         AUTH_PASSWORD: ${data.aws_kms_secrets.secret.plaintext["AUTH_PASSWORD"]}
         OPENAI_API_KEY: ${data.aws_kms_secrets.secret.plaintext["OPENAI_API_KEY"]}
         SLACK_WEBHOOK_URL: ${data.aws_kms_secrets.secret.plaintext["SLACK_WEBHOOK_URL"]}
+        OKTA_OIDC_ISSUER: ${data.aws_kms_secrets.secret.plaintext["OKTA_OIDC_ISSUER"]}
+        OKTA_ALLOWED_DOMAINS: ${data.aws_kms_secrets.secret.plaintext["OKTA_ALLOWED_DOMAINS"]}
       YAML
 
   sensitive_fields = ["stringData"]

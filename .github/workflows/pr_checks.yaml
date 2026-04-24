@@ -12,7 +12,7 @@ jobs:
       - id: set-matrix
         run: |
             git fetch origin main
-            MATRIX=$(for i in $(git diff --name-only --diff-filter=d origin/main HEAD);do dirname $i ;done | uniq | awk '{print $1"/"}' | grep -oP '(?<=stack/).*?(?=\/)' | uniq | jq -Rsc '. / "\n" - [""]')
+            MATRIX=$(for i in $(git diff --name-only --diff-filter=d origin/master HEAD);do dirname $i ;done | uniq | awk '{print $1"/"}' | grep -oP '(?<=stack/).*?(?=\/)' | uniq | jq -Rsc '. / "\n" - [""]')
             echo "Matrix: $MATRIX"
             echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 

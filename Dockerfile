@@ -6,7 +6,7 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Python app ─────────────────────────────────────────
+# ── Stage 2: Python app ────────────────────────────────────────
 FROM python:3.13-slim
 WORKDIR /app
 

@@ -213,9 +213,10 @@ async def auth_me(request: Request) -> Any:
     return JSONResponse({"user": user or "unknown"})
 
 
-@app.post("/auth/logout")
+@app.get("/auth/logout")
 async def auth_logout() -> Any:
-    response = JSONResponse({"ok": True})
+    from fastapi.responses import RedirectResponse
+    response = RedirectResponse("/")
     response.delete_cookie("klar_session", path="/")
     return response
 

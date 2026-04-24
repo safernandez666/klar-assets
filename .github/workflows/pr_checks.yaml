@@ -11,7 +11,7 @@ jobs:
       matrix:
         environment: [neutral] # NOTE: change to your environments
     name: Plan Terraform changes
-    runs-on: [self-hosted, default]
+    runs-on: [klarmx-4-4gi-4gi]
     steps:
       - uses: webfactory/ssh-agent@v0.5.4
         with:

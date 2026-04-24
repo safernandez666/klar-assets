@@ -1,29 +1,62 @@
-name: Plan changes
+name: PR Checks
 
 on: pull_request
 
 jobs:
+  setmatrix:
+    runs-on: [klarmx-default-dindless]
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: set-matrix
+        run: |
+            git fetch origin main
+            MATRIX=$(for i in $(git diff --name-only --diff-filter=d origin/main HEAD);do dirname $i ;done | uniq | awk '{print $1"/"}' | grep -oP '(?<=stack/).*?(?=\/)' | uniq | jq -Rsc '. / "\n" - [""]')
+            echo "Matrix: $MATRIX"
+            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
   plan:
+    needs: setmatrix
     concurrency:
-      group: "terraform-${{ matrix.environment }}"
+      group: "terraform-${{ matrix.stack }}"
+    if: ${{ needs.setmatrix.outputs.matrix != '[]' }}
     strategy:
       fail-fast: false
       matrix:
-        environment: [neutral] # NOTE: change to your environments
+        stack: ${{fromJSON(needs.setmatrix.outputs.matrix)}}
     name: Plan Terraform changes
-    runs-on: [klarmx-4-4gi-4gi]
+    runs-on: [klarmx-default-dindless]
     steps:
+      - run: |
+          tfenv install 1.9.8
+          tfenv use 1.9.8
+          terraform --version
+          # Terragrunt parses `terraform version`; tfenv's shim can prepend colored install logs and break parsing.
+          echo "TERRAGRUNT_TFPATH=$HOME/.tfenv/versions/1.9.8/terraform" >> $GITHUB_ENV
       - uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: '${{ secrets.ORG_SSH_KEY }}'
       - uses: actions/checkout@v2
-      - uses: actions/checkout@v2
+      # - run: |
+      #     export BRANCH=${GITHUB_HEAD_REF}
+      #     echo "Branch: ${BRANCH}"
+      #     echo "MODIFIED_FOLDERS=${BRANCH}" >> $GITHUB_ENV
+      #     git fetch origin main
+      #     MATRIX=$(for i in $(git diff --name-only --diff-filter=d origin/main HEAD);do dirname $i ;done | uniq | awk '{print $1"/"}'|  jq -Rsc '. / "\n" - [""]')
+      #     echo "{matrix}={$MATRIX}" >> $GITHUB_OUTPUT
+      #     echo $MODIFIED_FOLDERS
+      # - run: |
+      #       export FOO=bar
+      #       echo "FOO=bar" >> $GITHUB_ENV
+      # - run: echo $FOO
+      # - run: env
+      # - run: |
+      #     git fetch origin main
+      #     git diff origin/main..HEAD > mydiff
+      #     echo "mydiff = "
+      #     cat mydiff
+      - uses: klar-mx/github-actions/plan_infra@main
         with:
-          repository: 'klar-mx/github-actions'
-          ref: 'main'
-          path: '.actions'
-          ssh-key: '${{ secrets.ORG_SSH_KEY }}'
-      - uses: ./.actions/plan_infra
-        with:
-          environment: '${{ matrix.environment }}'
+          environment: '${{ matrix.stack }}'
           post_results: 'true'

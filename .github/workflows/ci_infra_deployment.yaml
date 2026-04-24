@@ -17,10 +17,11 @@ jobs:
       service-name: "klar-assets"
       dockerfile-location: "./Dockerfile"
       docker-context-path: "./"
+      tag: "latest"
 
 
   deploy:
-    name: Deploy neutral jobs (Terragrunt)
+    name: Deploy neutral (Terragrunt)
     needs: build
     concurrency:
       group: terraform-neutral-jobs

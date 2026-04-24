@@ -592,7 +592,58 @@ async def api_summary() -> Any:
         score = 0
     summary["risk_score"] = score
     summary["syncing"] = _syncing
+    # Next sync estimate
+    last_sync = repo.get_last_sync_run()
+    if last_sync and last_sync.get("finished_at"):
+        try:
+            finished = datetime.fromisoformat(str(last_sync["finished_at"]).replace("Z", "+00:00"))
+            if finished.tzinfo is None:
+                finished = finished.replace(tzinfo=timezone.utc)
+            interval_h = int(os.getenv("SYNC_INTERVAL_HOURS", "6"))
+            next_sync = finished + timedelta(hours=interval_h)
+            summary["next_sync"] = next_sync.isoformat()
+            summary["sync_interval_hours"] = interval_h
+        except Exception:
+            pass
     return JSONResponse(content=summary)
+
+
+@app.get("/api/diff")
+async def api_diff() -> Any:
+    """Changes between the last two syncs."""
+    repo = _get_repo()
+    devices = repo.get_all_devices()
+    new_devices = repo.get_new_devices()
+    disappeared = repo.get_recently_deleted()
+    newly_stale = repo.get_newly_stale()
+
+    # Status changes: compare current snapshot vs previous
+    history = repo.get_status_history(limit=2)
+    status_changes: dict[str, dict[str, int]] = {}
+    if len(history) >= 2:
+        curr, prev = history[-1], history[-2]
+        for col in ["fully_managed", "managed", "no_edr", "no_mdm", "idp_only", "stale", "server"]:
+            status_key = col.upper()
+            c_val = curr.get(col, 0)
+            p_val = prev.get(col, 0)
+            if c_val != p_val:
+                status_changes[status_key] = {"previous": p_val, "current": c_val, "delta": c_val - p_val}
+
+    def _dev_summary(d: dict) -> dict:
+        return {
+            "hostname": (d.get("hostnames") or ["?"])[0],
+            "owner": d.get("owner_email"),
+            "status": d.get("status"),
+            "sources": d.get("sources", []),
+        }
+
+    return JSONResponse(content={
+        "new_devices": {"count": len(new_devices), "devices": [_dev_summary(d) for d in new_devices[:20]]},
+        "disappeared": {"count": len(disappeared), "devices": [_dev_summary(d) for d in disappeared[:20]]},
+        "newly_stale": {"count": len(newly_stale), "devices": [_dev_summary(d) for d in newly_stale[:10]]},
+        "status_changes": status_changes,
+        "total_current": len(devices),
+    })
 
 
 @app.get("/api/history")

@@ -25,6 +25,8 @@ export interface Summary {
   total: number;
   risk_score: number;
   syncing?: boolean;
+  next_sync?: string;
+  sync_interval_hours?: number;
 }
 
 export interface SyncRun {

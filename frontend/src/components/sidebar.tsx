@@ -20,6 +20,7 @@ import {
   LogOut,
   User,
   Users,
+  MessageSquare,
 } from "lucide-react";
 import type { Insight } from "../types";
 
@@ -247,6 +248,26 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
               )}
             </AnimatePresence>
           </div>
+
+          {/* Send Slack alert */}
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const r = await fetch("/api/slack/test", { method: "POST" });
+                const d = await r.json();
+                alert(d.sent ? "Slack message sent!" : d.error || "Failed");
+              } catch { alert("Connection error"); }
+            }}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-green-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            aria-label="Send Slack Alert"
+          >
+            <MessageSquare className="h-5 w-5 text-green-400" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Send Slack Alert
+            </span>
+          </button>
+
         </div>
 
         {/* Bottom section: theme + user + logout */}

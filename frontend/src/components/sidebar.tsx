@@ -20,7 +20,6 @@ import {
   LogOut,
   User,
   Users,
-  MessageSquare,
 } from "lucide-react";
 import type { Insight } from "../types";
 
@@ -262,7 +261,7 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
             className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-green-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
             aria-label="Send Slack Alert"
           >
-            <MessageSquare className="h-5 w-5 text-green-400" />
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none"><path d="M5.04 15.2a2.4 2.4 0 110-4.8h2.4v2.4a2.4 2.4 0 01-2.4 2.4zm1.2-7.2a2.4 2.4 0 114.8 0v2.4H8.64a2.4 2.4 0 01-2.4-2.4zM15.2 5.04a2.4 2.4 0 11-4.8 0v2.4h2.4a2.4 2.4 0 002.4-2.4zm-7.2 1.2a2.4 2.4 0 110 4.8H5.6V8.64a2.4 2.4 0 012.4-2.4zM18.96 8.64a2.4 2.4 0 110 4.8h-2.4v-2.4a2.4 2.4 0 012.4-2.4zm-1.2 7.2a2.4 2.4 0 11-4.8 0v-2.4h2.4a2.4 2.4 0 012.4 2.4zM8.64 18.96a2.4 2.4 0 114.8 0v-2.4h-2.4a2.4 2.4 0 00-2.4 2.4zm7.2-1.2a2.4 2.4 0 110-4.8h2.4v2.4a2.4 2.4 0 01-2.4 2.4z" fill="#E01E5A"/><path d="M5.04 15.2a2.4 2.4 0 110-4.8h2.4v2.4a2.4 2.4 0 01-2.4 2.4z" fill="#36C5F0"/><path d="M8.64 5.04a2.4 2.4 0 10-2.4 2.4h2.4V5.04z" fill="#2EB67D"/><path d="M18.96 8.64a2.4 2.4 0 10-2.4 2.4h2.4V8.64z" fill="#ECB22E"/><path d="M15.2 18.96a2.4 2.4 0 102.4-2.4h-2.4v2.4z" fill="#E01E5A"/></svg>
             <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
               Send Slack Alert
             </span>

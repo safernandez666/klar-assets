@@ -48,8 +48,8 @@ Recolecta datos de dispositivos de tres fuentes en paralelo, deduplica por seria
 
 ```bash
 # Clonar
-git clone https://github.com/safernandez666/device-normalizer.git
-cd device-normalizer
+git clone https://github.com/safernandez666/klar-assets.git
+cd klar-assets
 
 # Python
 python -m venv .venv

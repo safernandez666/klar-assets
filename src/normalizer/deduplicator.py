@@ -485,6 +485,10 @@ class Deduplicator:
             confidence = 0.65
         elif match_reason.startswith("crowdstrike_aid:exact") or match_reason.startswith("okta_device_id:exact"):
             confidence = 0.6
+        elif match_reason.startswith("hostname:fuzzy") and unique_sources >= 3:
+            confidence = 0.75
+        elif match_reason.startswith("hostname:fuzzy") and unique_sources >= 2:
+            confidence = 0.55
         elif match_reason.startswith("hostname:fuzzy"):
             confidence = 0.4
         else:

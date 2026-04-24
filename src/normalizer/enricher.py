@@ -9,16 +9,21 @@ from src.models import NormalizedDevice
 # Hostname patterns that indicate a server/VM, not a workstation
 _SERVER_PATTERNS = re.compile(
     r"(?i)"
-    r"bastion|server|servidor|"  # explicit server names
-    r"^EC2AMAZ-|"               # AWS Windows AMIs
-    r"^ip-\d+.*\.compute\.internal$|"  # AWS EC2 instances
+    r"bastion|server|servidor|"       # explicit server names
+    r"^EC2AMAZ-|"                     # AWS Windows AMIs
+    r"^ip-\d+.*\.compute\.internal$|" # AWS EC2 instances
     r"^ip-\d+.*\.us-east|^ip-\d+.*\.us-west|"  # AWS private DNS
-    r"freeradius|coredns|"      # infrastructure services
+    r"freeradius|coredns|"            # infrastructure services
     r"spei|coas-(?:live|staging|beta)|"  # banking/ops servers
-    r"^ap\w+(?:drp|live)$|"    # app servers (apspeidrp, apspeilive)
-    r"^bd\w+(?:drp|live)$|"    # db servers (bdspeidrp, bdspeilive)
-    r"^log\w+(?:drp|live)$|"   # log servers
-    r"telco-.*\.elit-i\."      # telecom infrastructure
+    r"^ap\w+(?:drp|live)$|"          # app servers (apspeidrp, apspeilive)
+    r"^bd\w+(?:drp|live)$|"          # db servers (bdspeidrp, bdspeilive)
+    r"^log\w+(?:drp|live)$|"         # log servers
+    r"telco-.*\.elit-i\.|"           # telecom infrastructure
+    r"^CS-CORE-|"                     # core infrastructure (CS-CORE-QRO-SFA)
+    r"^POAS-|^COAS$|"                # operational servers (POAS-LIVE, COAS)
+    r"^OPERADOR-|"                    # operator workstations (server role)
+    r"^MLCO-|"                        # MLCO servers
+    r"-LIVE$|-DRP$|-STAGING$"         # environment suffixes
 )
 
 
@@ -30,6 +35,9 @@ def _is_server(dev: NormalizedDevice) -> bool:
     # Linux devices in CS without JC and without an owner are likely servers
     os_lower = (dev.os_type or "").lower()
     if "linux" in os_lower and not dev.owner_email:
+        return True
+    # VMware serial numbers indicate VMs
+    if dev.serial_number and dev.serial_number.lower().startswith("vmware-"):
         return True
     return False
 

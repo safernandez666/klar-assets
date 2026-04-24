@@ -527,10 +527,15 @@ class AckRequest(BaseModel):
 
 
 @app.post("/api/devices/{canonical_id}/ack")
-async def ack_device(canonical_id: str, body: AckRequest) -> Any:
+async def ack_device(canonical_id: str, body: AckRequest, request: Request) -> Any:
+    # Use logged-in user if 'by' not provided
+    ack_by = body.by
+    if not ack_by:
+        token = request.cookies.get("klar_session")
+        ack_by = _verify_token(token) or "unknown"
     repo = _get_repo()
-    repo.acknowledge_device(canonical_id, reason=body.reason, by=body.by)
-    return JSONResponse(content={"ok": True, "canonical_id": canonical_id})
+    repo.acknowledge_device(canonical_id, reason=body.reason, by=ack_by)
+    return JSONResponse(content={"ok": True, "canonical_id": canonical_id, "by": ack_by})
 
 
 @app.delete("/api/devices/{canonical_id}/ack")

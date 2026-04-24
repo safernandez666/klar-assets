@@ -6,23 +6,29 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Python app ────────────────────────────────────────
+# ── Stage 2: Python app ─────────────────────────────────────────
 FROM python:3.13-slim
 WORKDIR /app
 
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
-# Python deps  s
+# Python deps
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# App code 
+# Version info (passed as build arg)
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+ENV APP_VERSION=${GIT_COMMIT}
+ENV APP_BUILD_DATE=${BUILD_DATE}
+
+# App code
 COPY src/ ./src/
 COPY main.py scheduler.py ./
 COPY images/ ./images/
 
-# Frontend build output 
+# Frontend build output
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 # Data dir

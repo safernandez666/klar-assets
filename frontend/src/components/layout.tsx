@@ -1,13 +1,39 @@
-import { ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ShieldCheck, Clock } from "lucide-react";
 import { formatDate } from "../lib/utils";
-import type { SyncRun } from "../types";
+import type { Summary, SyncRun } from "../types";
 
 interface LayoutProps {
   children: React.ReactNode;
   lastSync: SyncRun | null;
+  summary?: Summary | null;
 }
 
-export function Layout({ children, lastSync }: LayoutProps) {
+function Countdown({ nextSync }: { nextSync: string }) {
+  const [remaining, setRemaining] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(nextSync).getTime() - Date.now();
+      if (diff <= 0) { setRemaining("syncing soon..."); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setRemaining(`${h}h ${m}m`);
+    };
+    update();
+    const timer = setInterval(update, 30000);
+    return () => clearInterval(timer);
+  }, [nextSync]);
+
+  return (
+    <span className="flex items-center gap-1 text-[11px] text-muted">
+      <Clock className="h-3 w-3" />
+      Next sync in {remaining}
+    </span>
+  );
+}
+
+export function Layout({ children, lastSync, summary }: LayoutProps) {
   const syncStatus = lastSync?.status === "success" ? "success" : "warning";
 
   return (
@@ -22,9 +48,12 @@ export function Layout({ children, lastSync }: LayoutProps) {
               <h1 className="text-lg font-semibold tracking-tight">
                 Klar Device Normalizer
               </h1>
-              <p className="text-xs text-muted">
-                Last sync: {lastSync ? formatDate(lastSync.finished_at || lastSync.started_at) : "N/A"}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-muted">
+                  Last sync: {lastSync ? formatDate(lastSync.finished_at || lastSync.started_at) : "N/A"}
+                </p>
+                {summary?.next_sync && <Countdown nextSync={summary.next_sync} />}
+              </div>
             </div>
           </div>
 

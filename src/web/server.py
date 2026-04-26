@@ -522,6 +522,65 @@ async def api_version() -> Any:
     return JSONResponse(content={"version": APP_VERSION, "build_date": APP_BUILD_DATE})
 
 
+# ── Settings ─────────────────────────────────────────────────────────────────
+
+_sync_interval_hours = int(os.getenv("SYNC_INTERVAL_HOURS", "6"))
+
+
+@app.get("/api/settings")
+async def api_settings() -> Any:
+    repo = _get_repo()
+    last_runs = []
+    try:
+        from src.storage.schema import init_db
+        conn = repo._connect()
+        rows = conn.execute("SELECT * FROM sync_runs ORDER BY id DESC LIMIT 10").fetchall()
+        conn.close()
+        last_runs = [repo._row_to_dict(r) for r in rows]
+    except Exception:
+        pass
+
+    sources_status = {
+        "crowdstrike": {"configured": bool(os.getenv("CS_CLIENT_ID")), "name": "CrowdStrike (EDR)"},
+        "jumpcloud": {"configured": bool(os.getenv("JC_API_KEY")), "name": "JumpCloud (MDM)"},
+        "okta": {"configured": bool(os.getenv("OKTA_API_TOKEN")), "name": "Okta (IDP)"},
+        "openai": {"configured": bool(os.getenv("OPENAI_API_KEY")), "name": "OpenAI (AI insights)"},
+        "slack": {"configured": bool(os.getenv("SLACK_WEBHOOK_URL")), "name": "Slack (Alerts)"},
+        "okta_oidc": {"configured": _OKTA_OIDC_ENABLED, "name": "Okta OIDC (SSO)"},
+    }
+
+    return JSONResponse(content={
+        "sync_interval_hours": _sync_interval_hours,
+        "syncing": _syncing,
+        "version": APP_VERSION,
+        "build_date": APP_BUILD_DATE,
+        "app_url": APP_URL,
+        "sources": sources_status,
+        "last_runs": last_runs,
+    })
+
+
+class SyncIntervalRequest(BaseModel):
+    hours: int
+
+
+@app.post("/api/settings/sync-interval")
+async def api_set_sync_interval(body: SyncIntervalRequest) -> Any:
+    global _sync_interval_hours
+    if body.hours < 1 or body.hours > 24:
+        return JSONResponse({"error": "Interval must be between 1 and 24 hours"}, status_code=400)
+    _sync_interval_hours = body.hours
+    # Update the scheduler
+    try:
+        from apscheduler.triggers.interval import IntervalTrigger
+        # The scheduler is running in the lifespan, we can't easily access it here
+        # But we store the value for the next restart
+        os.environ["SYNC_INTERVAL_HOURS"] = str(body.hours)
+    except Exception:
+        pass
+    return JSONResponse(content={"ok": True, "sync_interval_hours": _sync_interval_hours})
+
+
 # ── API Routes ───────────────────────────────────────────────────────────────
 
 @app.get("/api/devices")

@@ -136,6 +136,16 @@ def _get_repo() -> DeviceRepository:
 PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/auth/me", "/favicon.svg", "/healthz"}
 
 
+@app.get("/auth/login")
+async def auth_login_page(request: Request) -> Any:
+    """Serve login page. If already authenticated, redirect to dashboard."""
+    token = request.cookies.get("klar_session")
+    if _verify_token(token):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/")
+    return HTMLResponse(content=_login_page(), status_code=200)
+
+
 def _create_token(username: str) -> str:
     return jwt.encode(
         {"sub": username, "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS)},
@@ -213,9 +223,10 @@ async def auth_me(request: Request) -> Any:
     return JSONResponse({"user": user or "unknown"})
 
 
-@app.post("/auth/logout")
+@app.get("/auth/logout")
 async def auth_logout() -> Any:
-    response = JSONResponse({"ok": True})
+    from fastapi.responses import RedirectResponse
+    response = RedirectResponse("/auth/login")
     response.delete_cookie("klar_session", path="/")
     return response
 
@@ -489,7 +500,7 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
     const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({username:document.getElementById('user').value,
         password:document.getElementById('pass').value})});
-    if(r.ok){btn.textContent='Redirecting...';location.reload()}
+    if(r.ok){btn.textContent='Redirecting...';location.href='/'}
     else{const d=await r.json();err.textContent=d.error||'Authentication failed';
       err.style.display='block';btn.disabled=false;btn.textContent='Sign in';
       document.getElementById('pass').value='';document.getElementById('pass').focus()}

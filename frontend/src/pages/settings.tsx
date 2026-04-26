@@ -97,7 +97,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pl-14">
+    <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-4">
           <a href="/" className="rounded-lg p-2 hover:bg-card transition-colors"><ArrowLeft className="h-5 w-5" /></a>

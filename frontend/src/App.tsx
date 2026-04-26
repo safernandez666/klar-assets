@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { NavSidebar } from "./components/nav-sidebar";
 import Dashboard from "./pages/dashboard";
 import SearchPage from "./pages/search";
 import PeoplePage from "./pages/people";
@@ -14,11 +15,25 @@ function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  if (path === "/search") return <SearchPage />;
-  if (path === "/people") return <PeoplePage />;
-  if (path === "/dual-use") return <DualUsePage />;
-  if (path === "/settings") return <SettingsPage />;
-  return <Dashboard />;
+  // Dashboard has its own sidebar with Quick Actions, Export, etc.
+  if (path === "/") return <Dashboard />;
+
+  // All other pages use the shared NavSidebar
+  let page;
+  if (path === "/search") page = <SearchPage />;
+  else if (path === "/people") page = <PeoplePage />;
+  else if (path === "/dual-use") page = <DualUsePage />;
+  else if (path === "/settings") page = <SettingsPage />;
+  else page = <Dashboard />;
+
+  return (
+    <>
+      <NavSidebar />
+      <div className="pl-14">
+        {page}
+      </div>
+    </>
+  );
 }
 
 export default App;

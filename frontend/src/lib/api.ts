@@ -5,8 +5,12 @@ const API_BASE = "";
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, options);
   if (res.status === 401) {
-    // Session expired or not logged in — redirect to login
-    window.location.replace("/");
+    // Session expired — clear cookie via server and go to login
+    // Use a flag to prevent multiple redirects from parallel API calls
+    if (!(window as any).__redirecting401) {
+      (window as any).__redirecting401 = true;
+      window.location.replace("/auth/logout");
+    }
     throw new Error("Unauthorized");
   }
   if (!res.ok) {

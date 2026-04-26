@@ -206,9 +206,9 @@ export default function SettingsPage() {
                         <th className="pb-3 font-medium">Started</th>
                         <th className="pb-3 font-medium">Finished</th>
                         <th className="pb-3 font-medium">Status</th>
-                        <th className="pb-3 font-medium text-right">Raw</th>
-                        <th className="pb-3 font-medium text-right">Final</th>
-                        <th className="pb-3 font-medium">Sources OK</th>
+                        <th className="pb-3 pr-4 font-medium text-right">Raw</th>
+                        <th className="pb-3 pr-6 font-medium text-right">Final</th>
+                        <th className="pb-3 pr-4 font-medium">Sources OK</th>
                         <th className="pb-3 font-medium">Failed</th>
                       </tr>
                     </thead>
@@ -219,9 +219,9 @@ export default function SettingsPage() {
                           <td className="py-2 text-xs">{formatDate(run.started_at)}</td>
                           <td className="py-2 text-xs">{run.finished_at ? formatDate(run.finished_at) : "—"}</td>
                           <td className="py-2">{statusBadge(run.status)}</td>
-                          <td className="py-2 text-xs text-right">{run.total_raw_devices}</td>
-                          <td className="py-2 text-xs text-right font-semibold">{run.final_count}</td>
-                          <td className="py-2 text-xs text-emerald-500">{(run.sources_ok || []).join(", ")}</td>
+                          <td className="py-2 pr-4 text-xs text-right">{run.total_raw_devices}</td>
+                          <td className="py-2 pr-6 text-xs text-right font-semibold">{run.final_count}</td>
+                          <td className="py-2 pr-4 text-xs text-emerald-500">{(run.sources_ok || []).join(", ")}</td>
                           <td className="py-2 text-xs text-red-500">{(run.sources_failed || []).length > 0 ? (run.sources_failed || []).join(", ") : "—"}</td>
                         </tr>
                       ))}

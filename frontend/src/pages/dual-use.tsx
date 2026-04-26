@@ -174,7 +174,7 @@ export default function DualUsePage() {
             <div className="flex gap-3 items-end">
               <div className="flex-1">
                 <label className="block text-[10px] font-semibold uppercase text-muted mb-1">Search email</label>
-                <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="user@klar.mx" />
+                <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="user@example.com" />
               </div>
               <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
                 <input type="checkbox" checked={showAcked} onChange={(e) => { setShowAcked(e.target.checked); setPage(1); }}

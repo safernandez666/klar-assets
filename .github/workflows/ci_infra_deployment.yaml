@@ -10,39 +10,18 @@ env:
 
 jobs:
   build:
-    name: Build docker image
-    environment: klar-infra-neutral
-    runs-on: [klarmx-4-4gi-4gi]
-    outputs:
-      imageTag: ${{ steps.docker.outputs.imageTag }}
-    steps:
-      - uses: webfactory/ssh-agent@v0.5.4
-        with:
-          ssh-private-key: '${{ secrets.ORG_SSH_KEY }}'
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Check Dockerfile
-        id: check_file_changed
-        run: |
-          $(diff=$(git diff --name-only HEAD^ HEAD | grep -E "^Dockerfile$")
-          has_diff=false
-          if [ -n "$diff" ]; then
-            has_diff=true
-          fi
-          echo "dockerfile_changed=$has_diff" >> $GITHUB_OUTPUT) || true
-      - name: Build Docker image
-        id: docker_build
-        if: steps.check_file_changed.outputs.dockerfile_changed == 'True'
-        run: |
-          repoPath="739282534308.dkr.ecr.us-east-2.amazonaws.com/klar-assets" 
-          imageTag="${repoPath}:latest"
-          docker build -f "${dockerFileLocation}" -t "${imageTag}" .
-          docker push "${imageTag}"  
+    uses: klar-mx/github-actions/.github/workflows/build-multiplatform-docker-image.yaml@main
+    secrets: inherit
+    with:
+      push: true
+      service-name: "klar-assets"
+      dockerfile-location: "./Dockerfile"
+      docker-context-path: "./"
+      tag: "latest"
 
 
   deploy:
-    name: Deploy neutral jobs (Terragrunt)
+    name: Deploy neutral (Terragrunt)
     needs: build
     concurrency:
       group: terraform-neutral-jobs

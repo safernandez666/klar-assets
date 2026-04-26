@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler.shutdown()
 
 
-app = FastAPI(title="Klar Device Normalizer", lifespan=lifespan)
+app = FastAPI(title="Device Normalizer", lifespan=lifespan)
 
 # ── In-memory cache — refreshed after each sync ──────────────────────────
 _cache: dict[str, Any] = {}
@@ -133,7 +133,7 @@ def _get_repo() -> DeviceRepository:
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
-PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/auth/me", "/favicon.svg", "/healthz"}
+PUBLIC_PATHS = {"/auth/login", "/auth/logout", "/auth/okta", "/auth/okta/callback", "/auth/me", "/favicon.svg", "/healthz", "/api/version"}
 
 
 @app.get("/auth/login")
@@ -366,7 +366,7 @@ def _login_page() -> str:
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Klar — Sign in</title>
+<title>Sign in</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{--black:#0f0f0f;--white:#fff;--gray-1:#f7f7f5;--gray-2:#ebebea;--gray-3:#c4c4c3;--gray-4:#8a8a89;--gray-5:#555;--red:#c0392b;--green:#10b981}
@@ -458,14 +458,14 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
 
 <div class="wrapper">
   <div class="left">
-    <div class="brand">Klar</div>
+    <div class="brand">Corp</div>
     <div class="tagline">
       <strong>Device Normalizer</strong><br>
       Fleet visibility across JumpCloud, CrowdStrike &amp; Okta — unified in one secure dashboard.
     </div>
     <div class="status-bar">
       <div class="status-item"><span class="dot"></span> System operational</div>
-      <div class="status-item">v1.0</div>
+      <div class="status-item" id="ver">loading...</div>
     </div>
   </div>
 
@@ -485,7 +485,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
         <button class="btn" type="submit" id="btn">Sign in</button>
       </form>
       {okta_section}
-      <div class="footer">Klar — IT Security Team</div>
+      <div class="footer">IT Security Team</div>
     </div>
   </div>
 </div>
@@ -507,6 +507,10 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
   }catch(ex){err.textContent='Connection error';err.style.display='block';
     btn.disabled=false;btn.textContent='Sign in'}
 });
+fetch('/api/version').then(r=>r.json()).then(d=>{
+  const v=d.version==='dev'?'dev':d.version.slice(0,7);
+  document.getElementById('ver').textContent=v;
+}).catch(()=>{document.getElementById('ver').textContent='v1.0'});
 </script>
 </body>
 </html>""".replace("{okta_section}", okta_section)
@@ -514,9 +518,77 @@ document.getElementById('form').addEventListener('submit',async(e)=>{
 
 # ── Health check (public, no auth) ────────────────────────────────────────────
 
+APP_VERSION = os.getenv("APP_VERSION", "dev")
+APP_BUILD_DATE = os.getenv("APP_BUILD_DATE", "")
+
+
 @app.get("/healthz")
 async def healthz() -> Any:
-    return JSONResponse(content={"status": "ok", "syncing": _syncing})
+    return JSONResponse(content={"status": "ok", "syncing": _syncing, "version": APP_VERSION})
+
+
+@app.get("/api/version")
+async def api_version() -> Any:
+    return JSONResponse(content={"version": APP_VERSION, "build_date": APP_BUILD_DATE})
+
+
+# ── Settings ─────────────────────────────────────────────────────────────────
+
+_sync_interval_hours = int(os.getenv("SYNC_INTERVAL_HOURS", "6"))
+
+
+@app.get("/api/settings")
+async def api_settings() -> Any:
+    repo = _get_repo()
+    last_runs = []
+    try:
+        from src.storage.schema import init_db
+        conn = repo._connect()
+        rows = conn.execute("SELECT * FROM sync_runs ORDER BY id DESC LIMIT 10").fetchall()
+        conn.close()
+        last_runs = [repo._row_to_dict(r) for r in rows]
+    except Exception:
+        pass
+
+    sources_status = {
+        "crowdstrike": {"configured": bool(os.getenv("CS_CLIENT_ID")), "name": "CrowdStrike (EDR)"},
+        "jumpcloud": {"configured": bool(os.getenv("JC_API_KEY")), "name": "JumpCloud (MDM)"},
+        "okta": {"configured": bool(os.getenv("OKTA_API_TOKEN")), "name": "Okta (IDP)"},
+        "openai": {"configured": bool(os.getenv("OPENAI_API_KEY")), "name": "OpenAI (AI insights)"},
+        "slack": {"configured": bool(os.getenv("SLACK_WEBHOOK_URL")), "name": "Slack (Alerts)"},
+        "okta_oidc": {"configured": _OKTA_OIDC_ENABLED, "name": "Okta OIDC (SSO)"},
+    }
+
+    return JSONResponse(content={
+        "sync_interval_hours": _sync_interval_hours,
+        "syncing": _syncing,
+        "version": APP_VERSION,
+        "build_date": APP_BUILD_DATE,
+        "app_url": APP_URL,
+        "sources": sources_status,
+        "last_runs": last_runs,
+    })
+
+
+class SyncIntervalRequest(BaseModel):
+    hours: int
+
+
+@app.post("/api/settings/sync-interval")
+async def api_set_sync_interval(body: SyncIntervalRequest) -> Any:
+    global _sync_interval_hours
+    if body.hours < 1 or body.hours > 24:
+        return JSONResponse({"error": "Interval must be between 1 and 24 hours"}, status_code=400)
+    _sync_interval_hours = body.hours
+    # Update the scheduler
+    try:
+        from apscheduler.triggers.interval import IntervalTrigger
+        # The scheduler is running in the lifespan, we can't easily access it here
+        # But we store the value for the next restart
+        os.environ["SYNC_INTERVAL_HOURS"] = str(body.hours)
+    except Exception:
+        pass
+    return JSONResponse(content={"ok": True, "sync_interval_hours": _sync_interval_hours})
 
 
 # ── API Routes ───────────────────────────────────────────────────────────────
@@ -589,7 +661,58 @@ async def api_summary() -> Any:
         score = 0
     summary["risk_score"] = score
     summary["syncing"] = _syncing
+    # Next sync estimate
+    last_sync = repo.get_last_sync_run()
+    if last_sync and last_sync.get("finished_at"):
+        try:
+            finished = datetime.fromisoformat(str(last_sync["finished_at"]).replace("Z", "+00:00"))
+            if finished.tzinfo is None:
+                finished = finished.replace(tzinfo=timezone.utc)
+            interval_h = int(os.getenv("SYNC_INTERVAL_HOURS", "6"))
+            next_sync = finished + timedelta(hours=interval_h)
+            summary["next_sync"] = next_sync.isoformat()
+            summary["sync_interval_hours"] = interval_h
+        except Exception:
+            pass
     return JSONResponse(content=summary)
+
+
+@app.get("/api/diff")
+async def api_diff() -> Any:
+    """Changes between the last two syncs."""
+    repo = _get_repo()
+    devices = repo.get_all_devices()
+    new_devices = repo.get_new_devices()
+    disappeared = repo.get_recently_deleted()
+    newly_stale = repo.get_newly_stale()
+
+    # Status changes: compare current snapshot vs previous
+    history = repo.get_status_history(limit=2)
+    status_changes: dict[str, dict[str, int]] = {}
+    if len(history) >= 2:
+        curr, prev = history[-1], history[-2]
+        for col in ["fully_managed", "managed", "no_edr", "no_mdm", "idp_only", "stale", "server"]:
+            status_key = col.upper()
+            c_val = curr.get(col, 0)
+            p_val = prev.get(col, 0)
+            if c_val != p_val:
+                status_changes[status_key] = {"previous": p_val, "current": c_val, "delta": c_val - p_val}
+
+    def _dev_summary(d: dict) -> dict:
+        return {
+            "hostname": (d.get("hostnames") or ["?"])[0],
+            "owner": d.get("owner_email"),
+            "status": d.get("status"),
+            "sources": d.get("sources", []),
+        }
+
+    return JSONResponse(content={
+        "new_devices": {"count": len(new_devices), "devices": [_dev_summary(d) for d in new_devices[:20]]},
+        "disappeared": {"count": len(disappeared), "devices": [_dev_summary(d) for d in disappeared[:20]]},
+        "newly_stale": {"count": len(newly_stale), "devices": [_dev_summary(d) for d in newly_stale[:10]]},
+        "status_changes": status_changes,
+        "total_current": len(devices),
+    })
 
 
 @app.get("/api/history")
@@ -1018,7 +1141,7 @@ async def api_slack_test() -> Any:
         no_mdm_count=no_mdm,
     )
 
-    fallback = f"Klar Test: {total} devices, {managed} managed"
+    fallback = f"Test: {total} devices, {managed} managed"
     ok = send_slack(fallback, blocks=blocks)
     return JSONResponse(content={"sent": ok, "blocks_count": len(blocks)})
 

@@ -69,6 +69,7 @@ def build_sync_blocks(
     disappeared: list[dict[str, Any]] | None = None,
     newly_stale: list[dict[str, Any]] | None = None,
     new_devices: list[dict[str, Any]] | None = None,
+    dual_use: list[dict[str, Any]] | None = None,
     no_edr_count: int = 0,
     no_mdm_count: int = 0,
 ) -> list[dict[str, Any]]:
@@ -145,8 +146,18 @@ def build_sync_blocks(
         if safe_new:
             blocks.append(_blocks_section(f":new: {len(safe_new)} new devices detected (managed)"))
 
+    # Dual-use users
+    if dual_use:
+        blocks.append(_blocks_divider())
+        du_list = "\n".join(
+            f":iphone: `{u['email']}` — personal: {u['personal_devices'][0]['hostname']}"
+            for u in dual_use[:5]
+        )
+        more = f"\n_+ {len(dual_use) - 5} more_" if len(dual_use) > 5 else ""
+        blocks.append(_blocks_section(f"*:iphone: {len(dual_use)} Users With Personal Devices*\n{du_list}{more}"))
+
     # All clear
-    if not disappeared and not newly_stale and not new_devices:
+    if not disappeared and not newly_stale and not new_devices and not dual_use:
         blocks.append(_blocks_section(":white_check_mark: No changes since last sync"))
 
     blocks.append(_blocks_divider())
@@ -176,6 +187,21 @@ def alert_after_sync(
     total = len(devices)
     managed = status_counts.get("MANAGED", 0) + status_counts.get("FULLY_MANAGED", 0)
 
+    # Detect dual-use (personal + corporate)
+    by_owner: dict[str, list[NormalizedDevice]] = {}
+    for d in devices:
+        if d.owner_email:
+            by_owner.setdefault(d.owner_email.lower(), []).append(d)
+    dual_use_users: list[dict[str, Any]] = []
+    for email, devs in by_owner.items():
+        corporate = [d for d in devs if "jumpcloud" in d.sources or "crowdstrike" in d.sources]
+        personal = [d for d in devs if d.status == "IDP_ONLY"]
+        if corporate and personal:
+            dual_use_users.append({
+                "email": email,
+                "personal_devices": [{"hostname": (d.hostnames or ["?"])[0]} for d in personal],
+            })
+
     blocks = build_sync_blocks(
         status_counts=status_counts,
         total=total,
@@ -186,6 +212,7 @@ def alert_after_sync(
         disappeared=disappeared,
         newly_stale=newly_stale,
         new_devices=new_devices,
+        dual_use=dual_use_users if dual_use_users else None,
         no_edr_count=len(no_edr),
         no_mdm_count=len(no_mdm),
     )

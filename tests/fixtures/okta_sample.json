@@ -1,0 +1,122 @@
+[
+  {
+    "id": "okta-device-001",
+    "displayName": "LAPTOP-001",
+    "platform": "Windows",
+    "serialNumber": "SN123456789",
+    "udid": "udid-001",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "john.doe@company.com", "displayName": "John Doe"}
+    ]
+  },
+  {
+    "id": "okta-device-002",
+    "displayName": "LAPTOP-002",
+    "platform": "macOS",
+    "serialNumber": "SN987654321",
+    "udid": "udid-002",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "jane.smith@company.com", "displayName": "Jane Smith"}
+    ]
+  },
+  {
+    "id": "okta-device-003",
+    "displayName": "DESKTOP-003",
+    "platform": "Windows",
+    "serialNumber": "SN111111111",
+    "udid": "udid-003",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "admin@company.com", "displayName": "Admin User"}
+    ]
+  },
+  {
+    "id": "okta-device-004",
+    "displayName": "laptop",
+    "platform": "Windows",
+    "serialNumber": "SN222222222",
+    "udid": "udid-004",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "carlos.perez@company.com", "displayName": "Carlos Perez"}
+    ]
+  },
+  {
+    "id": "okta-device-005",
+    "displayName": "NO-EDR-001",
+    "platform": "iOS",
+    "serialNumber": "SN-MOBILE-001",
+    "udid": "udid-005",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "mobile.user@company.com", "displayName": "Mobile User"}
+    ]
+  },
+  {
+    "id": "okta-device-006",
+    "displayName": "NO-EDR-002",
+    "platform": "Android",
+    "serialNumber": "SN-MOBILE-002",
+    "udid": "udid-006",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "field.worker@company.com", "displayName": "Field Worker"}
+    ]
+  },
+  {
+    "id": "okta-device-007",
+    "displayName": "MAC-005",
+    "platform": "macOS",
+    "serialNumber": "SN333333333",
+    "udid": "udid-007",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "ana.garcia@company.com", "displayName": "Ana Garcia"}
+    ]
+  },
+  {
+    "id": "okta-device-008",
+    "displayName": "SHARED-KIOSK",
+    "platform": "Windows",
+    "serialNumber": "SN-KIOSK-001",
+    "udid": "udid-008",
+    "status": "ACTIVE",
+    "registered": false,
+    "users": [
+      {"login": "kiosk@company.com", "displayName": "Kiosk Account"}
+    ]
+  },
+  {
+    "id": "okta-device-009",
+    "displayName": "TABLET-009",
+    "platform": "iOS",
+    "serialNumber": "SN777777777",
+    "udid": "udid-009",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "sales@company.com", "displayName": "Sales Team"}
+    ]
+  },
+  {
+    "id": "okta-device-010",
+    "displayName": "PHONE-010",
+    "platform": "Android",
+    "serialNumber": "SN888888888",
+    "udid": "udid-010",
+    "status": "ACTIVE",
+    "registered": true,
+    "users": [
+      {"login": "support@company.com", "displayName": "Support Team"}
+    ]
+  }
+]

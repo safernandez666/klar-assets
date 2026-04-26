@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
-import { KLAR_LOGO_WHITE } from "../assets/klar-logo-white";
+
 import { Layout } from "../components/layout";
 import { Sidebar } from "../components/sidebar";
 import { ToastContainer, toast } from "../components/toasts";
@@ -12,6 +12,7 @@ import { QualityMetrics } from "../components/quality-metrics";
 import { SourcesHealth } from "../components/sources-health";
 import { DeviceInventory } from "../components/device-inventory";
 import { LowConfidence } from "../components/low-confidence";
+import { SyncDiff } from "../components/sync-diff";
 import { api } from "../lib/api";
 import type { Device, Insight, StatusSnapshot, Summary, SyncRun, TrendsResponse } from "../types";
 
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
   const [history, setHistory] = useState<StatusSnapshot[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [diff, setDiff] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -31,13 +33,14 @@ export default function Dashboard() {
   const loadData = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
     try {
-      const [summaryRes, lastSyncRes, devicesRes, trendsRes, historyRes, insightsRes] = await Promise.all([
+      const [summaryRes, lastSyncRes, devicesRes, trendsRes, historyRes, insightsRes, diffRes] = await Promise.all([
         api.getSummary(),
         api.getLastSync(),
         api.getDevices(),
         api.getTrends(),
         api.getHistory(),
         api.getInsights(),
+        api.getDiff(),
       ]);
       setSummary(summaryRes);
       setLastSync(lastSyncRes.last_sync);
@@ -45,6 +48,7 @@ export default function Dashboard() {
       setTrends(trendsRes);
       setHistory(historyRes.history || []);
       setInsights(insightsRes.actions || []);
+      setDiff(diffRes);
       // Notify about critical issues on first load
       if (showSpinner) {
         const bs = summaryRes?.by_status || {};
@@ -128,7 +132,7 @@ export default function Dashboard() {
 
       const footer = () => {
         pdf.setFontSize(7); pdf.setFont("helvetica", "normal"); pdf.setTextColor(...K.light);
-        pdf.text("Klar Device Normalizer", m, ph - 8);
+        pdf.text("Device Normalizer", m, ph - 8);
         pdf.text(`Page ${pageNum}`, pw - m, ph - 8, { align: "right" });
         pdf.setDrawColor(230, 230, 230); pdf.setLineWidth(0.3); pdf.line(m, ph - 12, pw - m, ph - 12);
       };
@@ -248,7 +252,7 @@ export default function Dashboard() {
       // Black header band
       pdf.setFillColor(...K.black); pdf.rect(0, 0, pw, 52, "F");
       // Logo
-      try { pdf.addImage(KLAR_LOGO_WHITE, "PNG", m, 10, 22, 11); } catch { /* */ }
+      
       // Title
       pdf.setFontSize(22); pdf.setFont("helvetica", "bold"); pdf.setTextColor(255, 255, 255);
       pdf.text("Device Inventory Report", m, 35);
@@ -412,7 +416,7 @@ export default function Dashboard() {
         footer();
       }
 
-      pdf.save("klar-device-report.pdf");
+      pdf.save("device-report.pdf");
     } catch (e) {
       console.error("PDF export failed:", e);
     } finally {
@@ -448,7 +452,7 @@ export default function Dashboard() {
             </svg>
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Klar Device Normalizer</h2>
+            <h2 className="text-lg font-semibold">Device Normalizer</h2>
             <p className="text-sm text-muted mt-1">Initial sync in progress...</p>
             <p className="text-xs text-muted mt-2">Collecting devices from JumpCloud, CrowdStrike & Okta.<br/>This may take a few minutes on the first run.</p>
           </div>
@@ -476,10 +480,11 @@ export default function Dashboard() {
         exporting={exporting}
       />
       <div className="pl-14">
-        <Layout lastSync={lastSync}>
+        <Layout lastSync={lastSync} summary={summary}>
           <div ref={contentRef} className="space-y-8">
             <StatusCards summary={summary} trends={trends} />
             <RiskGauge summary={summary} />
+            <SyncDiff diff={diff} lastSyncFinished={lastSync?.finished_at} />
             <QualityMetrics devices={devices} lastSync={lastSync} />
             <PieCharts summary={summary} />
             <SourcesHealth summary={summary} lastSync={lastSync} />

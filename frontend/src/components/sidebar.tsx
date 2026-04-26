@@ -291,9 +291,7 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
           {/* Logout */}
           <button
             type="button"
-            onClick={() => {
-              window.location.href = "/auth/logout";
-            }}
+            onClick={() => { window.location.href = "/auth/logout"; }}
             className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
             aria-label="Sign out"
           >

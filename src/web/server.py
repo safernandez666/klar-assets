@@ -163,7 +163,7 @@ async def auth_middleware(request: Request, call_next: Any) -> Any:
     if path in PUBLIC_PATHS or path.startswith("/assets/"):
         return await call_next(request)
 
-    token = request.cookies.get("dn_session")
+    token = request.cookies.get("klar_session")
     user = _verify_token(token)
 
     if not user:
@@ -195,7 +195,7 @@ async def auth_login(body: LoginRequest) -> Any:
     token = _create_token(body.username)
     response = JSONResponse({"ok": True, "user": body.username})
     response.set_cookie(
-        key="dn_session",
+        key="klar_session",
         value=token,
         httponly=True,
         secure=_IS_HTTPS,
@@ -208,7 +208,7 @@ async def auth_login(body: LoginRequest) -> Any:
 
 @app.get("/auth/me")
 async def auth_me(request: Request) -> Any:
-    token = request.cookies.get("dn_session")
+    token = request.cookies.get("klar_session")
     user = _verify_token(token)
     return JSONResponse({"user": user or "unknown"})
 
@@ -217,7 +217,7 @@ async def auth_me(request: Request) -> Any:
 async def auth_logout() -> Any:
     from fastapi.responses import RedirectResponse
     response = RedirectResponse("/")
-    response.delete_cookie("dn_session", path="/")
+    response.delete_cookie("klar_session", path="/")
     return response
 
 
@@ -328,7 +328,7 @@ async def auth_okta_callback(code: str = "", error: str = "", state: str = "", r
     from fastapi.responses import RedirectResponse
     response = RedirectResponse("/")
     response.set_cookie(
-        key="dn_session", value=token, httponly=True,
+        key="klar_session", value=token, httponly=True,
         secure=_IS_HTTPS, samesite="lax", max_age=JWT_EXPIRY_HOURS * 3600, path="/",
     )
     response.delete_cookie("okta_state", path="/")
@@ -611,7 +611,7 @@ async def ack_device(canonical_id: str, body: AckRequest, request: Request) -> A
     # Use logged-in user if 'by' not provided
     ack_by = body.by
     if not ack_by:
-        token = request.cookies.get("dn_session")
+        token = request.cookies.get("klar_session")
         ack_by = _verify_token(token) or "unknown"
     repo = _get_repo()
     repo.acknowledge_device(canonical_id, reason=body.reason, by=ack_by)

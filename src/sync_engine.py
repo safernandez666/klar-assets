@@ -78,6 +78,41 @@ class SyncEngine:
                     logger.error("collector_failed", source=source_name, error=str(exc))
                     sources_failed.append(source_name)
 
+        # Abort if a critical source failed — don't save bad data
+        critical_sources = {"crowdstrike", "jumpcloud"}
+        failed_critical = critical_sources & set(sources_failed)
+        if failed_critical:
+            logger.error("sync_aborted_critical_source_failed",
+                        failed=list(failed_critical), ok=sources_ok)
+            run = {
+                "started_at": started_at,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+                "status": "aborted",
+                "total_raw_devices": len(all_raw),
+                "duplicates_removed": 0,
+                "final_count": 0,
+                "sources_ok": sources_ok,
+                "sources_failed": sources_failed,
+            }
+            self.repo.save_sync_run(run)
+            # Send alert about the failure but don't update devices
+            try:
+                from src.alerts import send_slack, _get_webhook_url
+                if _get_webhook_url():
+                    from src.alerts import _blocks_header, _blocks_section, _blocks_divider, _blocks_context
+                    blocks = [
+                        _blocks_header(":x: Klar Device Normalizer"),
+                        _blocks_section(f"*Sync ABORTED* — critical source failed: *{', '.join(failed_critical)}*\n\nDevice inventory was NOT updated. Previous data remains intact."),
+                        _blocks_section(f":large_green_circle: OK: {', '.join(sources_ok) or 'none'}\n:red_circle: Failed: {', '.join(sources_failed)}"),
+                        _blocks_divider(),
+                        _blocks_context(["Klar Device Normalizer — IT Security Team"]),
+                    ]
+                    send_slack("Sync aborted: critical source failed", blocks=blocks)
+            except Exception:
+                pass
+            logger.info("sync_aborted", **run)
+            return run
+
         normalized = self.deduplicator.deduplicate(all_raw)
         # AI-enhanced matching for low-confidence single-source devices
         normalized = ai_match(normalized)

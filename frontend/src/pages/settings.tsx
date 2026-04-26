@@ -6,7 +6,9 @@ import {
   RefreshCw,
   Clock,
   Server,
+  Send,
 } from "lucide-react";
+import { toast } from "../components/toasts";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -95,7 +97,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pl-14">
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-4">
           <a href="/" className="rounded-lg p-2 hover:bg-card transition-colors"><ArrowLeft className="h-5 w-5" /></a>
@@ -135,6 +137,18 @@ export default function SettingsPage() {
                   <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing || data.syncing}>
                     <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
                     {syncing ? "Syncing..." : "Sync now"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={async () => {
+                    try {
+                      const r = await fetch("/api/slack/test", { method: "POST" });
+                      const d = await r.json();
+                      toast(d.sent
+                        ? { type: "success", title: "Slack test sent", duration: 3000 }
+                        : { type: "error", title: d.error || "Failed", duration: 4000 });
+                    } catch { toast({ type: "error", title: "Connection error", duration: 4000 }); }
+                  }}>
+                    <Send className="h-4 w-4 mr-1" />
+                    Test Slack
                   </Button>
                 </div>
                 {data.syncing && (

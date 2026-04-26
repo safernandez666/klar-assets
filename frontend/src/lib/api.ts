@@ -4,6 +4,11 @@ const API_BASE = "";
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, options);
+  if (res.status === 401) {
+    // Session expired or not logged in — redirect to login
+    window.location.replace("/");
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   }

@@ -358,7 +358,7 @@ def _login_page() -> str:
         <a href="/auth/okta" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:transparent;border:1.5px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--white);font-size:13px;font-weight:500;text-decoration:none;transition:all 0.2s;font-family:inherit"
            onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.background='rgba(255,255,255,0.03)'"
            onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.background='transparent'">
-          <svg width="40" height="14" viewBox="0 0 200 70" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M34.8 0C15.6 0 0 15.6 0 34.8s15.6 34.8 34.8 34.8 34.8-15.6 34.8-34.8S54 0 34.8 0zm0 52.2c-9.6 0-17.4-7.8-17.4-17.4s7.8-17.4 17.4-17.4 17.4 7.8 17.4 17.4-7.8 17.4-17.4 17.4zm70.8-36.6h-.6c-4.2 0-7.8 1.2-10.8 3.6V2.4h-15v64.8h15V39c0-5.4 3.6-9 8.4-9 1.2 0 2.4.6 3 .6h.6l4.8-15h-5.4zm29.4 0c-3 0-6 .6-9 1.8l-1.2.6 4.2 12 1.2-.6c1.8-.6 3.6-1.2 5.4-1.2 3 0 4.2 1.2 4.2 3v1.2l-3.6.6c-10.2 1.8-18 6-18 15 0 7.8 5.4 13.2 13.8 13.2 4.8 0 7.8-1.8 9.6-3.6v3h13.8V34.2c0-12.6-7.2-18.6-20.4-18.6zm5.4 36c-1.8 1.2-3.6 1.8-6 1.8-2.4 0-4.2-1.2-4.2-3.6 0-3.6 4.2-5.4 10.2-6.6v8.4z" fill="#007DC1"/></svg>
+          <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="#007DC1"/><circle cx="32" cy="32" r="14" fill="#fff"/></svg>
           Sign in with Okta
         </a>
       </div>"""
@@ -458,7 +458,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
 
 <div class="wrapper">
   <div class="left">
-    <div class="brand">Corp</div>
+    <div class="brand">Klar</div>
     <div class="tagline">
       <strong>Device Normalizer</strong><br>
       Fleet visibility across JumpCloud, CrowdStrike &amp; Okta — unified in one secure dashboard.

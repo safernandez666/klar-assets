@@ -61,7 +61,11 @@ export default function Dashboard() {
           toast({ type: "warning", title: `${noMdm} devices without MDM`, duration: 5000 });
         }
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message === "Unauthorized") {
+        window.location.href = "/auth/logout";
+        return;
+      }
       console.error(e);
     } finally {
       setLoading(false);

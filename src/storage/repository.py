@@ -79,17 +79,44 @@ class DeviceRepository:
         self,
         status: str | None = None,
         source: str | None = None,
-    ) -> list[dict[str, Any]]:
+        search: str | None = None,
+        page: int | None = None,
+        page_size: int = 25,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        """Get devices. If page is set, returns paginated result with total count."""
         conn = self._connect()
         query = "SELECT * FROM devices WHERE deleted_at IS NULL"
+        count_query = "SELECT COUNT(*) FROM devices WHERE deleted_at IS NULL"
         params: list[Any] = []
         if status:
             query += " AND status = ?"
+            count_query += " AND status = ?"
             params.append(status)
         if source:
             query += " AND sources LIKE ?"
+            count_query += " AND sources LIKE ?"
             params.append(f'%"{source}"%')
+        if search:
+            query += " AND (owner_email LIKE ? OR hostnames LIKE ? OR serial_number LIKE ?)"
+            count_query += " AND (owner_email LIKE ? OR hostnames LIKE ? OR serial_number LIKE ?)"
+            s = f"%{search}%"
+            params.extend([s, s, s])
         query += " ORDER BY last_seen DESC"
+
+        if page is not None:
+            total = conn.execute(count_query, params).fetchone()[0]
+            offset = (page - 1) * page_size
+            query += " LIMIT ? OFFSET ?"
+            rows = conn.execute(query, params + [page_size, offset]).fetchall()
+            conn.close()
+            return {
+                "devices": [self._row_to_dict(row) for row in rows],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size,
+            }
+
         rows = conn.execute(query, params).fetchall()
         conn.close()
         return [self._row_to_dict(row) for row in rows]

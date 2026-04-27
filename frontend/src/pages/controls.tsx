@@ -27,6 +27,7 @@ interface Control {
   objective: string;
   source_from: string;
   source_to: string;
+  description: string;
   status: "pass" | "fail";
   total: number;
   affected: number;
@@ -129,60 +130,68 @@ function ControlCard({ control }: { control: Control }) {
         </div>
       </button>
 
-      {/* Expanded device list */}
-      {expanded && control.devices.length > 0 && (
+      {/* Expanded detail */}
+      {expanded && (
         <div className="border-t border-border/50 px-4 pb-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs mt-2">
-              <thead>
-                <tr className="text-muted text-[10px] uppercase tracking-wider">
-                  <th className="text-left p-2 font-medium">Hostname</th>
-                  <th className="text-left p-2 font-medium">Owner</th>
-                  <th className="text-left p-2 font-medium">Serial</th>
-                  <th className="text-left p-2 font-medium">Sources</th>
-                  <th className="text-left p-2 font-medium">Status</th>
-                  <th className="text-right p-2 font-medium">Last Seen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {control.devices.map((d) => (
-                  <tr key={d.canonical_id} className="border-t border-border/30 hover:bg-card/30">
-                    <td className="p-2 font-medium max-w-[200px] truncate">{d.hostname}</td>
-                    <td className="p-2 text-muted">{d.owner}</td>
-                    <td className="p-2 text-muted font-mono text-[10px]">{d.serial || "—"}</td>
-                    <td className="p-2">
-                      <div className="flex gap-1">
-                        {d.sources.map(s => (
-                          <span key={s} className={`text-[9px] font-bold px-1 py-0.5 rounded ${SOURCE_ICON[s]?.color || "text-muted"} bg-card border border-border`}>
-                            {s === "crowdstrike" ? "CS" : s === "jumpcloud" ? "JC" : "OKT"}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-2">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${STATUS_COLOR[d.status] || "bg-card text-muted border-border"}`}>
-                        {d.status}
-                      </span>
-                    </td>
-                    <td className="p-2 text-right text-muted whitespace-nowrap">
-                      {d.days_since_seen != null ? `${d.days_since_seen}d ago` : d.last_seen ? new Date(d.last_seen).toLocaleDateString() : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {control.affected > control.devices.length && (
-            <p className="mt-2 text-[10px] text-muted text-center">
-              Mostrando {control.devices.length} de {control.affected} dispositivos afectados
-            </p>
+          {control.description && (
+            <div className="mt-3 mb-3 rounded-lg bg-card/80 border border-border/50 px-3 py-2.5">
+              <p className="text-xs leading-relaxed text-muted">{control.description}</p>
+            </div>
           )}
-        </div>
-      )}
 
-      {expanded && control.devices.length === 0 && (
-        <div className="border-t border-border/50 px-4 py-6 text-center text-xs text-muted">
-          Sin dispositivos afectados
+          {control.devices.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs mt-2">
+                  <thead>
+                    <tr className="text-muted text-[10px] uppercase tracking-wider">
+                      <th className="text-left p-2 font-medium">Hostname</th>
+                      <th className="text-left p-2 font-medium">Owner</th>
+                      <th className="text-left p-2 font-medium">Serial</th>
+                      <th className="text-left p-2 font-medium">Sources</th>
+                      <th className="text-left p-2 font-medium">Status</th>
+                      <th className="text-right p-2 font-medium">Last Seen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {control.devices.map((d) => (
+                      <tr key={d.canonical_id} className="border-t border-border/30 hover:bg-card/30">
+                        <td className="p-2 font-medium max-w-[200px] truncate">{d.hostname}</td>
+                        <td className="p-2 text-muted">{d.owner}</td>
+                        <td className="p-2 text-muted font-mono text-[10px]">{d.serial || "—"}</td>
+                        <td className="p-2">
+                          <div className="flex gap-1">
+                            {d.sources.map(s => (
+                              <span key={s} className={`text-[9px] font-bold px-1 py-0.5 rounded ${SOURCE_ICON[s]?.color || "text-muted"} bg-card border border-border`}>
+                                {s === "crowdstrike" ? "CS" : s === "jumpcloud" ? "JC" : "OKT"}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-2">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${STATUS_COLOR[d.status] || "bg-card text-muted border-border"}`}>
+                            {d.status}
+                          </span>
+                        </td>
+                        <td className="p-2 text-right text-muted whitespace-nowrap">
+                          {d.days_since_seen != null ? `${d.days_since_seen}d ago` : d.last_seen ? new Date(d.last_seen).toLocaleDateString() : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {control.affected > control.devices.length && (
+                <p className="mt-2 text-[10px] text-muted text-center">
+                  Mostrando {control.devices.length} de {control.affected} dispositivos afectados
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="py-4 text-center text-xs text-muted">
+              Sin dispositivos afectados
+            </div>
+          )}
         </div>
       )}
     </div>

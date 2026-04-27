@@ -59,12 +59,21 @@ class SyncEngine:
         all_raw: list[RawDevice] = []
         sources_ok: list[str] = []
         sources_failed: list[str] = []
+        okta_users: list[dict[str, Any]] = []
 
-        with ThreadPoolExecutor(max_workers=len(self.collectors)) as executor:
-            futures = {
+        # Find Okta collector for user collection
+        okta_collector = next((c for c in self.collectors if isinstance(c, OktaCollector)), None)
+
+        with ThreadPoolExecutor(max_workers=len(self.collectors) + 1) as executor:
+            futures: dict[Any, str] = {
                 executor.submit(collector.safe_collect): collector.source_name
                 for collector in self.collectors
             }
+            # Collect Okta users in parallel
+            okta_users_future = None
+            if okta_collector:
+                okta_users_future = executor.submit(okta_collector.collect_users)
+
             for future in as_completed(futures):
                 source_name = futures[future]
                 try:
@@ -77,6 +86,13 @@ class SyncEngine:
                 except Exception as exc:
                     logger.error("collector_failed", source=source_name, error=str(exc))
                     sources_failed.append(source_name)
+
+            # Get Okta users result
+            if okta_users_future:
+                try:
+                    okta_users = okta_users_future.result()
+                except Exception as exc:
+                    logger.warning("okta_users_fetch_failed", error=str(exc))
 
         # Abort if a critical source failed — don't save bad data
         critical_sources = {"crowdstrike", "jumpcloud"}
@@ -125,6 +141,11 @@ class SyncEngine:
                 dev.canonical_id = str(uuid.uuid4())
 
         self.repo.upsert_devices(enriched)
+
+        # Save Okta users for compliance controls
+        if okta_users:
+            self.repo.save_okta_users(okta_users)
+            logger.info("okta_users_saved", count=len(okta_users))
 
         final_count = len(enriched)
         duplicates_removed = len(all_raw) - final_count

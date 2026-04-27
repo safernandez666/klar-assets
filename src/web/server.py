@@ -1168,14 +1168,59 @@ async def api_sync_trigger(background_tasks: BackgroundTasks) -> Any:
 # ── Compliance Controls ──────────────────────────────────────────────────────
 
 CONTROLS_META = [
-    {"id": "CTL-001", "ref": "", "title": "Dispositivos Okta sin MDM", "objective": "Detectar dispositivos que acceden pero no están en MDM", "source_from": "okta", "source_to": "jumpcloud"},
-    {"id": "CTL-002", "ref": "KRI0021", "title": "Dispositivos JC sin EDR", "objective": "Asegurar cobertura de seguridad (antimalware)", "source_from": "jumpcloud", "source_to": "crowdstrike"},
-    {"id": "CTL-003", "ref": "", "title": "EDR en dispositivos sin MDM", "objective": "Detectar shadow IT o drift", "source_from": "crowdstrike", "source_to": "jumpcloud"},
-    {"id": "CTL-004", "ref": "", "title": "Acceso sin protección", "objective": "Riesgo real de acceso — usuarios sin MDM ni EDR", "source_from": "okta", "source_to": ""},
-    {"id": "CTL-005", "ref": "CIS0102", "title": "Usuarios MDM sin device bindeado", "objective": "Depuración de MDM — usuarios Okta sin device en JC", "source_from": "okta", "source_to": "jumpcloud"},
-    {"id": "CTL-006", "ref": "", "title": "Device MDM sin usuario asignado", "objective": "Depuración de MDM — devices JC sin owner", "source_from": "jumpcloud", "source_to": ""},
-    {"id": "CTL-007", "ref": "CIS0101", "title": "Device MDM sin reportar", "objective": "Efectividad de MDM — agentes JC sin responder 30+ días", "source_from": "jumpcloud", "source_to": ""},
-    {"id": "CTL-008", "ref": "KRI0022", "title": "EDR sin reportar", "objective": "Efectividad de EDR — agentes CS con firmas desactualizadas", "source_from": "crowdstrike", "source_to": ""},
+    {"id": "CTL-001", "ref": "", "title": "Dispositivos Okta sin MDM",
+     "objective": "Detectar dispositivos que acceden pero no están en MDM",
+     "description": "Verifica que todos los dispositivos registrados en Okta (IDP) tengan un agente JumpCloud (MDM) instalado. "
+                    "Un dispositivo solo en Okta significa que el usuario accede a recursos corporativos desde un equipo sin gestión centralizada. "
+                    "Acción: validar si el dispositivo es personal (aceptable) o corporativo sin MDM (requiere instalación de JC).",
+     "source_from": "okta", "source_to": "jumpcloud"},
+    {"id": "CTL-002", "ref": "KRI0021", "title": "Dispositivos JC sin EDR",
+     "objective": "Asegurar cobertura de seguridad (antimalware)",
+     "description": "Verifica que todos los dispositivos gestionados por JumpCloud (MDM) tengan el agente CrowdStrike (EDR) instalado. "
+                    "Un equipo con MDM pero sin EDR tiene gestión pero no protección contra amenazas. "
+                    "Acción: instalar CrowdStrike en los dispositivos afectados. Asociado al indicador de riesgo KRI0021.",
+     "source_from": "jumpcloud", "source_to": "crowdstrike"},
+    {"id": "CTL-003", "ref": "", "title": "EDR en dispositivos sin MDM",
+     "objective": "Detectar shadow IT o drift",
+     "description": "Detecta dispositivos que tienen CrowdStrike (EDR) pero no JumpCloud (MDM). "
+                    "Esto puede indicar shadow IT (equipo no autorizado con solo el agente de seguridad), "
+                    "drift de configuración, o un equipo que perdió la conexión con JC. "
+                    "Acción: verificar si el equipo debe estar en JC o si es un equipo personal/no gestionado.",
+     "source_from": "crowdstrike", "source_to": "jumpcloud"},
+    {"id": "CTL-004", "ref": "", "title": "Acceso sin protección",
+     "objective": "Riesgo real de acceso — usuarios sin MDM ni EDR",
+     "description": "Identifica usuarios que acceden a recursos corporativos vía Okta desde dispositivos sin MDM ni EDR. "
+                    "Es el escenario de mayor riesgo: acceso sin visibilidad ni protección. "
+                    "Acción: contactar al usuario para validar el dispositivo e instalar los agentes correspondientes.",
+     "source_from": "okta", "source_to": ""},
+    {"id": "CTL-005", "ref": "CIS0102", "title": "Usuarios sin device en MDM",
+     "objective": "Depuración de MDM — usuarios Okta activos sin device en JC",
+     "description": "Cruza la lista de usuarios activos de Okta (excluyendo agentes externos y cuentas de sistema) "
+                    "contra los owners de dispositivos en JumpCloud. Un usuario sin device en JC puede significar que "
+                    "usa un equipo personal, que no se le asignó equipo, o que el binding usuario-device no está configurado. "
+                    "Acción: verificar si el usuario necesita un equipo corporativo asignado. Asociado al control CIS0102.",
+     "source_from": "okta", "source_to": "jumpcloud"},
+    {"id": "CTL-006", "ref": "", "title": "Device MDM sin usuario asignado",
+     "objective": "Depuración de MDM — devices JC sin owner",
+     "description": "Detecta dispositivos en JumpCloud que no tienen un usuario asignado. "
+                    "Un device sin owner dificulta la trazabilidad y la respuesta ante incidentes. "
+                    "Puede ser un equipo de contingencia, un server mal clasificado, o falta de binding en JC. "
+                    "Acción: asignar el usuario correspondiente en JumpCloud o reclasificar como equipo compartido.",
+     "source_from": "jumpcloud", "source_to": ""},
+    {"id": "CTL-007", "ref": "CIS0101", "title": "Device MDM sin reportar",
+     "objective": "Efectividad de MDM — agentes JC sin responder 30+ días",
+     "description": "Detecta dispositivos con agente JumpCloud que no reportan hace más de 30 días. "
+                    "Puede indicar un equipo apagado, desvinculado, robado, o con el agente dañado. "
+                    "Impacta la efectividad real del MDM — tener un agente que no reporta es como no tenerlo. "
+                    "Acción: contactar al usuario, verificar estado del equipo. Asociado al control CIS0101.",
+     "source_from": "jumpcloud", "source_to": ""},
+    {"id": "CTL-008", "ref": "KRI0022", "title": "EDR sin reportar",
+     "objective": "Efectividad de EDR — agentes CS con firmas desactualizadas",
+     "description": "Detecta dispositivos con agente CrowdStrike que no reportan hace más de 30 días. "
+                    "Un EDR sin reportar no protege contra amenazas actuales — las firmas quedan desactualizadas "
+                    "y no hay telemetría para detección de incidentes. "
+                    "Acción: verificar conectividad del agente y forzar check-in. Asociado al indicador KRI0022.",
+     "source_from": "crowdstrike", "source_to": ""},
 ]
 
 
@@ -1234,12 +1279,27 @@ async def api_controls() -> Any:
                     "total": len(okta_devices), "affected": len(ctl4),
                     "devices": [_dev_summary(d) for d in ctl4[:50]]})
 
-    # CTL-005: Okta users with no JC device
-    users_no_jc = okta_users - jc_owners
-    ctl5_devs = [d for d in okta_devices if (d.get("owner_email") or "").lower() in users_no_jc]
-    results.append({**CONTROLS_META[4], "status": "fail" if users_no_jc else "pass",
-                    "total": len(okta_users), "affected": len(users_no_jc),
-                    "devices": [_dev_summary(d) for d in ctl5_devs[:50]]})
+    # CTL-005: Okta users with no JC device (uses real Okta user list)
+    all_okta_users = repo.get_okta_users(exclude_types=["external_agent", "system"])
+    if all_okta_users:
+        # Real user list available — compare against JC device owners
+        okta_user_emails = {u["email"].lower() for u in all_okta_users if u.get("email")}
+        users_no_jc = okta_user_emails - jc_owners
+        ctl5_users = [{"canonical_id": u["id"], "hostname": "—",
+                       "serial": None, "owner": u["email"],
+                       "status": u.get("user_type") or "employee", "sources": ["okta"],
+                       "last_seen": u.get("last_login"), "days_since_seen": None}
+                      for u in all_okta_users if u["email"].lower() in users_no_jc]
+        results.append({**CONTROLS_META[4], "status": "fail" if users_no_jc else "pass",
+                        "total": len(okta_user_emails), "affected": len(users_no_jc),
+                        "devices": ctl5_users[:50]})
+    else:
+        # Fallback: infer from device owners
+        users_no_jc = okta_users - jc_owners
+        ctl5_devs = [d for d in okta_devices if (d.get("owner_email") or "").lower() in users_no_jc]
+        results.append({**CONTROLS_META[4], "status": "fail" if users_no_jc else "pass",
+                        "total": len(okta_users), "affected": len(users_no_jc),
+                        "devices": [_dev_summary(d) for d in ctl5_devs[:50]]})
 
     # CTL-006: JC devices without owner
     ctl6 = [d for d in jc_devices if not d.get("owner_email")]

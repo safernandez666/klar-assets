@@ -59,12 +59,21 @@ class SyncEngine:
         all_raw: list[RawDevice] = []
         sources_ok: list[str] = []
         sources_failed: list[str] = []
+        okta_users: list[dict[str, Any]] = []
 
-        with ThreadPoolExecutor(max_workers=len(self.collectors)) as executor:
-            futures = {
+        # Find Okta collector for user collection
+        okta_collector = next((c for c in self.collectors if isinstance(c, OktaCollector)), None)
+
+        with ThreadPoolExecutor(max_workers=len(self.collectors) + 1) as executor:
+            futures: dict[Any, str] = {
                 executor.submit(collector.safe_collect): collector.source_name
                 for collector in self.collectors
             }
+            # Collect Okta users in parallel
+            okta_users_future = None
+            if okta_collector:
+                okta_users_future = executor.submit(okta_collector.collect_users)
+
             for future in as_completed(futures):
                 source_name = futures[future]
                 try:
@@ -78,6 +87,48 @@ class SyncEngine:
                     logger.error("collector_failed", source=source_name, error=str(exc))
                     sources_failed.append(source_name)
 
+            # Get Okta users result
+            if okta_users_future:
+                try:
+                    okta_users = okta_users_future.result()
+                except Exception as exc:
+                    logger.warning("okta_users_fetch_failed", error=str(exc))
+
+        # Abort if a critical source failed — don't save bad data
+        critical_sources = {"crowdstrike", "jumpcloud"}
+        failed_critical = critical_sources & set(sources_failed)
+        if failed_critical:
+            logger.error("sync_aborted_critical_source_failed",
+                        failed=list(failed_critical), ok=sources_ok)
+            run = {
+                "started_at": started_at,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+                "status": "aborted",
+                "total_raw_devices": len(all_raw),
+                "duplicates_removed": 0,
+                "final_count": 0,
+                "sources_ok": sources_ok,
+                "sources_failed": sources_failed,
+            }
+            self.repo.save_sync_run(run)
+            # Send alert about the failure but don't update devices
+            try:
+                from src.alerts import send_slack, _get_webhook_url
+                if _get_webhook_url():
+                    from src.alerts import _blocks_header, _blocks_section, _blocks_divider, _blocks_context
+                    blocks = [
+                        _blocks_header(":x: Klar Device Normalizer"),
+                        _blocks_section(f"*Sync ABORTED* — critical source failed: *{', '.join(failed_critical)}*\n\nDevice inventory was NOT updated. Previous data remains intact."),
+                        _blocks_section(f":large_green_circle: OK: {', '.join(sources_ok) or 'none'}\n:red_circle: Failed: {', '.join(sources_failed)}"),
+                        _blocks_divider(),
+                        _blocks_context(["Klar Device Normalizer — IT Security Team"]),
+                    ]
+                    send_slack("Sync aborted: critical source failed", blocks=blocks)
+            except Exception:
+                pass
+            logger.info("sync_aborted", **run)
+            return run
+
         normalized = self.deduplicator.deduplicate(all_raw)
         # AI-enhanced matching for low-confidence single-source devices
         normalized = ai_match(normalized)
@@ -90,6 +141,11 @@ class SyncEngine:
                 dev.canonical_id = str(uuid.uuid4())
 
         self.repo.upsert_devices(enriched)
+
+        # Save Okta users for compliance controls
+        if okta_users:
+            self.repo.save_okta_users(okta_users)
+            logger.info("okta_users_saved", count=len(okta_users))
 
         final_count = len(enriched)
         duplicates_removed = len(all_raw) - final_count

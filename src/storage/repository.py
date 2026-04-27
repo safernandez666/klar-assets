@@ -138,6 +138,32 @@ class DeviceRepository:
         conn.commit()
         conn.close()
 
+    def save_okta_users(self, users: list[dict[str, Any]]) -> None:
+        """Replace all okta_users with fresh data from Okta API."""
+        conn = self._connect()
+        conn.execute("DELETE FROM okta_users")
+        for u in users:
+            conn.execute(
+                """INSERT OR REPLACE INTO okta_users
+                   (id, email, first_name, last_name, status, user_type, google_ou, manager_id, last_login, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (u.get("id"), u.get("email", "").lower(), u.get("first_name"), u.get("last_name"),
+                 u.get("status"), u.get("user_type"), u.get("google_ou"), u.get("manager_id"),
+                 u.get("last_login"), u.get("created_at"), datetime.now(timezone.utc).isoformat()),
+            )
+        conn.commit()
+        conn.close()
+
+    def get_okta_users(self, exclude_types: list[str] | None = None) -> list[dict[str, Any]]:
+        """Get all Okta users, optionally excluding certain user types."""
+        conn = self._connect()
+        rows = conn.execute("SELECT * FROM okta_users").fetchall()
+        conn.close()
+        users = [dict(row) for row in rows]
+        if exclude_types:
+            users = [u for u in users if u.get("user_type") not in exclude_types]
+        return users
+
     def get_acknowledged(self) -> set[str]:
         conn = self._connect()
         rows = conn.execute("SELECT canonical_id FROM acknowledged_devices").fetchall()

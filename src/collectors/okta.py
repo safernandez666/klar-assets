@@ -117,6 +117,57 @@ class OktaCollector(BaseCollector):
             self.log.warning("fetch_device_users_error", device_id=device_id, error=str(exc))
         return []
 
+    def collect_users(self) -> list[dict[str, Any]]:
+        """Fetch all active users from Okta /api/v1/users."""
+        users: list[dict[str, Any]] = []
+        if not self.base_url:
+            self.log.warning("okta_credentials_missing")
+            return users
+        url = f"{self.base_url}/api/v1/users"
+        params: dict[str, Any] = {"limit": 200, "filter": 'status eq "ACTIVE"'}
+        after: str | None = None
+        for _ in range(1000):
+            if after:
+                params["after"] = after
+            resp = self._request_with_retry(url, params=params)
+            if resp.status_code == 429:
+                self.log.error("rate_limit_exhausted_users_list", fetched_so_far=len(users))
+                break
+            resp.raise_for_status()
+            data = resp.json()
+            if not isinstance(data, list) or not data:
+                break
+            for u in data:
+                profile = u.get("profile", {})
+                users.append({
+                    "id": u.get("id", ""),
+                    "email": profile.get("email", "") or profile.get("login", ""),
+                    "first_name": profile.get("firstName", ""),
+                    "last_name": profile.get("lastName", ""),
+                    "status": u.get("status", ""),
+                    "user_type": profile.get("klar_user_type", ""),
+                    "google_ou": profile.get("google_ou", ""),
+                    "manager_id": profile.get("managerId", ""),
+                    "last_login": u.get("lastLogin"),
+                    "created_at": u.get("created"),
+                })
+            # Pagination via Link header
+            link_header = resp.headers.get("link", "")
+            next_after = None
+            for part in link_header.split(","):
+                if 'rel="next"' in part:
+                    for segment in part.split(";"):
+                        if "after=" in segment:
+                            m = re.search(r'after=([^&>]+)', segment)
+                            if m:
+                                next_after = m.group(1)
+                    break
+            if not next_after or next_after == after:
+                break
+            after = next_after
+        self.log.info("okta_users_fetched", count=len(users))
+        return users
+
     def collect(self) -> list[RawDevice]:
         devices = self._fetch_devices()
         self.log.info("devices_fetched", count=len(devices))

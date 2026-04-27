@@ -11,6 +11,7 @@ from src.storage.schema import init_db
 from src.sync_engine import SyncEngine
 
 load_dotenv()
+load_dotenv(".env.build", override=False)  # version info from Docker build
 
 logger = structlog.get_logger(__name__)
 DB_PATH = os.getenv("DB_PATH", "data/devices.db")

@@ -17,16 +17,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Version info (passed as build arg)
-ARG GIT_COMMIT=unknown
-ARG BUILD_DATE=unknown
-ENV APP_VERSION=${GIT_COMMIT}
-ENV APP_BUILD_DATE=${BUILD_DATE}
-
 # App code
+COPY .git/ ./.git/
 COPY src/ ./src/
 COPY main.py scheduler.py ./
 COPY images/ ./images/
+
+# Version info from git (no build-args needed)
+RUN GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
+    BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") && \
+    echo "APP_VERSION=${GIT_COMMIT}" >> /app/.env.build && \
+    echo "APP_BUILD_DATE=${BUILD_DATE}" >> /app/.env.build && \
+    rm -rf .git
 
 # Frontend build output
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist

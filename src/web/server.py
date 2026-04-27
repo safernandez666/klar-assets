@@ -358,7 +358,7 @@ def _login_page() -> str:
         <a href="/auth/okta" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:transparent;border:1.5px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--white);font-size:13px;font-weight:500;text-decoration:none;transition:all 0.2s;font-family:inherit"
            onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.background='rgba(255,255,255,0.03)'"
            onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.background='transparent'">
-          <svg width="40" height="14" viewBox="0 0 200 70" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M34.8 0C15.6 0 0 15.6 0 34.8s15.6 34.8 34.8 34.8 34.8-15.6 34.8-34.8S54 0 34.8 0zm0 52.2c-9.6 0-17.4-7.8-17.4-17.4s7.8-17.4 17.4-17.4 17.4 7.8 17.4 17.4-7.8 17.4-17.4 17.4zm70.8-36.6h-.6c-4.2 0-7.8 1.2-10.8 3.6V2.4h-15v64.8h15V39c0-5.4 3.6-9 8.4-9 1.2 0 2.4.6 3 .6h.6l4.8-15h-5.4zm29.4 0c-3 0-6 .6-9 1.8l-1.2.6 4.2 12 1.2-.6c1.8-.6 3.6-1.2 5.4-1.2 3 0 4.2 1.2 4.2 3v1.2l-3.6.6c-10.2 1.8-18 6-18 15 0 7.8 5.4 13.2 13.8 13.2 4.8 0 7.8-1.8 9.6-3.6v3h13.8V34.2c0-12.6-7.2-18.6-20.4-18.6zm5.4 36c-1.8 1.2-3.6 1.8-6 1.8-2.4 0-4.2-1.2-4.2-3.6 0-3.6 4.2-5.4 10.2-6.6v8.4z" fill="#007DC1"/></svg>
+          <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="#007DC1"/><circle cx="32" cy="32" r="14" fill="#fff"/></svg>
           Sign in with Okta
         </a>
       </div>"""
@@ -458,7 +458,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:va
 
 <div class="wrapper">
   <div class="left">
-    <div class="brand">Corp</div>
+    <div class="brand">Klar</div>
     <div class="tagline">
       <strong>Device Normalizer</strong><br>
       Fleet visibility across JumpCloud, CrowdStrike &amp; Okta — unified in one secure dashboard.
@@ -1162,6 +1162,111 @@ async def api_sync_trigger(background_tasks: BackgroundTasks) -> Any:
 
     background_tasks.add_task(_run)
     return JSONResponse(content={"message": "Sync triggered", "started": True})
+
+
+# ── Compliance Controls ──────────────────────────────────────────────────────
+
+CONTROLS_META = [
+    {"id": "CTL-001", "ref": "", "title": "Dispositivos Okta sin MDM", "objective": "Detectar dispositivos que acceden pero no están en MDM", "source_from": "okta", "source_to": "jumpcloud"},
+    {"id": "CTL-002", "ref": "KRI0021", "title": "Dispositivos JC sin EDR", "objective": "Asegurar cobertura de seguridad (antimalware)", "source_from": "jumpcloud", "source_to": "crowdstrike"},
+    {"id": "CTL-003", "ref": "", "title": "EDR en dispositivos sin MDM", "objective": "Detectar shadow IT o drift", "source_from": "crowdstrike", "source_to": "jumpcloud"},
+    {"id": "CTL-004", "ref": "", "title": "Acceso sin protección", "objective": "Riesgo real de acceso — usuarios sin MDM ni EDR", "source_from": "okta", "source_to": ""},
+    {"id": "CTL-005", "ref": "CIS0102", "title": "Usuarios MDM sin device bindeado", "objective": "Depuración de MDM — usuarios Okta sin device en JC", "source_from": "okta", "source_to": "jumpcloud"},
+    {"id": "CTL-006", "ref": "", "title": "Device MDM sin usuario asignado", "objective": "Depuración de MDM — devices JC sin owner", "source_from": "jumpcloud", "source_to": ""},
+    {"id": "CTL-007", "ref": "CIS0101", "title": "Device MDM sin reportar", "objective": "Efectividad de MDM — agentes JC sin responder 30+ días", "source_from": "jumpcloud", "source_to": ""},
+    {"id": "CTL-008", "ref": "KRI0022", "title": "EDR sin reportar", "objective": "Efectividad de EDR — agentes CS con firmas desactualizadas", "source_from": "crowdstrike", "source_to": ""},
+]
+
+
+@app.get("/api/controls")
+async def api_controls() -> Any:
+    """Evaluate 8 compliance controls against current device inventory."""
+    repo = _get_repo()
+    devices = repo.get_all_devices()
+    acked = repo.get_acknowledged()
+
+    # Filter out acknowledged and servers
+    active = [d for d in devices if d.get("canonical_id") not in acked
+              and d.get("status") != "SERVER" and not d.get("deleted_at")]
+
+    # Build helper sets
+    okta_devices = [d for d in active if "okta" in d.get("sources", [])]
+    jc_devices = [d for d in active if "jumpcloud" in d.get("sources", [])]
+    cs_devices = [d for d in active if "crowdstrike" in d.get("sources", [])]
+
+    # Unique Okta users (for CTL-005)
+    okta_users = {(d.get("owner_email") or "").lower() for d in okta_devices if d.get("owner_email")}
+    jc_owners = {(d.get("owner_email") or "").lower() for d in jc_devices if d.get("owner_email")}
+
+    def _dev_summary(d: dict) -> dict:
+        return {
+            "canonical_id": d.get("canonical_id"),
+            "hostname": (d.get("hostnames") or ["—"])[0],
+            "serial": d.get("serial_number"),
+            "owner": d.get("owner_email") or "N/A",
+            "status": d.get("status"),
+            "sources": d.get("sources", []),
+            "last_seen": d.get("last_seen"),
+            "days_since_seen": d.get("days_since_seen"),
+        }
+
+    results = []
+
+    # CTL-001: Okta devices not in JC (IDP_ONLY)
+    ctl1 = [d for d in active if d.get("status") == "IDP_ONLY"]
+    results.append({**CONTROLS_META[0], "status": "fail" if ctl1 else "pass",
+                    "total": len(okta_devices), "affected": len(ctl1),
+                    "devices": [_dev_summary(d) for d in ctl1[:50]]})
+
+    # CTL-002: JC devices without CS (NO_EDR)
+    ctl2 = [d for d in active if d.get("status") == "NO_EDR"]
+    results.append({**CONTROLS_META[1], "status": "fail" if ctl2 else "pass",
+                    "total": len(jc_devices), "affected": len(ctl2),
+                    "devices": [_dev_summary(d) for d in ctl2[:50]]})
+
+    # CTL-003: CS devices without JC (NO_MDM)
+    ctl3 = [d for d in active if d.get("status") == "NO_MDM"]
+    results.append({**CONTROLS_META[2], "status": "fail" if ctl3 else "pass",
+                    "total": len(cs_devices), "affected": len(ctl3),
+                    "devices": [_dev_summary(d) for d in ctl3[:50]]})
+
+    # CTL-004: Access without any protection (IDP_ONLY + NO_MDM owners)
+    ctl4 = [d for d in active if d.get("status") in ("IDP_ONLY", "NO_MDM") and d.get("owner_email")]
+    results.append({**CONTROLS_META[3], "status": "fail" if ctl4 else "pass",
+                    "total": len(okta_devices), "affected": len(ctl4),
+                    "devices": [_dev_summary(d) for d in ctl4[:50]]})
+
+    # CTL-005: Okta users with no JC device
+    users_no_jc = okta_users - jc_owners
+    # Find sample devices for these users
+    ctl5_devs = [d for d in okta_devices if (d.get("owner_email") or "").lower() in users_no_jc]
+    results.append({**CONTROLS_META[4], "status": "fail" if users_no_jc else "pass",
+                    "total": len(okta_users), "affected": len(users_no_jc),
+                    "devices": [_dev_summary(d) for d in ctl5_devs[:50]]})
+
+    # CTL-006: JC devices without owner
+    ctl6 = [d for d in jc_devices if not d.get("owner_email")]
+    results.append({**CONTROLS_META[5], "status": "fail" if ctl6 else "pass",
+                    "total": len(jc_devices), "affected": len(ctl6),
+                    "devices": [_dev_summary(d) for d in ctl6[:50]]})
+
+    # CTL-007: JC devices not reporting (stale, 30+ days)
+    ctl7 = [d for d in jc_devices if (d.get("days_since_seen") or 0) >= 30]
+    results.append({**CONTROLS_META[6], "status": "fail" if ctl7 else "pass",
+                    "total": len(jc_devices), "affected": len(ctl7),
+                    "devices": [_dev_summary(d) for d in ctl7[:50]]})
+
+    # CTL-008: CS devices not reporting (stale, 30+ days)
+    ctl8 = [d for d in cs_devices if (d.get("days_since_seen") or 0) >= 30]
+    results.append({**CONTROLS_META[7], "status": "fail" if ctl8 else "pass",
+                    "total": len(cs_devices), "affected": len(ctl8),
+                    "devices": [_dev_summary(d) for d in ctl8[:50]]})
+
+    passing = sum(1 for r in results if r["status"] == "pass")
+    return JSONResponse(content={
+        "controls": results,
+        "summary": {"total": len(results), "passing": passing, "failing": len(results) - passing},
+    })
 
 
 # ── SPA Catch-all ────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   LogOut,
   User,
   Home,
+  ShieldCheck,
 } from "lucide-react";
 
 export function NavSidebar() {
@@ -54,6 +55,7 @@ export function NavSidebar() {
         {navItem("/", <Home className="h-5 w-5 text-blue-400" />, "Dashboard", "bg-blue-500/10")}
         {navItem("/search", <Search className="h-5 w-5 text-violet-400" />, "Asset Search", "bg-violet-500/10")}
         {navItem("/people", <Users className="h-5 w-5 text-cyan-400" />, "People", "bg-cyan-500/10")}
+        {navItem("/controls", <ShieldCheck className="h-5 w-5 text-emerald-400" />, "Controls", "bg-emerald-500/10")}
       </div>
 
       {/* Bottom */}

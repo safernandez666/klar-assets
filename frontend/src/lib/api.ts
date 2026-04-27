@@ -43,4 +43,6 @@ export const api = {
   getDiff: () => fetchJson<any>("/api/diff"),
 
   getFullReport: () => fetchJson<any>("/api/report/full"),
+
+  getControls: () => fetchJson<any>("/api/controls"),
 };

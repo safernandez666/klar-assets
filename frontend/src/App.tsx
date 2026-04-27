@@ -5,6 +5,7 @@ import SearchPage from "./pages/search";
 import PeoplePage from "./pages/people";
 import DualUsePage from "./pages/dual-use";
 import SettingsPage from "./pages/settings";
+import ControlsPage from "./pages/controls";
 
 function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -24,6 +25,7 @@ function App() {
   else if (path === "/people") page = <PeoplePage />;
   else if (path === "/dual-use") page = <DualUsePage />;
   else if (path === "/settings") page = <SettingsPage />;
+  else if (path === "/controls") page = <ControlsPage />;
   else page = <Dashboard />;
 
   return (

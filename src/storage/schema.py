@@ -55,6 +55,23 @@ CREATE TABLE IF NOT EXISTS status_snapshots (
     server INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS okta_users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    first_name TEXT,
+    last_name TEXT,
+    status TEXT NOT NULL,
+    user_type TEXT,
+    google_ou TEXT,
+    manager_id TEXT,
+    last_login TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_okta_users_email ON okta_users(email);
+CREATE INDEX IF NOT EXISTS idx_okta_users_status ON okta_users(status);
+
 CREATE TABLE IF NOT EXISTS acknowledged_devices (
     canonical_id TEXT PRIMARY KEY,
     reason TEXT NOT NULL DEFAULT '',

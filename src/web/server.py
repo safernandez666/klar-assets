@@ -1273,8 +1273,8 @@ async def api_controls() -> Any:
                     "total": len(cs_devices), "affected": len(ctl3),
                     "devices": [_dev_summary(d) for d in ctl3[:50]]})
 
-    # CTL-004: Access without any protection (IDP_ONLY + NO_MDM owners)
-    ctl4 = [d for d in active if d.get("status") in ("IDP_ONLY", "NO_MDM") and d.get("owner_email")]
+    # CTL-004: Access without any protection (IDP_ONLY + NO_MDM)
+    ctl4 = [d for d in active if d.get("status") in ("IDP_ONLY", "NO_MDM")]
     results.append({**CONTROLS_META[3], "status": "fail" if ctl4 else "pass",
                     "total": len(okta_devices), "affected": len(ctl4),
                     "devices": [_dev_summary(d) for d in ctl4[:50]]})

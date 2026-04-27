@@ -489,7 +489,7 @@ export default function Dashboard() {
             <PieCharts summary={summary} />
             <SourcesHealth summary={summary} lastSync={lastSync} />
             {history.length > 1 && <StatusHistory history={history} />}
-            <DeviceInventory devices={devices} />
+            <DeviceInventory />
             <LowConfidence devices={devices} />
           </div>
         </Layout>

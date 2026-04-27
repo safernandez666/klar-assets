@@ -595,12 +595,32 @@ async def api_set_sync_interval(body: SyncIntervalRequest) -> Any:
 # ── API Routes ───────────────────────────────────────────────────────────────
 
 @app.get("/api/devices")
-async def api_devices(status: str | None = None, source: str | None = None) -> Any:
+async def api_devices(
+    status: str | None = None,
+    source: str | None = None,
+    search: str | None = None,
+    page: int | None = None,
+    page_size: int = 25,
+) -> Any:
     repo = _get_repo()
-    devices = repo.get_all_devices(status=status, source=source)
-    # Mark acknowledged devices
+    result = repo.get_all_devices(status=status, source=source, search=search, page=page, page_size=page_size)
     acked = repo.get_acknowledged_details()
-    for d in devices:
+
+    # Paginated response
+    if isinstance(result, dict):
+        for d in result["devices"]:
+            cid = d.get("canonical_id", "")
+            if cid in acked:
+                d["acknowledged"] = True
+                d["ack_reason"] = acked[cid]["reason"]
+                d["ack_by"] = acked[cid]["by"]
+                d["ack_at"] = acked[cid]["at"]
+            else:
+                d["acknowledged"] = False
+        return JSONResponse(content=result)
+
+    # Legacy: no pagination (used by other internal callers)
+    for d in result:
         cid = d.get("canonical_id", "")
         if cid in acked:
             d["acknowledged"] = True
@@ -609,7 +629,7 @@ async def api_devices(status: str | None = None, source: str | None = None) -> A
             d["ack_at"] = acked[cid]["at"]
         else:
             d["acknowledged"] = False
-    return JSONResponse(content={"devices": devices})
+    return JSONResponse(content={"devices": result})
 
 
 class AckRequest(BaseModel):

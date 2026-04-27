@@ -232,7 +232,11 @@ class DeviceRepository:
         return {row["canonical_id"] for row in rows}
 
     def get_new_devices(self) -> list[dict[str, Any]]:
-        """Get devices that appeared in this sync but not the previous one."""
+        """Get devices that appeared in this sync but not the previous one.
+
+        Excludes false positives where the serial number existed in the
+        previous sync (device was re-merged with a different canonical_id).
+        """
         prev_ids = self.get_previous_canonical_ids()
         if not prev_ids:
             return []  # First sync, everything is new
@@ -242,7 +246,24 @@ class DeviceRepository:
         ).fetchall()
         conn.close()
         current = [self._row_to_dict(row) for row in rows]
-        return [d for d in current if d["canonical_id"] not in prev_ids]
+        new_by_id = [d for d in current if d["canonical_id"] not in prev_ids]
+
+        if not new_by_id:
+            return []
+
+        # Get serials from previous sync to filter re-merged devices
+        conn2 = self._connect()
+        prev_rows = conn2.execute(
+            """SELECT serial_number FROM devices
+               WHERE deleted_at IS NOT NULL AND serial_number IS NOT NULL AND serial_number != ''
+               AND deleted_at = (SELECT MAX(deleted_at) FROM devices WHERE deleted_at IS NOT NULL)"""
+        ).fetchall()
+        conn2.close()
+        prev_serials = {r["serial_number"].lower() for r in prev_rows}
+
+        return [d for d in new_by_id
+                if not ((d.get("serial_number") or "").lower() in prev_serials
+                        and (d.get("serial_number") or "").lower())]
 
     def get_recently_deleted(self) -> list[dict[str, Any]]:
         """Get devices that were soft-deleted in the most recent sync (disappeared).

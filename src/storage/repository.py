@@ -245,10 +245,12 @@ class DeviceRepository:
         return [d for d in current if d["canonical_id"] not in prev_ids]
 
     def get_recently_deleted(self) -> list[dict[str, Any]]:
-        """Get devices that were soft-deleted in the most recent sync (disappeared)."""
+        """Get devices that were soft-deleted in the most recent sync (disappeared).
+
+        Excludes false positives where the serial number still exists in
+        the active inventory (device was re-merged with a different canonical_id).
+        """
         conn = self._connect()
-        # Find devices that have deleted_at set and were active in the previous generation
-        # These are devices from the previous sync that didn't appear in the latest
         rows = conn.execute(
             """
             SELECT * FROM devices
@@ -260,7 +262,27 @@ class DeviceRepository:
             """,
         ).fetchall()
         conn.close()
-        return [self._row_to_dict(row) for row in rows]
+
+        # Filter out false positives: if the serial still exists in active devices,
+        # the device was re-merged under a different canonical_id, not truly disappeared
+        if not rows:
+            return []
+        active_serials = set()
+        conn2 = self._connect()
+        active_rows = conn2.execute(
+            "SELECT serial_number FROM devices WHERE deleted_at IS NULL AND serial_number IS NOT NULL AND serial_number != ''"
+        ).fetchall()
+        conn2.close()
+        active_serials = {r["serial_number"].lower() for r in active_rows}
+
+        result = []
+        for row in rows:
+            d = self._row_to_dict(row)
+            serial = (d.get("serial_number") or "").lower()
+            if serial and serial in active_serials:
+                continue  # Serial still active — false positive (re-merged)
+            result.append(d)
+        return result
 
     def get_newly_stale(self, previous_days: int = 7) -> list[dict[str, Any]]:
         """Get devices that recently became stale (were active last sync, now >90 days)."""

@@ -25,7 +25,7 @@ ENV APP_BUILD_DATE=${BUILD_DATE}
 
 # App code
 COPY src/ ./src/
-COPY main.py scheduler.py ./
+COPY main.py ./
 
 # Frontend build output
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist

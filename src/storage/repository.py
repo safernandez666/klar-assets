@@ -79,17 +79,44 @@ class DeviceRepository:
         self,
         status: str | None = None,
         source: str | None = None,
-    ) -> list[dict[str, Any]]:
+        search: str | None = None,
+        page: int | None = None,
+        page_size: int = 25,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        """Get devices. If page is set, returns paginated result with total count."""
         conn = self._connect()
         query = "SELECT * FROM devices WHERE deleted_at IS NULL"
+        count_query = "SELECT COUNT(*) FROM devices WHERE deleted_at IS NULL"
         params: list[Any] = []
         if status:
             query += " AND status = ?"
+            count_query += " AND status = ?"
             params.append(status)
         if source:
             query += " AND sources LIKE ?"
+            count_query += " AND sources LIKE ?"
             params.append(f'%"{source}"%')
+        if search:
+            query += " AND (owner_email LIKE ? OR hostnames LIKE ? OR serial_number LIKE ?)"
+            count_query += " AND (owner_email LIKE ? OR hostnames LIKE ? OR serial_number LIKE ?)"
+            s = f"%{search}%"
+            params.extend([s, s, s])
         query += " ORDER BY last_seen DESC"
+
+        if page is not None:
+            total = conn.execute(count_query, params).fetchone()[0]
+            offset = (page - 1) * page_size
+            query += " LIMIT ? OFFSET ?"
+            rows = conn.execute(query, params + [page_size, offset]).fetchall()
+            conn.close()
+            return {
+                "devices": [self._row_to_dict(row) for row in rows],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size,
+            }
+
         rows = conn.execute(query, params).fetchall()
         conn.close()
         return [self._row_to_dict(row) for row in rows]
@@ -232,7 +259,11 @@ class DeviceRepository:
         return {row["canonical_id"] for row in rows}
 
     def get_new_devices(self) -> list[dict[str, Any]]:
-        """Get devices that appeared in this sync but not the previous one."""
+        """Get devices that appeared in this sync but not the previous one.
+
+        Excludes false positives where the serial number existed in the
+        previous sync (device was re-merged with a different canonical_id).
+        """
         prev_ids = self.get_previous_canonical_ids()
         if not prev_ids:
             return []  # First sync, everything is new
@@ -242,13 +273,32 @@ class DeviceRepository:
         ).fetchall()
         conn.close()
         current = [self._row_to_dict(row) for row in rows]
-        return [d for d in current if d["canonical_id"] not in prev_ids]
+        new_by_id = [d for d in current if d["canonical_id"] not in prev_ids]
+
+        if not new_by_id:
+            return []
+
+        # Get serials from previous sync to filter re-merged devices
+        conn2 = self._connect()
+        prev_rows = conn2.execute(
+            """SELECT serial_number FROM devices
+               WHERE deleted_at IS NOT NULL AND serial_number IS NOT NULL AND serial_number != ''
+               AND deleted_at = (SELECT MAX(deleted_at) FROM devices WHERE deleted_at IS NOT NULL)"""
+        ).fetchall()
+        conn2.close()
+        prev_serials = {r["serial_number"].lower() for r in prev_rows}
+
+        return [d for d in new_by_id
+                if not ((d.get("serial_number") or "").lower() in prev_serials
+                        and (d.get("serial_number") or "").lower())]
 
     def get_recently_deleted(self) -> list[dict[str, Any]]:
-        """Get devices that were soft-deleted in the most recent sync (disappeared)."""
+        """Get devices that were soft-deleted in the most recent sync (disappeared).
+
+        Excludes false positives where the serial number still exists in
+        the active inventory (device was re-merged with a different canonical_id).
+        """
         conn = self._connect()
-        # Find devices that have deleted_at set and were active in the previous generation
-        # These are devices from the previous sync that didn't appear in the latest
         rows = conn.execute(
             """
             SELECT * FROM devices
@@ -260,7 +310,27 @@ class DeviceRepository:
             """,
         ).fetchall()
         conn.close()
-        return [self._row_to_dict(row) for row in rows]
+
+        # Filter out false positives: if the serial still exists in active devices,
+        # the device was re-merged under a different canonical_id, not truly disappeared
+        if not rows:
+            return []
+        active_serials = set()
+        conn2 = self._connect()
+        active_rows = conn2.execute(
+            "SELECT serial_number FROM devices WHERE deleted_at IS NULL AND serial_number IS NOT NULL AND serial_number != ''"
+        ).fetchall()
+        conn2.close()
+        active_serials = {r["serial_number"].lower() for r in active_rows}
+
+        result = []
+        for row in rows:
+            d = self._row_to_dict(row)
+            serial = (d.get("serial_number") or "").lower()
+            if serial and serial in active_serials:
+                continue  # Serial still active — false positive (re-merged)
+            result.append(d)
+        return result
 
     def get_newly_stale(self, previous_days: int = 7) -> list[dict[str, Any]]:
         """Get devices that recently became stale (were active last sync, now >90 days)."""

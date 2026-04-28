@@ -22,6 +22,17 @@ export const api = {
     return fetchJson<ApiDevicesResponse>(`/api/devices${qs ? `?${qs}` : ""}`);
   },
 
+  getDevicesPaginated: (opts: { status?: string | null; source?: string | null; search?: string | null; page?: number; pageSize?: number }) => {
+    const params = new URLSearchParams();
+    if (opts.status) params.append("status", opts.status);
+    if (opts.source) params.append("source", opts.source);
+    if (opts.search) params.append("search", opts.search);
+    if (opts.page) params.append("page", String(opts.page));
+    if (opts.pageSize) params.append("page_size", String(opts.pageSize));
+    const qs = params.toString();
+    return fetchJson<{ devices: any[]; total: number; page: number; page_size: number; total_pages: number }>(`/api/devices${qs ? `?${qs}` : ""}`);
+  },
+
   getSummary: () => fetchJson<Summary>("/api/summary"),
 
   getLastSync: () => fetchJson<ApiSyncLastResponse>("/api/sync/last"),

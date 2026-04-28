@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { List, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -7,9 +7,10 @@ import { Select } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { formatDate, shortSource } from "../lib/utils";
+import { api } from "../lib/api";
 import type { Device } from "../types";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZES = [10, 25, 50, 100];
 
 const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" | "secondary"; label: string }> = {
   FULLY_MANAGED: { variant: "success", label: "FULL" },
@@ -22,31 +23,56 @@ const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" |
   UNKNOWN: { variant: "secondary", label: "UNKNOWN" },
 };
 
-interface DeviceInventoryProps {
-  devices: Device[];
-}
-
-export function DeviceInventory({ devices }: DeviceInventoryProps) {
+export function DeviceInventory() {
+  const [devices, setDevices] = useState<Device[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return devices.filter((d) => {
-      if (statusFilter && d.status !== statusFilter) return false;
-      if (q) {
-        const owner = (d.owner_email || "").toLowerCase();
-        const hostname = (d.hostnames || []).join(" ").toLowerCase();
-        if (!owner.includes(q) && !hostname.includes(q)) return false;
+  const fetchDevices = useCallback(async (p: number, ps: number, status: string, q: string) => {
+    setLoading(true);
+    try {
+      const res = await api.getDevicesPaginated({
+        status: status || null,
+        search: q || null,
+        page: p,
+        pageSize: ps,
+      });
+      setDevices(res.devices || []);
+      setTotal(res.total);
+      setTotalPages(res.total_pages);
+    } catch (e: any) {
+      if (e?.message === "Unauthorized") {
+        window.location.href = "/auth/logout";
+        return;
       }
-      return true;
-    });
-  }, [devices, statusFilter, search]);
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const start = (page - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+  useEffect(() => {
+    fetchDevices(page, pageSize, statusFilter, search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, statusFilter]);
+
+  // Debounce search
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      fetchDevices(1, pageSize, statusFilter, value);
+    }, 300);
+  };
+
+  const start = (page - 1) * pageSize;
 
   return (
     <motion.div
@@ -82,12 +108,9 @@ export function DeviceInventory({ devices }: DeviceInventoryProps) {
               <option value="UNKNOWN">UNKNOWN</option>
             </Select>
             <Input
-              placeholder="Search owner or hostname..."
+              placeholder="Search owner, hostname or serial..."
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => handleSearch(e.target.value)}
               className="w-64"
             />
           </div>
@@ -107,8 +130,8 @@ export function DeviceInventory({ devices }: DeviceInventoryProps) {
                   <th className="pb-3 font-medium text-right">Confidence</th>
                 </tr>
               </thead>
-              <tbody>
-                {pageItems.map((d) => {
+              <tbody className={loading ? "opacity-50" : ""}>
+                {devices.map((d) => {
                   const cfg = STATUS_BADGES[d.status] || STATUS_BADGES.UNKNOWN;
                   const isRisk = d.status === "NO_EDR" || d.status === "NO_MDM" || d.status === "IDP_ONLY";
                   return (
@@ -172,12 +195,9 @@ export function DeviceInventory({ devices }: DeviceInventoryProps) {
                     </tr>
                   );
                 })}
-                {pageItems.length === 0 && (
+                {devices.length === 0 && !loading && (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="py-8 text-center text-sm text-muted"
-                    >
+                    <td colSpan={8} className="py-8 text-center text-sm text-muted">
                       No devices found
                     </td>
                   </tr>
@@ -187,10 +207,23 @@ export function DeviceInventory({ devices }: DeviceInventoryProps) {
           </div>
 
           <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-            <span className="text-xs text-muted">
-              Showing {filtered.length > 0 ? start + 1 : 0}–
-              {Math.min(start + PAGE_SIZE, filtered.length)} of {filtered.length}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted">
+                Showing {total > 0 ? start + 1 : 0}–{Math.min(start + pageSize, total)} of {total}
+              </span>
+              <Select
+                value={String(pageSize)}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="w-20 text-xs"
+              >
+                {PAGE_SIZES.map((s) => (
+                  <option key={s} value={String(s)}>{s}/page</option>
+                ))}
+              </Select>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -201,6 +234,7 @@ export function DeviceInventory({ devices }: DeviceInventoryProps) {
                 <ChevronLeft className="h-4 w-4" />
                 Prev
               </Button>
+              <span className="text-xs text-muted">{page} / {totalPages}</span>
               <Button
                 variant="outline"
                 size="sm"

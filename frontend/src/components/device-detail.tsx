@@ -20,6 +20,12 @@ const GAP_LABELS: Record<string, string> = {
   missing_idp: "Missing IDP (Okta)",
 };
 
+const SOURCE_NAMES: Record<string, string> = {
+  crowdstrike: "CrowdStrike",
+  jumpcloud: "JumpCloud",
+  okta: "Okta",
+};
+
 interface SectionProps {
   title: string;
   children: React.ReactNode;
@@ -27,12 +33,12 @@ interface SectionProps {
 
 function Section({ title, children }: SectionProps) {
   return (
-    <div className="border-b border-border/60 px-6 py-4 last:border-b-0">
-      <h4 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
+    <section className="border-b border-border/60 px-6 py-4 last:border-b-0">
+      <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
         {title}
-      </h4>
+      </h3>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -45,8 +51,8 @@ interface RowProps {
 function Row({ label, children, mono }: RowProps) {
   return (
     <div className="grid grid-cols-[140px_1fr] items-start gap-3 py-1 text-sm">
-      <span className="text-xs text-muted">{label}</span>
-      <span className={mono ? "font-mono text-xs" : ""}>{children}</span>
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className={mono ? "font-mono text-xs" : ""}>{children}</dd>
     </div>
   );
 }
@@ -87,114 +93,128 @@ export function DeviceDetail({ device }: DeviceDetailProps) {
   return (
     <div className="divide-y divide-border/60">
       <Section title="Identity">
-        <Row label="Canonical ID" mono>{device.canonical_id}</Row>
-        <Row label="Hostnames">
-          {hostnames.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {hostnames.map((h) => (
-                <span key={h} className="rounded border border-border bg-card/60 px-1.5 py-0.5 text-xs">
-                  {h}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <span className="text-muted">—</span>
-          )}
-        </Row>
-        <Row label="Serial number" mono>{device.serial_number || "—"}</Row>
-        <Row label="MAC addresses">
-          {macs.length > 0 ? (
-            <div className="flex flex-wrap gap-1 font-mono text-xs">
-              {macs.map((m) => (
-                <span key={m} className="rounded border border-border bg-card/60 px-1.5 py-0.5">
-                  {m}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <span className="text-muted">—</span>
-          )}
-        </Row>
+        <dl>
+          <Row label="Canonical ID" mono>{device.canonical_id}</Row>
+          <Row label="Hostnames">
+            {hostnames.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {hostnames.map((h) => (
+                  <span key={h} className="rounded border border-border bg-card/60 px-1.5 py-0.5 text-xs">
+                    {h}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-muted">—</span>
+            )}
+          </Row>
+          <Row label="Serial number" mono>{device.serial_number || "—"}</Row>
+          <Row label="MAC addresses">
+            {macs.length > 0 ? (
+              <div className="flex flex-wrap gap-1 font-mono text-xs">
+                {macs.map((m) => (
+                  <span key={m} className="rounded border border-border bg-card/60 px-1.5 py-0.5">
+                    {m}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-muted">—</span>
+            )}
+          </Row>
+        </dl>
       </Section>
 
       <Section title="Owner">
-        <Row label="Email">{device.owner_email || <span className="text-muted">—</span>}</Row>
-        <Row label="Name">{device.owner_name || <span className="text-muted">—</span>}</Row>
+        <dl>
+          <Row label="Email">{device.owner_email || <span className="text-muted">—</span>}</Row>
+          <Row label="Name">{device.owner_name || <span className="text-muted">—</span>}</Row>
+        </dl>
       </Section>
 
       <Section title="Operating system">
-        <Row label="OS">{device.os_type || "—"}</Row>
-        <Row label="Days since seen">
-          {device.days_since_seen !== null && device.days_since_seen !== undefined
-            ? `${device.days_since_seen} day${device.days_since_seen === 1 ? "" : "s"}`
-            : "—"}
-        </Row>
-        <Row label="Active VPN">{device.is_active_vpn ? "Yes" : "No"}</Row>
+        <dl>
+          <Row label="OS">{device.os_type || "—"}</Row>
+          <Row label="Days since seen">
+            {device.days_since_seen !== null && device.days_since_seen !== undefined
+              ? `${device.days_since_seen} day${device.days_since_seen === 1 ? "" : "s"}`
+              : "—"}
+          </Row>
+          <Row label="Active VPN">{device.is_active_vpn ? "Yes" : "No"}</Row>
+        </dl>
       </Section>
 
       <Section title="Sources">
         {sources.length === 0 ? (
           <p className="text-sm text-muted">No sources reported this device.</p>
         ) : (
-          <div className="space-y-1.5">
+          <ul className="space-y-1.5">
             {sources.map((s) => (
-              <div
+              <li
                 key={s}
                 className="grid grid-cols-[80px_1fr] items-center gap-3 rounded-md border border-border/60 bg-card/40 px-3 py-2 text-xs"
               >
-                <span className="font-medium uppercase">{shortSource(s)}</span>
+                <span className="font-medium uppercase" aria-label={SOURCE_NAMES[s] || s}>
+                  {shortSource(s)}
+                </span>
                 <span className="truncate font-mono text-muted">
                   {sourceIds[s] || "—"}
                 </span>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </Section>
 
       <Section title="Match">
-        <Row label="Confidence">
-          <span className={`font-semibold ${confidenceColor}`}>{confidence.toFixed(2)}</span>
-        </Row>
-        <Row label="Reason">
-          <span className="inline-flex items-center gap-1 break-all">
-            {isAiMatched && <Sparkles className="h-3 w-3 shrink-0 text-violet-400" />}
-            {device.match_reason || <span className="text-muted">—</span>}
-          </span>
-        </Row>
+        <dl>
+          <Row label="Confidence">
+            <span className={`font-semibold tabular-nums ${confidenceColor}`}>{confidence.toFixed(2)}</span>
+          </Row>
+          <Row label="Reason">
+            <span className="inline-flex items-center gap-1 break-words">
+              {isAiMatched && <Sparkles className="h-3 w-3 shrink-0 text-violet-400" aria-hidden="true" />}
+              {device.match_reason || <span className="text-muted">—</span>}
+            </span>
+          </Row>
+        </dl>
       </Section>
 
       {gaps.length > 0 && (
         <Section title="Coverage gaps">
-          <div className="flex flex-wrap gap-2">
+          <ul className="flex flex-wrap gap-2">
             {gaps.map((g) => (
-              <span
+              <li
                 key={g}
                 className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300"
               >
-                <ShieldAlert className="h-3 w-3" />
+                <ShieldAlert className="h-3 w-3" aria-hidden="true" />
                 {GAP_LABELS[g] || g}
-              </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </Section>
       )}
 
       <Section title="Timestamps">
-        <Row label="First seen">{formatDate(device.first_seen)}</Row>
-        <Row label="Last seen">{formatDate(device.last_seen)}</Row>
-        {device.deleted_at && <Row label="Deleted at">{formatDate(device.deleted_at)}</Row>}
+        <dl>
+          <Row label="First seen">{formatDate(device.first_seen)}</Row>
+          <Row label="Last seen">{formatDate(device.last_seen)}</Row>
+          {device.deleted_at && <Row label="Deleted at">{formatDate(device.deleted_at)}</Row>}
+        </dl>
       </Section>
 
       {device.acknowledged && (
         <Section title="Acknowledgement">
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300">
-            <ShieldCheck className="h-3 w-3" />
+            <ShieldCheck className="h-3 w-3" aria-hidden="true" />
             Acknowledged
           </div>
-          <Row label="Reason">{device.ack_reason || <span className="text-muted">—</span>}</Row>
-          <Row label="By">{device.ack_by || <span className="text-muted">—</span>}</Row>
-          <Row label="At">{formatDate(device.ack_at)}</Row>
+          <dl>
+            <Row label="Reason">{device.ack_reason || <span className="text-muted">—</span>}</Row>
+            <Row label="By">{device.ack_by || <span className="text-muted">—</span>}</Row>
+            <Row label="At">{formatDate(device.ack_at)}</Row>
+          </dl>
         </Section>
       )}
     </div>

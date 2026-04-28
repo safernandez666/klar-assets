@@ -56,7 +56,13 @@ export function ToastContainer() {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[70] flex flex-col gap-2 w-80">
+    <div
+      className="fixed top-4 right-4 z-[70] flex flex-col gap-2 w-80"
+      role="region"
+      aria-label="Notifications"
+      aria-live="polite"
+      aria-atomic="false"
+    >
       <AnimatePresence>
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onDismiss={dismiss} />
@@ -92,10 +98,12 @@ function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: (id: stri
           {t.message && <div className="text-[11px] text-muted mt-0.5 leading-relaxed">{t.message}</div>}
         </div>
         <button
+          type="button"
           onClick={() => onDismiss(t.id)}
-          className="shrink-0 rounded p-0.5 hover:bg-card/50 transition-colors"
+          aria-label="Dismiss notification"
+          className="shrink-0 rounded p-0.5 transition-colors hover:bg-card/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <X className="h-3.5 w-3.5 text-muted" />
+          <X className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
         </button>
       </div>
     </motion.div>

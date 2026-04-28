@@ -86,7 +86,7 @@ export function DeviceInventory() {
       <Card>
         <CardHeader className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <List className="h-4 w-4 text-accent" />
+            <List className="h-4 w-4 text-accent" aria-hidden="true" />
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted">
               Device Inventory
             </CardTitle>
@@ -111,7 +111,12 @@ export function DeviceInventory() {
               <option value="UNKNOWN">UNKNOWN</option>
             </Select>
             <Input
-              placeholder="Search owner, hostname or serial..."
+              type="search"
+              name="device-search"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Search owner, hostname or serial…"
+              aria-label="Search devices"
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-64"
@@ -123,25 +128,36 @@ export function DeviceInventory() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
-                  <th className="pb-3 font-medium">Owner</th>
-                  <th className="pb-3 font-medium">Hostname</th>
-                  <th className="pb-3 font-medium">Serial</th>
-                  <th className="pb-3 font-medium">OS</th>
-                  <th className="pb-3 font-medium">Sources</th>
-                  <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Last Seen</th>
-                  <th className="pb-3 font-medium text-right">Confidence</th>
+                  <th scope="col" className="pb-3 font-medium">Owner</th>
+                  <th scope="col" className="pb-3 font-medium">Hostname</th>
+                  <th scope="col" className="pb-3 font-medium">Serial</th>
+                  <th scope="col" className="pb-3 font-medium">OS</th>
+                  <th scope="col" className="pb-3 font-medium">Sources</th>
+                  <th scope="col" className="pb-3 font-medium">Status</th>
+                  <th scope="col" className="pb-3 font-medium">Last Seen</th>
+                  <th scope="col" className="pb-3 font-medium text-right">Confidence</th>
                 </tr>
               </thead>
               <tbody className={loading ? "opacity-50" : ""}>
                 {devices.map((d) => {
                   const cfg = STATUS_BADGES[d.status] || STATUS_BADGES.UNKNOWN;
                   const isRisk = d.status === "NO_EDR" || d.status === "NO_MDM" || d.status === "IDP_ONLY";
+                  const hostname = (d.hostnames || [])[0] || d.serial_number || "device";
+                  const open = () => setSelectedDevice(d);
                   return (
                     <tr
                       key={d.canonical_id}
-                      onClick={() => setSelectedDevice(d)}
-                      className={`cursor-pointer border-b border-border/50 transition-colors hover:bg-card/50 last:border-b-0 ${
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`View details for ${hostname}`}
+                      onClick={open}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          open();
+                        }
+                      }}
+                      className={`cursor-pointer border-b border-border/50 transition-colors hover:bg-card/50 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset ${
                         isRisk ? "bg-red-500/[0.02]" : ""
                       }`}
                     >
@@ -151,8 +167,10 @@ export function DeviceInventory() {
                           <div className="text-xs text-muted">{d.owner_name}</div>
                         )}
                       </td>
-                      <td className="py-3 pr-4 text-muted">
-                        {(d.hostnames || []).join(", ") || "N/A"}
+                      <td className="max-w-[220px] py-3 pr-4 text-muted">
+                        <div className="truncate" title={(d.hostnames || []).join(", ") || undefined}>
+                          {(d.hostnames || []).join(", ") || "N/A"}
+                        </div>
                       </td>
                       <td className="py-3 pr-4 font-mono text-xs text-muted">
                         {d.serial_number || "N/A"}
@@ -161,7 +179,11 @@ export function DeviceInventory() {
                       <td className="py-3 pr-4">
                         <div className="flex gap-1">
                           {(d.sources || []).map((s) => (
-                            <span key={s} className="rounded border border-border bg-card px-1 py-0.5 text-[9px] font-medium text-muted">
+                            <span
+                              key={s}
+                              aria-label={s}
+                              className="rounded border border-border bg-card px-1 py-0.5 text-[9px] font-medium text-muted"
+                            >
                               {shortSource(s)}
                             </span>
                           ))}
@@ -173,12 +195,16 @@ export function DeviceInventory() {
                       <td className="py-3 pr-4 text-xs text-muted">
                         {formatDate(d.last_seen)}
                       </td>
-                      <td className="py-3 text-right">
+                      <td className="py-3 text-right tabular-nums">
                         <div className="flex items-center justify-end gap-1">
                           {d.match_reason?.startsWith("ai_match") && (
-                            <span className="group relative">
-                              <Sparkles className="h-3 w-3 text-violet-400" />
-                              <span className="pointer-events-none absolute bottom-full right-0 mb-1 whitespace-nowrap rounded bg-card border border-border px-2 py-1 text-[10px] text-muted opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                            <span
+                              className="group relative"
+                              tabIndex={0}
+                              aria-label={`AI matched: ${d.match_reason.replace("ai_match:", "")}`}
+                            >
+                              <Sparkles className="h-3 w-3 text-violet-400" aria-hidden="true" />
+                              <span className="pointer-events-none absolute bottom-full right-0 mb-1 whitespace-nowrap rounded bg-card border border-border px-2 py-1 text-[10px] text-muted opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                                 AI matched: {d.match_reason.replace("ai_match:", "")}
                               </span>
                             </span>
@@ -238,7 +264,13 @@ export function DeviceInventory() {
                 <ChevronLeft className="h-4 w-4" />
                 Prev
               </Button>
-              <span className="text-xs text-muted">{page} / {totalPages}</span>
+              <span
+                className="text-xs text-muted"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                Page {page} of {totalPages}
+              </span>
               <Button
                 variant="outline"
                 size="sm"

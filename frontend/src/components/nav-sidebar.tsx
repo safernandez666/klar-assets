@@ -11,6 +11,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+const TOOLTIP_CLASSES =
+  "pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100";
+
 export function NavSidebar() {
   const [dark, setDark] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -32,7 +35,7 @@ export function NavSidebar() {
   };
 
   const navItem = (href: string, icon: React.ReactNode, label: string, color: string) => {
-    const isActive = path === href || (href === "/" && path === "/");
+    const isActive = path === href;
     return (
       <a
         href={href}
@@ -40,61 +43,62 @@ export function NavSidebar() {
           isActive ? `${color} bg-card` : `hover:${color}`
         }`}
         aria-label={label}
+        aria-current={isActive ? "page" : undefined}
       >
         {icon}
-        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-          {label}
-        </span>
+        <span className={TOOLTIP_CLASSES}>{label}</span>
       </a>
     );
   };
 
   return (
-    <div className="fixed left-0 top-0 z-40 flex h-screen w-14 flex-col items-center border-r border-border bg-card/95 pt-20 pb-4 backdrop-blur">
+    <nav
+      aria-label="Main"
+      className="fixed left-0 top-0 z-40 flex h-screen w-14 flex-col items-center border-r border-border bg-card/95 pt-20 pb-4 backdrop-blur"
+    >
       <div className="flex flex-col items-center gap-1 flex-1">
-        {navItem("/", <Home className="h-5 w-5 text-blue-400" />, "Dashboard", "bg-blue-500/10")}
-        {navItem("/search", <Search className="h-5 w-5 text-violet-400" />, "Asset Search", "bg-violet-500/10")}
-        {navItem("/people", <Users className="h-5 w-5 text-cyan-400" />, "People", "bg-cyan-500/10")}
-        {navItem("/controls", <ShieldCheck className="h-5 w-5 text-emerald-400" />, "Controls", "bg-emerald-500/10")}
+        {navItem("/", <Home className="h-5 w-5 text-blue-400" aria-hidden="true" />, "Dashboard", "bg-blue-500/10")}
+        {navItem("/search", <Search className="h-5 w-5 text-violet-400" aria-hidden="true" />, "Asset Search", "bg-violet-500/10")}
+        {navItem("/people", <Users className="h-5 w-5 text-cyan-400" aria-hidden="true" />, "People", "bg-cyan-500/10")}
+        {navItem("/controls", <ShieldCheck className="h-5 w-5 text-emerald-400" aria-hidden="true" />, "Controls", "bg-emerald-500/10")}
       </div>
 
       {/* Bottom */}
       <div className="flex flex-col items-center gap-1">
-        {navItem("/settings", <Settings className="h-5 w-5 text-muted" />, "Settings", "bg-card")}
+        {navItem("/settings", <Settings className="h-5 w-5 text-muted" aria-hidden="true" />, "Settings", "bg-card")}
 
         <button
           type="button"
           onClick={toggleTheme}
+          aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+          aria-pressed={dark}
           className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-card focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-          aria-label="Toggle theme"
         >
-          {dark ? <Sun className="h-5 w-5 text-amber-300" /> : <Moon className="h-5 w-5 text-blue-400" />}
-          <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-            {dark ? "Light mode" : "Dark mode"}
-          </span>
+          {dark
+            ? <Sun className="h-5 w-5 text-amber-300" aria-hidden="true" />
+            : <Moon className="h-5 w-5 text-blue-400" aria-hidden="true" />}
+          <span className={TOOLTIP_CLASSES}>{dark ? "Light mode" : "Dark mode"}</span>
         </button>
 
-        <div className="my-1 h-px w-6 bg-border" />
+        <div className="my-1 h-px w-6 bg-border" aria-hidden="true" />
 
-        <div className="group relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-          <User className="h-4 w-4 text-accent" />
-          <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-            {currentUser}
-          </span>
+        <div
+          className="group relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10"
+          aria-label={`Signed in as ${currentUser}`}
+        >
+          <User className="h-4 w-4 text-accent" aria-hidden="true" />
+          <span className={TOOLTIP_CLASSES}>{currentUser}</span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => { window.location.href = "/auth/logout"; }}
-          className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+        <a
+          href="/auth/logout"
           aria-label="Sign out"
+          className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
         >
-          <LogOut className="h-4 w-4 text-red-400" />
-          <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-            Sign out
-          </span>
-        </button>
+          <LogOut className="h-4 w-4 text-red-400" aria-hidden="true" />
+          <span className={TOOLTIP_CLASSES}>Sign out</span>
+        </a>
       </div>
-    </div>
+    </nav>
   );
 }

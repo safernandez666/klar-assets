@@ -137,11 +137,22 @@ export function DeviceInventory() {
                 {devices.map((d) => {
                   const cfg = STATUS_BADGES[d.status] || STATUS_BADGES.UNKNOWN;
                   const isRisk = d.status === "NO_EDR" || d.status === "NO_MDM" || d.status === "IDP_ONLY";
+                  const hostname = (d.hostnames || [])[0] || d.serial_number || "device";
+                  const open = () => setSelectedDevice(d);
                   return (
                     <tr
                       key={d.canonical_id}
-                      onClick={() => setSelectedDevice(d)}
-                      className={`cursor-pointer border-b border-border/50 transition-colors hover:bg-card/50 last:border-b-0 ${
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`View details for ${hostname}`}
+                      onClick={open}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          open();
+                        }
+                      }}
+                      className={`cursor-pointer border-b border-border/50 transition-colors hover:bg-card/50 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset ${
                         isRisk ? "bg-red-500/[0.02]" : ""
                       }`}
                     >
@@ -238,7 +249,13 @@ export function DeviceInventory() {
                 <ChevronLeft className="h-4 w-4" />
                 Prev
               </Button>
-              <span className="text-xs text-muted">{page} / {totalPages}</span>
+              <span
+                className="text-xs text-muted"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                Page {page} of {totalPages}
+              </span>
               <Button
                 variant="outline"
                 size="sm"

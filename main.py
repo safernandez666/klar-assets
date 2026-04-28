@@ -7,6 +7,7 @@ import structlog
 import uvicorn
 from dotenv import load_dotenv
 
+from src.config import validate_config
 from src.storage.schema import init_db
 from src.sync_engine import SyncEngine
 
@@ -21,7 +22,8 @@ def main() -> None:
     parser.add_argument("--sync-only", action="store_true", help="Run sync without web server")
     args = parser.parse_args()
 
-    # Initialize database
+    validate_config()
+
     init_db(DB_PATH)
     logger.info("db_initialized", path=DB_PATH)
 

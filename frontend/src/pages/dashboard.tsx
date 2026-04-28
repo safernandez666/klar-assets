@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { jsPDF } from "jspdf";
 
 import { Layout } from "../components/layout";
 import { Sidebar } from "../components/sidebar";
@@ -108,7 +107,10 @@ export default function Dashboard() {
   const handleExportPdf = useCallback(async () => {
     setExporting(true);
     try {
-      const report = await api.getFullReport();
+      const [report, { jsPDF }] = await Promise.all([
+        api.getFullReport(),
+        import("jspdf"),
+      ]);
       const pdf = new jsPDF("p", "mm", "a4");
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();

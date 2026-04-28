@@ -6,6 +6,8 @@ import { Input } from "./ui/input";
 import { Select } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Dialog } from "./ui/dialog";
+import { DeviceDetail, DeviceDetailHeader } from "./device-detail";
 import { formatDate, shortSource } from "../lib/utils";
 import { api } from "../lib/api";
 import type { Device } from "../types";
@@ -32,6 +34,7 @@ export function DeviceInventory() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchDevices = useCallback(async (p: number, ps: number, status: string, q: string) => {
@@ -137,7 +140,8 @@ export function DeviceInventory() {
                   return (
                     <tr
                       key={d.canonical_id}
-                      className={`border-b border-border/50 transition-colors hover:bg-card/50 last:border-b-0 ${
+                      onClick={() => setSelectedDevice(d)}
+                      className={`cursor-pointer border-b border-border/50 transition-colors hover:bg-card/50 last:border-b-0 ${
                         isRisk ? "bg-red-500/[0.02]" : ""
                       }`}
                     >
@@ -248,6 +252,13 @@ export function DeviceInventory() {
           </div>
         </CardContent>
       </Card>
+      <Dialog
+        open={selectedDevice !== null}
+        onClose={() => setSelectedDevice(null)}
+        title={selectedDevice && <DeviceDetailHeader device={selectedDevice} />}
+      >
+        {selectedDevice && <DeviceDetail device={selectedDevice} />}
+      </Dialog>
     </motion.div>
   );
 }

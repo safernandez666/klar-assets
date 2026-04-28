@@ -17,6 +17,10 @@ export interface Device {
   first_seen: string;
   last_seen: string;
   deleted_at: string | null;
+  acknowledged?: boolean;
+  ack_reason?: string;
+  ack_by?: string;
+  ack_at?: string;
 }
 
 export interface Summary {

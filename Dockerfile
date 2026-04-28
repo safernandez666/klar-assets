@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App code
 COPY .git/ ./.git/
 COPY src/ ./src/
-COPY main.py scheduler.py ./
+COPY main.py ./
 COPY images/ ./images/
 
 # Version info from git (no build-args needed)

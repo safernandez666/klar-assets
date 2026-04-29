@@ -39,6 +39,36 @@ OKTA_CONFIGURED = bool(os.getenv("OKTA_API_TOKEN"))
 OPENAI_CONFIGURED = bool(os.getenv("OPENAI_API_KEY"))
 SLACK_CONFIGURED = bool(os.getenv("SLACK_WEBHOOK_URL"))
 
+# ── Console deep-link URLs ──────────────────────────────────────────────────
+# Falcon UI host mirrors the API host (api.us-2.crowdstrike.com → falcon.us-2.crowdstrike.com)
+_CS_API = os.getenv("CS_BASE_URL", "https://api.crowdstrike.com").rstrip("/")
+_CS_FALCON = _CS_API.replace("//api.", "//falcon.")
+_OKTA_DOMAIN = os.getenv("OKTA_DOMAIN", "").strip().rstrip("/")
+if _OKTA_DOMAIN.endswith(".okta.com"):
+    _OKTA_ADMIN = f"https://{_OKTA_DOMAIN[:-len('.okta.com')]}-admin.okta.com"
+elif _OKTA_DOMAIN:
+    _OKTA_ADMIN = f"https://{_OKTA_DOMAIN}"
+else:
+    _OKTA_ADMIN = ""
+
+CONSOLE_URLS: dict[str, str] = {
+    "crowdstrike": f"{_CS_FALCON}/hosts/details/{{id}}",
+    "jumpcloud": "https://console.jumpcloud.com/#/devices/{id}/details",
+    "okta": f"{_OKTA_ADMIN}/admin/devices/{{id}}" if _OKTA_ADMIN else "",
+}
+
+
+def build_source_urls(source_ids: dict[str, str] | None) -> dict[str, str]:
+    """Materialize the deep-link URL for each source the device was seen in."""
+    if not source_ids:
+        return {}
+    out: dict[str, str] = {}
+    for source, sid in source_ids.items():
+        template = CONSOLE_URLS.get(source)
+        if template and sid:
+            out[source] = template.replace("{id}", sid)
+    return out
+
 # ── Frontend bundle ──────────────────────────────────────────────────────────
 DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 

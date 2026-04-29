@@ -1,4 +1,4 @@
-import { Sparkles, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Sparkles, ShieldCheck, ShieldAlert, ExternalLink } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { formatDate, shortSource } from "../lib/utils";
 import type { Device } from "../types";
@@ -84,6 +84,7 @@ export function DeviceDetail({ device }: DeviceDetailProps) {
   const hostnames = device.hostnames || [];
   const macs = device.mac_addresses || [];
   const sourceIds = device.source_ids || {};
+  const sourceUrls = device.source_urls || {};
   const gaps = device.coverage_gaps || [];
   const isAiMatched = device.match_reason?.startsWith("ai_match");
   const confidence = device.confidence_score ?? 0;
@@ -149,19 +150,34 @@ export function DeviceDetail({ device }: DeviceDetailProps) {
           <p className="text-sm text-muted">No sources reported this device.</p>
         ) : (
           <ul className="space-y-1.5">
-            {sources.map((s) => (
-              <li
-                key={s}
-                className="grid grid-cols-[80px_1fr] items-center gap-3 rounded-md border border-border/60 bg-card/40 px-3 py-2 text-xs"
-              >
-                <span className="font-medium uppercase" aria-label={SOURCE_NAMES[s] || s}>
-                  {shortSource(s)}
-                </span>
-                <span className="truncate font-mono text-muted">
-                  {sourceIds[s] || "—"}
-                </span>
-              </li>
-            ))}
+            {sources.map((s) => {
+              const id = sourceIds[s];
+              const url = sourceUrls[s];
+              return (
+                <li
+                  key={s}
+                  className="grid grid-cols-[80px_1fr] items-center gap-3 rounded-md border border-border/60 bg-card/40 px-3 py-2 text-xs"
+                >
+                  <span className="font-medium uppercase" aria-label={SOURCE_NAMES[s] || s}>
+                    {shortSource(s)}
+                  </span>
+                  {id && url ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group inline-flex min-w-0 items-center gap-1.5 font-mono text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                      title={`Open in ${SOURCE_NAMES[s] || s} console`}
+                    >
+                      <span className="truncate">{id}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0 opacity-60 group-hover:opacity-100" aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <span className="truncate font-mono text-muted">{id || "—"}</span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Section>

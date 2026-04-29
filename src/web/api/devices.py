@@ -8,9 +8,23 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.storage.repository import DeviceRepository
+from src.web.config import build_source_urls
 from src.web.dependencies import get_current_user, get_repo
 
 router = APIRouter()
+
+
+def _annotate(d: dict[str, Any], acked: dict[str, dict[str, str]]) -> None:
+    """Add acknowledgement info and console deep-link URLs in place."""
+    cid = d.get("canonical_id", "")
+    if cid in acked:
+        d["acknowledged"] = True
+        d["ack_reason"] = acked[cid]["reason"]
+        d["ack_by"] = acked[cid]["by"]
+        d["ack_at"] = acked[cid]["at"]
+    else:
+        d["acknowledged"] = False
+    d["source_urls"] = build_source_urls(d.get("source_ids"))
 
 
 @router.get("/api/devices")
@@ -29,26 +43,12 @@ async def api_devices(
     # Paginated response
     if isinstance(result, dict):
         for d in result["devices"]:
-            cid = d.get("canonical_id", "")
-            if cid in acked:
-                d["acknowledged"] = True
-                d["ack_reason"] = acked[cid]["reason"]
-                d["ack_by"] = acked[cid]["by"]
-                d["ack_at"] = acked[cid]["at"]
-            else:
-                d["acknowledged"] = False
+            _annotate(d, acked)
         return JSONResponse(content=result)
 
     # Legacy: no pagination (used by other internal callers)
     for d in result:
-        cid = d.get("canonical_id", "")
-        if cid in acked:
-            d["acknowledged"] = True
-            d["ack_reason"] = acked[cid]["reason"]
-            d["ack_by"] = acked[cid]["by"]
-            d["ack_at"] = acked[cid]["at"]
-        else:
-            d["acknowledged"] = False
+        _annotate(d, acked)
     return JSONResponse(content={"devices": result})
 
 

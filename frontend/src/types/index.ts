@@ -21,6 +21,7 @@ export interface Device {
   ack_reason?: string;
   ack_by?: string;
   ack_at?: string;
+  source_urls?: Record<string, string>;
 }
 
 export interface Summary {

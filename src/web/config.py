@@ -52,9 +52,12 @@ else:
     _OKTA_ADMIN = ""
 
 CONSOLE_URLS: dict[str, str] = {
-    "crowdstrike": f"{_CS_FALCON}/hosts/details/{{id}}",
+    # Falcon's universal search hits the host across UI versions; direct
+    # /hosts/details paths shift between releases and don't always resolve.
+    "crowdstrike": f"{_CS_FALCON}/search/?term=_all%3A~%27{{id}}%27",
     "jumpcloud": "https://console.jumpcloud.com/#/devices/{id}/details",
-    "okta": f"{_OKTA_ADMIN}/admin/devices/{{id}}" if _OKTA_ADMIN else "",
+    # Okta admin uses a hash-fragment route, not a path segment.
+    "okta": f"{_OKTA_ADMIN}/admin/devices-inventory#{{id}}" if _OKTA_ADMIN else "",
 }
 
 

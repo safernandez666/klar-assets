@@ -137,6 +137,10 @@ class DeviceRepository:
         status_counts = conn.execute(
             f"SELECT status, COUNT(*) as cnt FROM devices WHERE deleted_at IS NULL{ack_filter} GROUP BY status"
         ).fetchall()
+        region_counts = conn.execute(
+            f"SELECT COALESCE(NULLIF(region, ''), 'UNKNOWN') as region, COUNT(*) as cnt "
+            f"FROM devices WHERE deleted_at IS NULL{ack_filter} GROUP BY region"
+        ).fetchall()
         all_rows = conn.execute(
             f"SELECT sources FROM devices WHERE deleted_at IS NULL{ack_filter}"
         ).fetchall()
@@ -145,6 +149,7 @@ class DeviceRepository:
         summary: dict[str, Any] = {
             "by_status": {row["status"]: row["cnt"] for row in status_counts},
             "by_source": {},
+            "by_region": {row["region"]: row["cnt"] for row in region_counts},
             "total": sum(row["cnt"] for row in status_counts),
         }
         source_counts: dict[str, int] = {}

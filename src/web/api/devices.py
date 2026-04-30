@@ -20,10 +20,14 @@ async def api_devices(
     search: str | None = None,
     page: int | None = None,
     page_size: int = 25,
+    region: str | None = None,
     repo: DeviceRepository = Depends(get_repo),
 ) -> Any:
     """List devices with optional filters and pagination, annotated with ack info."""
-    result = repo.get_all_devices(status=status, source=source, search=search, page=page, page_size=page_size)
+    result = repo.get_all_devices(
+        status=status, source=source, search=search,
+        page=page, page_size=page_size, region=region,
+    )
     acked = repo.get_acknowledged_details()
 
     # Paginated response

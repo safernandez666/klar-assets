@@ -49,8 +49,9 @@ class DeviceRepository:
                         canonical_id, hostnames, serial_number, mac_addresses,
                         owner_email, owner_name, os_type, sources, source_ids,
                         status, confidence_score, match_reason, is_active_vpn,
-                        coverage_gaps, days_since_seen, first_seen, last_seen, deleted_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        coverage_gaps, days_since_seen, first_seen, last_seen, deleted_at,
+                        timezone, region
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         dev.canonical_id,
@@ -71,6 +72,8 @@ class DeviceRepository:
                         dev.first_seen.isoformat() if dev.first_seen else now,
                         dev.last_seen.isoformat() if dev.last_seen else now,
                         None,
+                        dev.timezone,
+                        dev.region,
                     ),
                 )
         conn.close()
@@ -82,6 +85,7 @@ class DeviceRepository:
         search: str | None = None,
         page: int | None = None,
         page_size: int = 25,
+        region: str | None = None,
     ) -> list[dict[str, Any]] | dict[str, Any]:
         """Get devices. If page is set, returns paginated result with total count."""
         conn = self._connect()
@@ -96,6 +100,10 @@ class DeviceRepository:
             query += " AND sources LIKE ?"
             count_query += " AND sources LIKE ?"
             params.append(f'%"{source}"%')
+        if region:
+            query += " AND region = ?"
+            count_query += " AND region = ?"
+            params.append(region)
         if search:
             query += " AND (owner_email LIKE ? OR hostnames LIKE ? OR serial_number LIKE ?)"
             count_query += " AND (owner_email LIKE ? OR hostnames LIKE ? OR serial_number LIKE ?)"

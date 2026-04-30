@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS devices (
     days_since_seen INTEGER,
     first_seen TEXT NOT NULL,
     last_seen TEXT NOT NULL,
-    deleted_at TEXT
+    deleted_at TEXT,
+    timezone TEXT,
+    region TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sync_runs (
@@ -87,9 +89,19 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_recorded_at ON status_snapshots(recorde
 """
 
 
+def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    """Idempotently add columns to an existing table (SQLite has no ADD COLUMN IF NOT EXISTS)."""
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    for name, decl in columns.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 def init_db(db_path: str) -> None:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA_SQL)
+    # Migrations for older DBs created before these columns existed.
+    _ensure_columns(conn, "devices", {"timezone": "TEXT", "region": "TEXT"})
     conn.commit()
     conn.close()

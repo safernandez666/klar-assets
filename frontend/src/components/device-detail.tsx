@@ -144,6 +144,13 @@ export function DeviceDetail({ device }: DeviceDetailProps) {
         </dl>
       </Section>
 
+      <Section title="Location">
+        <dl>
+          <Row label="Region">{device.region || <span className="text-muted">—</span>}</Row>
+          <Row label="Timezone" mono>{device.timezone || "—"}</Row>
+        </dl>
+      </Section>
+
       <Section title="Sources">
         {sources.length === 0 ? (
           <p className="text-sm text-muted">No sources reported this device.</p>

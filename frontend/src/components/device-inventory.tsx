@@ -28,6 +28,7 @@ const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" |
 export function DeviceInventory() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -37,7 +38,7 @@ export function DeviceInventory() {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const fetchDevices = useCallback(async (p: number, ps: number, status: string, q: string) => {
+  const fetchDevices = useCallback(async (p: number, ps: number, status: string, q: string, region: string) => {
     setLoading(true);
     try {
       const res = await api.getDevicesPaginated({
@@ -45,6 +46,7 @@ export function DeviceInventory() {
         search: q || null,
         page: p,
         pageSize: ps,
+        region: region || null,
       });
       setDevices(res.devices || []);
       setTotal(res.total);
@@ -61,9 +63,9 @@ export function DeviceInventory() {
   }, []);
 
   useEffect(() => {
-    fetchDevices(page, pageSize, statusFilter, search);
+    fetchDevices(page, pageSize, statusFilter, search, regionFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, statusFilter]);
+  }, [page, pageSize, statusFilter, regionFilter]);
 
   // Debounce search
   const handleSearch = (value: string) => {
@@ -71,7 +73,7 @@ export function DeviceInventory() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(1);
-      fetchDevices(1, pageSize, statusFilter, value);
+      fetchDevices(1, pageSize, statusFilter, value, regionFilter);
     }, 300);
   };
 
@@ -92,6 +94,22 @@ export function DeviceInventory() {
             </CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            <Select
+              value={regionFilter}
+              onChange={(e) => {
+                setRegionFilter(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by region"
+              className="w-40"
+            >
+              <option value="">All regions</option>
+              <option value="MEXICO">Mexico</option>
+              <option value="AMERICAS">Americas (excl. MX)</option>
+              <option value="EUROPE">Europe</option>
+              <option value="ROW">Rest of World</option>
+              <option value="UNKNOWN">Unknown</option>
+            </Select>
             <Select
               value={statusFilter}
               onChange={(e) => {

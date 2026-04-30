@@ -16,6 +16,7 @@ class RawDevice(BaseModel):
     os_version: str | None = None
     last_user: str | None = None
     last_seen: datetime | None = None
+    timezone: str | None = None
     source: str
     source_device_id: str
     raw_data: dict[str, Any] = Field(default_factory=dict)
@@ -37,6 +38,8 @@ class NormalizedDevice(BaseModel):
     is_active_vpn: bool = False
     coverage_gaps: list[str] = Field(default_factory=list)
     days_since_seen: int | None = None
+    timezone: str | None = None
+    region: str | None = None
     first_seen: datetime = Field(default_factory=datetime.utcnow)
     last_seen: datetime = Field(default_factory=datetime.utcnow)
     deleted_at: datetime | None = None

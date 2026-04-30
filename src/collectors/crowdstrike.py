@@ -92,6 +92,7 @@ class CrowdStrikeCollector(BaseCollector):
             os_version = item.get("os_version") or ""
             last_user = item.get("last_interactive_user_name") or ""
             last_seen = self._parse_last_seen(item.get("last_seen"))
+            timezone_str = item.get("timezone") or None
             macs = []
             if mac:
                 macs.append(self.normalize_mac(mac))
@@ -105,6 +106,7 @@ class CrowdStrikeCollector(BaseCollector):
                     os_version=os_version,
                     last_user=last_user,
                     last_seen=last_seen,
+                    timezone=timezone_str,
                     source="crowdstrike",
                     source_device_id=aid,
                     raw_data=item,

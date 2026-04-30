@@ -163,6 +163,7 @@ class JumpCloudCollector(BaseCollector):
                     user_emails.append(email)
 
             last_user = user_emails[0] if user_emails else None
+            timezone_str = sys.get("systemTimezone") or sys.get("timezone") or None
 
             results.append(
                 RawDevice(
@@ -174,6 +175,7 @@ class JumpCloudCollector(BaseCollector):
                     os_version=os_version,
                     last_user=last_user,
                     last_seen=last_seen,
+                    timezone=timezone_str,
                     source="jumpcloud",
                     source_device_id=system_id,
                     raw_data={

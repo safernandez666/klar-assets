@@ -398,6 +398,7 @@ class Deduplicator:
         sources: list[str] = []
         source_ids: dict[str, str] = {}
         os_type = ""
+        timezone_str: str | None = None
         first_seen: datetime | None = None
         last_seen: datetime | None = None
 
@@ -430,6 +431,12 @@ class Deduplicator:
                     os_type = d.os_type
                 elif d.source == "crowdstrike":
                     os_type = d.os_type
+            # Timezone preference: crowdstrike > jumpcloud (Okta devices rarely expose it)
+            if d.timezone:
+                if not timezone_str:
+                    timezone_str = d.timezone
+                elif d.source == "crowdstrike":
+                    timezone_str = d.timezone
             # First/last seen
             if d.last_seen:
                 if first_seen is None or d.last_seen < first_seen:
@@ -501,6 +508,7 @@ class Deduplicator:
         if last_seen is None:
             last_seen = now
 
+        from src.normalizer.region import region_from_timezone
         return NormalizedDevice(
             canonical_id=_make_canonical_id(group),
             hostnames=hostnames,
@@ -517,6 +525,8 @@ class Deduplicator:
             is_active_vpn=False,
             coverage_gaps=[],
             days_since_seen=None,
+            timezone=timezone_str,
+            region=region_from_timezone(timezone_str),
             first_seen=first_seen,
             last_seen=last_seen,
             deleted_at=None,

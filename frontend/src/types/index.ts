@@ -22,6 +22,8 @@ export interface Device {
   ack_by?: string;
   ack_at?: string;
   source_urls?: Record<string, string>;
+  timezone?: string | null;
+  region?: string | null;
 }
 
 export interface Summary {

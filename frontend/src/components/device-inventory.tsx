@@ -42,6 +42,7 @@ const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" |
 export function DeviceInventory() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -54,7 +55,15 @@ export function DeviceInventory() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchDevices = useCallback(
-    async (p: number, ps: number, status: string, q: string, sk: SortKey | null, so: SortOrder) => {
+    async (
+      p: number,
+      ps: number,
+      status: string,
+      q: string,
+      sk: SortKey | null,
+      so: SortOrder,
+      region: string,
+    ) => {
       setLoading(true);
       try {
         const res = await api.getDevicesPaginated({
@@ -64,6 +73,7 @@ export function DeviceInventory() {
           pageSize: ps,
           sort: sk,
           order: sk ? so : null,
+          region: region || null,
         });
         setDevices(res.devices || []);
         setTotal(res.total);
@@ -82,9 +92,9 @@ export function DeviceInventory() {
   );
 
   useEffect(() => {
-    fetchDevices(page, pageSize, statusFilter, search, sortKey, sortOrder);
+    fetchDevices(page, pageSize, statusFilter, search, sortKey, sortOrder, regionFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, statusFilter, sortKey, sortOrder]);
+  }, [page, pageSize, statusFilter, sortKey, sortOrder, regionFilter]);
 
   // Debounce search
   const handleSearch = (value: string) => {
@@ -92,7 +102,7 @@ export function DeviceInventory() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(1);
-      fetchDevices(1, pageSize, statusFilter, value, sortKey, sortOrder);
+      fetchDevices(1, pageSize, statusFilter, value, sortKey, sortOrder, regionFilter);
     }, 300);
   };
 
@@ -127,6 +137,22 @@ export function DeviceInventory() {
             </CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            <Select
+              value={regionFilter}
+              onChange={(e) => {
+                setRegionFilter(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by region"
+              className="w-40"
+            >
+              <option value="">All regions</option>
+              <option value="MEXICO">Mexico</option>
+              <option value="AMERICAS">Americas (excl. MX)</option>
+              <option value="EUROPE">Europe</option>
+              <option value="ROW">Rest of World</option>
+              <option value="UNKNOWN">Unknown</option>
+            </Select>
             <Select
               value={statusFilter}
               onChange={(e) => {

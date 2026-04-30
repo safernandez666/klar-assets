@@ -36,12 +36,14 @@ async def api_devices(
     page_size: int = 25,
     sort: str | None = None,
     order: str | None = None,
+    region: str | None = None,
     repo: DeviceRepository = Depends(get_repo),
 ) -> Any:
-    """List devices with optional filters, sort, and pagination."""
+    """List devices with optional filters, sort, region, and pagination."""
     result = repo.get_all_devices(
         status=status, source=source, search=search,
-        page=page, page_size=page_size, sort=sort, order=order,
+        page=page, page_size=page_size,
+        sort=sort, order=order, region=region,
     )
     acked = repo.get_acknowledged_details()
 

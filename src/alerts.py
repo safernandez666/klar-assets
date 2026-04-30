@@ -166,6 +166,72 @@ def build_sync_blocks(
     return blocks
 
 
+def build_failure_blocks(
+    sources_ok: list[str],
+    sources_errors: dict[str, str],
+    aborted: bool,
+) -> list[dict[str, Any]]:
+    """Build Slack Block Kit blocks for a sync that failed or finished partial.
+
+    Surfaces the per-source error log instead of a device analysis, since the
+    inventory we'd report on is either missing or stale.
+    """
+    headline = "Sync ABORTED — critical source failed" if aborted else "Sync incomplete — a source failed"
+    impact = (
+        "Device inventory was *not* updated. The previous data is still in place."
+        if aborted
+        else "Inventory was updated with the sources that responded, but analysis is "
+             "withheld because at least one source is missing."
+    )
+
+    blocks: list[dict[str, Any]] = [
+        _blocks_header(":x: Klar Device Normalizer"),
+        _blocks_section(f"*{headline}*\n\n{impact}"),
+        _blocks_divider(),
+    ]
+
+    if sources_ok:
+        ok_line = "  ".join(f":large_green_circle: {s}" for s in sources_ok)
+        blocks.append(_blocks_section(f"*Sources OK*\n{ok_line}"))
+
+    # Per-source error logs — Slack code blocks for readability
+    if sources_errors:
+        error_lines = []
+        for source, err in sources_errors.items():
+            # Truncate very long tracebacks; Slack mrkdwn block ~3000 char limit per section
+            err_short = (err[:600] + "…") if len(err) > 600 else err
+            error_lines.append(f":red_circle: *{source}*\n```{err_short}```")
+        blocks.append(_blocks_section("*Sources Failed*\n" + "\n".join(error_lines)))
+
+    blocks.append(_blocks_divider())
+    blocks.append(_blocks_section(
+        "*What to do*\n"
+        ":hourglass: Wait for the next scheduled sync, or\n"
+        ":arrows_counterclockwise: Trigger one now from the dashboard *Sync now* button."
+    ))
+    blocks.append(_blocks_divider())
+    blocks.append(_blocks_context(["Klar Device Normalizer — IT Security Team"]))
+    return blocks
+
+
+def alert_sync_failure(
+    sources_ok: list[str],
+    sources_errors: dict[str, str],
+    aborted: bool,
+) -> None:
+    """Send a Slack alert that surfaces source failures instead of device analysis."""
+    if not _get_webhook_url():
+        return
+    blocks = build_failure_blocks(sources_ok, sources_errors, aborted=aborted)
+    fallback = (
+        f"Sync aborted: {', '.join(sources_errors.keys())} failed"
+        if aborted
+        else f"Sync incomplete: {', '.join(sources_errors.keys())} failed"
+    )
+    send_slack(fallback, blocks=blocks)
+    logger.info("slack_failure_alert_sent", failed=list(sources_errors.keys()), aborted=aborted)
+
+
 def alert_after_sync(
     devices: list[NormalizedDevice],
     sync_result: dict[str, Any],
@@ -173,8 +239,25 @@ def alert_after_sync(
     newly_stale: list[dict[str, Any]] | None = None,
     new_devices: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Send a Slack alert summarizing the sync."""
+    """Send a Slack alert summarizing the sync.
+
+    If any source failed, surface the failure (with per-source error logs)
+    instead of the device analysis — the analysis would be incomplete.
+    """
     if not _get_webhook_url():
+        return
+
+    sources_failed = sync_result.get("sources_failed", []) or []
+    sources_errors = sync_result.get("sources_errors", {}) or {}
+    if sources_failed:
+        # Backfill any failed source that has no captured error message so the
+        # block still lists it.
+        errors = {s: sources_errors.get(s, "(no error captured)") for s in sources_failed}
+        alert_sync_failure(
+            sources_ok=sync_result.get("sources_ok", []),
+            sources_errors=errors,
+            aborted=sync_result.get("status") == "aborted",
+        )
         return
 
     no_edr = [d for d in devices if "crowdstrike" not in d.sources]
@@ -207,7 +290,7 @@ def alert_after_sync(
         total=total,
         managed=managed,
         sources_ok=sync_result.get("sources_ok", []),
-        sources_failed=sync_result.get("sources_failed", []),
+        sources_failed=sources_failed,
         sync_status=sync_result.get("status", "unknown"),
         disappeared=disappeared,
         newly_stale=newly_stale,

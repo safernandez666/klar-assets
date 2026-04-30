@@ -59,6 +59,7 @@ class SyncEngine:
         all_raw: list[RawDevice] = []
         sources_ok: list[str] = []
         sources_failed: list[str] = []
+        sources_errors: dict[str, str] = {}
         okta_users: list[dict[str, Any]] = []
 
         # Find Okta collector for user collection
@@ -83,9 +84,12 @@ class SyncEngine:
                         sources_ok.append(source_name)
                     else:
                         sources_failed.append(source_name)
+                        if result.error:
+                            sources_errors[source_name] = result.error
                 except Exception as exc:
                     logger.error("collector_failed", source=source_name, error=str(exc))
                     sources_failed.append(source_name)
+                    sources_errors[source_name] = str(exc)
 
             # Get Okta users result
             if okta_users_future:
@@ -111,21 +115,12 @@ class SyncEngine:
                 "sources_failed": sources_failed,
             }
             self.repo.save_sync_run(run)
-            # Send alert about the failure but don't update devices
             try:
-                from src.alerts import send_slack, _get_webhook_url
-                if _get_webhook_url():
-                    from src.alerts import _blocks_header, _blocks_section, _blocks_divider, _blocks_context
-                    blocks = [
-                        _blocks_header(":x: Klar Device Normalizer"),
-                        _blocks_section(f"*Sync ABORTED* — critical source failed: *{', '.join(failed_critical)}*\n\nDevice inventory was NOT updated. Previous data remains intact."),
-                        _blocks_section(f":large_green_circle: OK: {', '.join(sources_ok) or 'none'}\n:red_circle: Failed: {', '.join(sources_failed)}"),
-                        _blocks_divider(),
-                        _blocks_context(["Klar Device Normalizer — IT Security Team"]),
-                    ]
-                    send_slack("Sync aborted: critical source failed", blocks=blocks)
-            except Exception:
-                pass
+                from src.alerts import alert_sync_failure
+                errors = {s: sources_errors.get(s, "(no error captured)") for s in sources_failed}
+                alert_sync_failure(sources_ok=sources_ok, sources_errors=errors, aborted=True)
+            except Exception as exc:
+                logger.warning("abort_alert_failed", error=str(exc))
             logger.info("sync_aborted", **run)
             return run
 
@@ -159,6 +154,7 @@ class SyncEngine:
             "final_count": final_count,
             "sources_ok": sources_ok,
             "sources_failed": sources_failed,
+            "sources_errors": sources_errors,
         }
         sync_run_id = self.repo.save_sync_run(run)
         logger.info("sync_completed", **run)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { List, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { List, ChevronLeft, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Select } from "./ui/select";
@@ -13,6 +13,20 @@ import { api } from "../lib/api";
 import type { Device } from "../types";
 
 const PAGE_SIZES = [10, 25, 50, 100];
+
+type SortKey = "owner" | "hostname" | "serial" | "os" | "status" | "last_seen" | "confidence";
+type SortOrder = "asc" | "desc";
+
+const COLUMNS: { key: SortKey | null; label: string; align?: "right" }[] = [
+  { key: "owner", label: "Owner" },
+  { key: "hostname", label: "Hostname" },
+  { key: "serial", label: "Serial" },
+  { key: "os", label: "OS" },
+  { key: null, label: "Sources" },
+  { key: "status", label: "Status" },
+  { key: "last_seen", label: "Last Seen" },
+  { key: "confidence", label: "Confidence", align: "right" },
+];
 
 const STATUS_BADGES: Record<string, { variant: "success" | "error" | "warning" | "secondary"; label: string }> = {
   FULLY_MANAGED: { variant: "success", label: "FULL" },
@@ -35,35 +49,42 @@ export function DeviceInventory() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const fetchDevices = useCallback(async (p: number, ps: number, status: string, q: string) => {
-    setLoading(true);
-    try {
-      const res = await api.getDevicesPaginated({
-        status: status || null,
-        search: q || null,
-        page: p,
-        pageSize: ps,
-      });
-      setDevices(res.devices || []);
-      setTotal(res.total);
-      setTotalPages(res.total_pages);
-    } catch (e: any) {
-      if (e?.message === "Unauthorized") {
-        window.location.href = "/auth/logout";
-        return;
+  const fetchDevices = useCallback(
+    async (p: number, ps: number, status: string, q: string, sk: SortKey | null, so: SortOrder) => {
+      setLoading(true);
+      try {
+        const res = await api.getDevicesPaginated({
+          status: status || null,
+          search: q || null,
+          page: p,
+          pageSize: ps,
+          sort: sk,
+          order: sk ? so : null,
+        });
+        setDevices(res.devices || []);
+        setTotal(res.total);
+        setTotalPages(res.total_pages);
+      } catch (e: any) {
+        if (e?.message === "Unauthorized") {
+          window.location.href = "/auth/logout";
+          return;
+        }
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
-    fetchDevices(page, pageSize, statusFilter, search);
+    fetchDevices(page, pageSize, statusFilter, search, sortKey, sortOrder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, statusFilter]);
+  }, [page, pageSize, statusFilter, sortKey, sortOrder]);
 
   // Debounce search
   const handleSearch = (value: string) => {
@@ -71,8 +92,22 @@ export function DeviceInventory() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(1);
-      fetchDevices(1, pageSize, statusFilter, value);
+      fetchDevices(1, pageSize, statusFilter, value, sortKey, sortOrder);
     }, 300);
+  };
+
+  // Click cycles: unsorted → desc → asc → unsorted
+  const handleSort = (key: SortKey) => {
+    setPage(1);
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortOrder("desc");
+    } else if (sortOrder === "desc") {
+      setSortOrder("asc");
+    } else {
+      setSortKey(null);
+      setSortOrder("desc");
+    }
   };
 
   const start = (page - 1) * pageSize;
@@ -128,14 +163,34 @@ export function DeviceInventory() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
-                  <th scope="col" className="pb-3 font-medium">Owner</th>
-                  <th scope="col" className="pb-3 font-medium">Hostname</th>
-                  <th scope="col" className="pb-3 font-medium">Serial</th>
-                  <th scope="col" className="pb-3 font-medium">OS</th>
-                  <th scope="col" className="pb-3 font-medium">Sources</th>
-                  <th scope="col" className="pb-3 font-medium">Status</th>
-                  <th scope="col" className="pb-3 font-medium">Last Seen</th>
-                  <th scope="col" className="pb-3 font-medium text-right">Confidence</th>
+                  {COLUMNS.map((col) => {
+                    const isActive = col.key !== null && sortKey === col.key;
+                    const ariaSort = isActive ? (sortOrder === "asc" ? "ascending" : "descending") : col.key ? "none" : undefined;
+                    const Icon = isActive ? (sortOrder === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
+                    const alignRight = col.align === "right";
+                    return (
+                      <th
+                        key={col.label}
+                        scope="col"
+                        aria-sort={ariaSort}
+                        className={`pb-3 font-medium ${alignRight ? "text-right" : ""}`}
+                      >
+                        {col.key ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSort(col.key as SortKey)}
+                            className={`inline-flex items-center gap-1 rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${alignRight ? "ml-auto" : ""} ${isActive ? "text-foreground" : ""}`}
+                            aria-label={`Sort by ${col.label}${isActive ? ` (currently ${sortOrder === "asc" ? "ascending" : "descending"})` : ""}`}
+                          >
+                            {col.label}
+                            <Icon className={`h-3 w-3 ${isActive ? "opacity-100" : "opacity-40"}`} aria-hidden="true" />
+                          </button>
+                        ) : (
+                          col.label
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className={loading ? "opacity-50" : ""}>

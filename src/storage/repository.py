@@ -75,6 +75,19 @@ class DeviceRepository:
                 )
         conn.close()
 
+    # Whitelist of sortable columns → SQL expression. Keep keys aligned with
+    # the column ids the frontend exposes; reject anything else to avoid
+    # injection via the ORDER BY clause.
+    _SORTABLE_COLUMNS: dict[str, str] = {
+        "owner": "LOWER(owner_email)",
+        "hostname": "LOWER(json_extract(hostnames, '$[0]'))",
+        "serial": "serial_number",
+        "os": "os_type",
+        "status": "status",
+        "last_seen": "last_seen",
+        "confidence": "confidence_score",
+    }
+
     def get_all_devices(
         self,
         status: str | None = None,
@@ -82,6 +95,8 @@ class DeviceRepository:
         search: str | None = None,
         page: int | None = None,
         page_size: int = 25,
+        sort: str | None = None,
+        order: str | None = None,
     ) -> list[dict[str, Any]] | dict[str, Any]:
         """Get devices. If page is set, returns paginated result with total count."""
         conn = self._connect()
@@ -101,7 +116,11 @@ class DeviceRepository:
             count_query += " AND (owner_email LIKE ? OR hostnames LIKE ? OR serial_number LIKE ?)"
             s = f"%{search}%"
             params.extend([s, s, s])
-        query += " ORDER BY last_seen DESC"
+        sort_expr = self._SORTABLE_COLUMNS.get(sort or "", "last_seen")
+        sort_dir = "ASC" if (order or "").lower() == "asc" else "DESC"
+        # Tie-break by id so paginated results stay stable when the sort
+        # column has duplicates (e.g. several devices with the same status).
+        query += f" ORDER BY {sort_expr} {sort_dir} NULLS LAST, id ASC"
 
         if page is not None:
             total = conn.execute(count_query, params).fetchone()[0]

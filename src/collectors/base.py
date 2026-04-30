@@ -15,6 +15,7 @@ logger = structlog.get_logger(__name__)
 class CollectResult:
     devices: list[RawDevice]
     success: bool
+    error: str | None = None
 
 
 class BaseCollector(ABC):
@@ -67,4 +68,4 @@ class BaseCollector(ABC):
             return CollectResult(devices=devices, success=True)
         except Exception as exc:
             self.log.error("collect_failed", error=str(exc))
-            return CollectResult(devices=[], success=False)
+            return CollectResult(devices=[], success=False, error=str(exc))

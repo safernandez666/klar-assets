@@ -26,6 +26,9 @@ export interface Device {
 export interface Summary {
   by_status: Record<string, number>;
   by_source: Record<string, number>;
+  by_region?: Record<string, number>;
+  by_os?: Record<string, number>;
+  endpoint_total?: number;
   total: number;
   risk_score: number;
   syncing?: boolean;

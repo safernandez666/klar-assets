@@ -121,6 +121,24 @@ class DeviceRepository:
         conn.close()
         return [self._row_to_dict(row) for row in rows]
 
+    @staticmethod
+    def _normalize_os(os_type: str | None) -> str:
+        """Bucket vendor-reported os_type strings into a small set of labels.
+
+        Mirrors `frontend/src/lib/utils.ts::normalizeOs` so the backend
+        aggregate matches what the UI would show on a per-device row.
+        """
+        if not os_type:
+            return "Unknown"
+        lower = os_type.lower().strip()
+        if any(w in lower for w in ("mac", "macos", "darwin", "osx")):
+            return "macOS"
+        if any(w in lower for w in ("windows", "win")):
+            return "Windows"
+        if any(w in lower for w in ("linux", "ubuntu", "centos", "rhel", "debian")):
+            return "Linux"
+        return os_type
+
     def get_summary(self, exclude_acknowledged: bool = True) -> dict[str, Any]:
         conn = self._connect()
         ack_filter = ""
@@ -131,6 +149,12 @@ class DeviceRepository:
         ).fetchall()
         all_rows = conn.execute(
             f"SELECT sources FROM devices WHERE deleted_at IS NULL{ack_filter}"
+        ).fetchall()
+        # Endpoints only — exclude servers/VMs so the OS chart answers
+        # "what platforms do my real users run?".
+        os_rows = conn.execute(
+            f"SELECT os_type FROM devices "
+            f"WHERE deleted_at IS NULL AND status != 'SERVER'{ack_filter}"
         ).fetchall()
         conn.close()
 
@@ -145,6 +169,13 @@ class DeviceRepository:
             for s in sources:
                 source_counts[s] = source_counts.get(s, 0) + 1
         summary["by_source"] = source_counts
+
+        os_counts: dict[str, int] = {}
+        for row in os_rows:
+            bucket = self._normalize_os(row["os_type"])
+            os_counts[bucket] = os_counts.get(bucket, 0) + 1
+        summary["by_os"] = os_counts
+        summary["endpoint_total"] = sum(os_counts.values())
         return summary
 
     # ── Acknowledge ──────────────────────────────────────────────────

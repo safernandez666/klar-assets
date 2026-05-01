@@ -32,6 +32,13 @@ const SOURCE_COLORS: Record<string, string> = {
   okta: "#f59e0b",
 };
 
+const OS_COLORS: Record<string, string> = {
+  macOS: "#a855f7",
+  Windows: "#3b82f6",
+  Linux: "#f59e0b",
+  Unknown: "#6b7280",
+};
+
 interface PieChartsProps {
   summary: Summary | null;
 }
@@ -39,6 +46,8 @@ interface PieChartsProps {
 export function PieCharts({ summary }: PieChartsProps) {
   const byStatus = summary?.by_status || {};
   const bySource = summary?.by_source || {};
+  const byOs = summary?.by_os || {};
+  const endpointTotal = summary?.endpoint_total ?? Object.values(byOs).reduce((a, b) => a + b, 0);
 
   const statusData = Object.entries(byStatus)
     .filter(([, v]) => v > 0)
@@ -56,6 +65,15 @@ export function PieCharts({ summary }: PieChartsProps) {
       color: SOURCE_COLORS[key] || "#6b7280",
     }));
 
+  const osData = Object.entries(byOs)
+    .filter(([, v]) => v > 0)
+    .map(([key, value]) => ({
+      name: key,
+      value,
+      color: OS_COLORS[key] || "#6b7280",
+    }))
+    .sort((a, b) => b.value - a.value);
+
   if (statusData.length === 0) return null;
 
   return (
@@ -72,7 +90,7 @@ export function PieCharts({ summary }: PieChartsProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
             {/* Status distribution */}
             <div>
               <h4 className="mb-2 text-center text-xs font-semibold text-muted">By Status</h4>
@@ -172,6 +190,63 @@ export function PieCharts({ summary }: PieChartsProps) {
                 </ResponsiveContainer>
               </div>
             </div>
+
+            {/* OS distribution — endpoints only (excludes servers/VMs) */}
+            {osData.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-center text-xs font-semibold text-muted">
+                  By OS
+                  <span className="ml-1 font-normal normal-case text-muted/70">
+                    ({endpointTotal} endpoints)
+                  </span>
+                </h4>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <defs>
+                        <filter id="glow-os">
+                          <feGaussianBlur stdDeviation="3" result="blur" />
+                          <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                      </defs>
+                      <Pie
+                        data={osData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={90}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={1}
+                        stroke="rgba(0,0,0,0.3)"
+                        style={{ filter: "url(#glow-os)" }}
+                      >
+                        {osData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(17, 24, 39, 0.95)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: "0.75rem",
+                          fontSize: "12px",
+                          color: "#f3f4f6",
+                        }}
+                        formatter={(value, name) => [String(value), String(name)]}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: "11px" }}
+                        formatter={(value: string) => <span className="text-muted">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -92,7 +92,10 @@ class CrowdStrikeCollector(BaseCollector):
             os_version = item.get("os_version") or ""
             last_user = item.get("last_interactive_user_name") or ""
             last_seen = self._parse_last_seen(item.get("last_seen"))
-            timezone_str = item.get("timezone") or None
+            # Defensive: only accept strings; the API normally returns an IANA
+            # name but some agents may send something unexpected.
+            raw_tz = item.get("timezone")
+            timezone_str = raw_tz.strip() if isinstance(raw_tz, str) and raw_tz.strip() else None
             macs = []
             if mac:
                 macs.append(self.normalize_mac(mac))

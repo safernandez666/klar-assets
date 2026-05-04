@@ -103,12 +103,24 @@ app.include_router(controls_router)
 
 # ── SPA Catch-all (must be last) ─────────────────────────────────────────────
 
+# index.html references content-hashed JS/CSS bundles. Browsers cache it
+# aggressively by default, but the next deploy generates new bundle names —
+# so a cached index.html points users at chunks that no longer exist on the
+# server and the page goes blank with a 404. Force revalidation on every
+# load. The hashed assets under /assets/ are still safe to cache forever.
+_INDEX_NO_CACHE = {
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 @app.get("/")
 async def serve_index(request: Request) -> Any:
     """Serve the React index page."""
     index_path = DIST_DIR / "index.html"
     if index_path.exists():
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers=_INDEX_NO_CACHE)
     return JSONResponse(
         {"detail": "Frontend not built. Run: cd frontend && npm run build"},
         status_code=404,
@@ -134,10 +146,10 @@ async def serve_spa(path: str, request: Request) -> Any:
     if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
 
-    # Fallback to SPA index.html
+    # Fallback to SPA index.html — also must skip cache for the same reason.
     index_path = DIST_DIR / "index.html"
     if index_path.exists():
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers=_INDEX_NO_CACHE)
 
     return JSONResponse(
         {"detail": "Frontend not built. Run: cd frontend && npm run build"},

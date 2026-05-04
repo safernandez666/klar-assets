@@ -183,6 +183,12 @@ class DeviceRepository:
             f"SELECT os_type FROM devices "
             f"WHERE deleted_at IS NULL AND status != 'SERVER'{ack_filter}"
         ).fetchall()
+        # Same endpoint-only scope for the region chart — servers in AWS
+        # regions would dominate the bucket and obscure the user fleet.
+        region_rows = conn.execute(
+            f"SELECT region FROM devices "
+            f"WHERE deleted_at IS NULL AND status != 'SERVER'{ack_filter}"
+        ).fetchall()
         conn.close()
 
         summary: dict[str, Any] = {
@@ -203,6 +209,12 @@ class DeviceRepository:
             os_counts[bucket] = os_counts.get(bucket, 0) + 1
         summary["by_os"] = os_counts
         summary["endpoint_total"] = sum(os_counts.values())
+
+        region_counts: dict[str, int] = {}
+        for row in region_rows:
+            bucket = row["region"] or "UNKNOWN"
+            region_counts[bucket] = region_counts.get(bucket, 0) + 1
+        summary["by_region"] = region_counts
         return summary
 
     # ── Acknowledge ──────────────────────────────────────────────────

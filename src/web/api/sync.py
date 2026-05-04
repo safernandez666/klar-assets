@@ -26,15 +26,29 @@ async def api_sync_last(repo: DeviceRepository = Depends(get_repo)) -> Any:
 
 @router.post("/api/sync/trigger")
 async def api_sync_trigger(background_tasks: BackgroundTasks) -> Any:
-    """Kick off a fresh sync in a background task."""
+    """Kick off a fresh sync in a background task.
+
+    Sets cache.syncing while the run is in progress so the UI can poll
+    /api/settings (or /api/summary) and know when to refresh — replaces
+    the previous fixed-timeout approach which fired before slow runs
+    finished. Refuses to start a new run while one is already in flight.
+    """
     cache = get_cache()
+    if cache.syncing:
+        return JSONResponse(
+            content={"message": "Sync already in progress", "started": False},
+            status_code=409,
+        )
 
     def _run() -> None:
+        cache.syncing = True
         try:
             SyncEngine(DB_PATH).run()
             cache.refresh()
         except Exception as exc:
             logger.warning("manual_sync_failed", error=str(exc))
+        finally:
+            cache.syncing = False
 
     background_tasks.add_task(_run)
     return JSONResponse(content={"message": "Sync triggered", "started": True})

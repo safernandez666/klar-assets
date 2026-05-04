@@ -81,11 +81,44 @@ export default function SettingsPage() {
 
   const handleSync = async () => {
     setSyncing(true);
+    const previousLastId = data?.last_runs?.[0]?.id ?? 0;
     try {
-      await fetch("/api/sync/trigger", { method: "POST" });
-      setTimeout(() => { loadData(); setSyncing(false); }, 5000);
+      const triggerRes = await fetch("/api/sync/trigger", { method: "POST" });
+      if (!triggerRes.ok && triggerRes.status !== 409) {
+        toast({ type: "error", title: "Could not trigger sync", duration: 4000 });
+        setSyncing(false);
+        return;
+      }
+
+      // Poll until cache.syncing flips back to false AND a new sync_run row
+      // appears (id > previousLastId). Cap at 5 minutes so the UI doesn't
+      // spin forever if the backend gets stuck.
+      const deadline = Date.now() + 5 * 60_000;
+      const interval = 2000;
+
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, interval));
+        const res = await fetch("/api/settings");
+        if (!res.ok) continue;
+        const fresh: SettingsData = await res.json();
+        const newestId = fresh.last_runs?.[0]?.id ?? 0;
+        const finished = !fresh.syncing && newestId > previousLastId;
+        if (finished) {
+          setData(fresh);
+          setInterval_(fresh.sync_interval_hours);
+          toast({ type: "success", title: "Sync finished", duration: 3000 });
+          setSyncing(false);
+          return;
+        }
+        // Surface partial progress as the run unfolds.
+        setData(fresh);
+      }
+
+      toast({ type: "error", title: "Sync timed out — check logs", duration: 5000 });
     } catch (e) {
       console.error(e);
+      toast({ type: "error", title: "Sync error", duration: 4000 });
+    } finally {
       setSyncing(false);
     }
   };

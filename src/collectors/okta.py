@@ -73,7 +73,11 @@ class OktaCollector(BaseCollector):
             self.log.warning("okta_credentials_missing")
             return devices
         url = f"{self.base_url}/api/v1/devices"
-        params: dict[str, Any] = {"limit": 200}
+        # `expand=user` returns user assignments inline under
+        # `_embedded.users[]`. Without it, each device requires an extra API
+        # call to /api/v1/devices/{id}/users — which exhausts the 50 req/min
+        # rate limit for tenants with more than ~50 devices.
+        params: dict[str, Any] = {"limit": 200, "expand": "user"}
         after: str | None = None
         for _ in range(1000):
             if after:
@@ -101,21 +105,6 @@ class OktaCollector(BaseCollector):
                 break
             after = next_after
         return devices
-
-    def _fetch_device_users(self, device_id: str) -> list[dict[str, Any]]:
-        try:
-            url = f"{self.base_url}/api/v1/devices/{device_id}/users"
-            resp = self._request_with_retry(url)
-            if resp.status_code == 429:
-                self.log.warning("rate_limit_exhausted_users", device_id=device_id)
-                return []
-            resp.raise_for_status()
-            data = resp.json()
-            if isinstance(data, list):
-                return data
-        except Exception as exc:
-            self.log.warning("fetch_device_users_error", device_id=device_id, error=str(exc))
-        return []
 
     def collect_users(self) -> list[dict[str, Any]]:
         """Fetch all active users from Okta /api/v1/users."""
@@ -172,7 +161,7 @@ class OktaCollector(BaseCollector):
         devices = self._fetch_devices()
         self.log.info("devices_fetched", count=len(devices))
         results: list[RawDevice] = []
-        for i, dev in enumerate(devices):
+        for dev in devices:
             device_id = dev.get("id", "")
             display_name = dev.get("displayName") or dev.get("profile", {}).get("displayName", "")
             platform = dev.get("platform") or dev.get("profile", {}).get("platform", "")
@@ -181,11 +170,9 @@ class OktaCollector(BaseCollector):
             registered = dev.get("registered") or False
             last_seen = self._parse_last_seen(dev.get("lastSeen"))
 
-            # Throttle: small delay every 5 devices to avoid hammering Okta
-            if i > 0 and i % 5 == 0:
-                time.sleep(0.2)
+            # Users come inline under _embedded.users[] thanks to expand=user.
+            users = dev.get("_embedded", {}).get("users") or []
 
-            users = self._fetch_device_users(device_id)
             if not users:
                 results.append(
                     RawDevice(
@@ -207,30 +194,35 @@ class OktaCollector(BaseCollector):
                         },
                     )
                 )
-            else:
-                for user in users:
-                    user_login = user.get("login") or user.get("profile", {}).get("login", "")
-                    user_name = user.get("displayName") or user.get("profile", {}).get("displayName", "")
-                    results.append(
-                        RawDevice(
-                            device_id=device_id,
-                            hostname=display_name,
-                            serial_number=serial if self.is_valid_serial(serial) else None,
-                            mac_addresses=[],
-                            os_type=platform,
-                            os_version="",
-                            last_user=user_login,
-                            last_seen=last_seen,
-                            source="okta",
-                            source_device_id=device_id,
-                            raw_data={
-                                **dev,
-                                "okta_users": [user],
-                                "status": status,
-                                "registered": registered,
-                                "owner_email": user_login,
-                                "owner_name": user_name,
-                            },
-                        )
+                continue
+
+            for assignment in users:
+                user_obj = assignment.get("user") or {}
+                profile = user_obj.get("profile") or {}
+                user_login = profile.get("login") or profile.get("email") or ""
+                first = profile.get("firstName") or ""
+                last = profile.get("lastName") or ""
+                user_name = profile.get("displayName") or (f"{first} {last}".strip() or None)
+                results.append(
+                    RawDevice(
+                        device_id=device_id,
+                        hostname=display_name,
+                        serial_number=serial if self.is_valid_serial(serial) else None,
+                        mac_addresses=[],
+                        os_type=platform,
+                        os_version="",
+                        last_user=user_login or None,
+                        last_seen=last_seen,
+                        source="okta",
+                        source_device_id=device_id,
+                        raw_data={
+                            **dev,
+                            "okta_users": [assignment],
+                            "status": status,
+                            "registered": registered,
+                            "owner_email": user_login,
+                            "owner_name": user_name,
+                        },
                     )
+                )
         return results

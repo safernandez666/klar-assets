@@ -349,6 +349,38 @@ class TestDeduplicator:
         d = result[0]
         assert d.owner_email == "jc-user@company.com"
 
+    def test_cs_username_resolved_via_okta(self) -> None:
+        """CrowdStrike returns `last_interactive_user_name` as a bare username
+        (no @domain). When JumpCloud is missing, the deduplicator must resolve
+        the CS username against the Okta email pool and assign the canonical
+        full email — not silently drop it.
+        """
+        devices = [
+            # CS reports the actual logged-in user as a username only.
+            _cs_device(serial="SN-CSUSER", last_user="alejandra.ortiz"),
+            # Okta has the device bound to the full email.
+            _okta_device(serial="SN-CSUSER", owner_email="alejandra.ortiz@klar.mx"),
+        ]
+        dedup = Deduplicator()
+        result = dedup.deduplicate(devices)
+        assert len(result) == 1
+        d = result[0]
+        assert d.owner_email == "alejandra.ortiz@klar.mx"
+        assert "crowdstrike" in d.sources
+        assert "okta" in d.sources
+
+    def test_cs_username_unresolvable_falls_back_to_okta_binding(self) -> None:
+        """If CS username does not match any Okta user, fall back to the
+        Okta device binding rather than dropping the owner entirely."""
+        devices = [
+            _cs_device(serial="SN-FB", last_user="ghost.user"),
+            _okta_device(serial="SN-FB", owner_email="real.owner@klar.mx"),
+        ]
+        dedup = Deduplicator()
+        result = dedup.deduplicate(devices)
+        assert len(result) == 1
+        assert result[0].owner_email == "real.owner@klar.mx"
+
     def test_mobile_devices_filtered(self) -> None:
         """Mobile devices (iOS/Android) should be excluded from analysis."""
         devices = [

@@ -115,11 +115,18 @@ class Deduplicator:
         # Filter out mobile devices — only analyze desktop/laptop
         devices = [d for d in devices if not _is_mobile_device(d)]
 
-        # Build Okta email pool for owner validation
-        okta_emails: set[str] = set()
+        # Build Okta email lookup for owner validation.
+        # Keys include both the full email and the local-part (everything
+        # before "@"), so a CrowdStrike `last_interactive_user_name` such as
+        # "alejandra.ortiz" can be resolved to "alejandra.ortiz@klar.mx".
+        okta_email_lookup: dict[str, str] = {}
         for d in devices:
             if d.source == "okta" and d.last_user:
-                okta_emails.add(d.last_user.lower())
+                email = d.last_user.lower()
+                okta_email_lookup[email] = email
+                if "@" in email:
+                    local = email.split("@", 1)[0]
+                    okta_email_lookup.setdefault(local, email)
 
         # Detect cloned/outlier MACs (appear more than 5 times) and serials (>3 times)
         from collections import Counter
@@ -322,7 +329,7 @@ class Deduplicator:
 
         normalized: list[NormalizedDevice] = []
         for gidx, group in enumerate(groups):
-            nd = self._merge_group(group, okta_emails, group_match_reasons[gidx])
+            nd = self._merge_group(group, okta_email_lookup, group_match_reasons[gidx])
             normalized.append(nd)
 
         # Post-merge: combine devices that share the same serial but ended up
@@ -389,7 +396,7 @@ class Deduplicator:
     def _merge_group(
         self,
         group: list[RawDevice],
-        okta_emails: set[str],
+        okta_email_lookup: dict[str, str],
         match_reason: str,
     ) -> NormalizedDevice:
         hostnames: list[str] = []
@@ -455,12 +462,16 @@ class Deduplicator:
 
         # Owner priority: JumpCloud user (MDM truth) > CrowdStrike user
         # (validated against Okta pool) > Okta binding.
-        # JC user email should match Okta identity in most cases.
+        # CrowdStrike's `last_interactive_user_name` is a username (no
+        # domain), so resolve it through okta_email_lookup to obtain the
+        # canonical email.
+        cs_canonical = okta_email_lookup.get(cs_user.lower()) if cs_user else None
+
         if jc_user:
             owner_email = jc_user
             owner_name = None
-        elif cs_user and cs_user.lower() in okta_emails:
-            owner_email = cs_user
+        elif cs_canonical:
+            owner_email = cs_canonical
             owner_name = None
         elif okta_binding and okta_binding[0]:
             owner_email = okta_binding[0]

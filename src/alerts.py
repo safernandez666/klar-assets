@@ -72,8 +72,21 @@ def build_sync_blocks(
     dual_use: list[dict[str, Any]] | None = None,
     no_edr_count: int = 0,
     no_mdm_count: int = 0,
+    idp_only_count: int = 0,
+    server_count: int = 0,
 ) -> list[dict[str, Any]]:
-    """Build Slack Block Kit blocks for a sync report."""
+    """Build Slack Block Kit blocks for a sync report.
+
+    Coverage gap counts come from device.status, not from raw source
+    membership — so:
+    - `no_edr_count` is only true endpoints in MDM but missing EDR.
+      It does NOT include IDP_ONLY (shadow IT / mobiles) or SERVER.
+    - `no_mdm_count` is only endpoints in EDR but missing MDM.
+      It does NOT include SERVER (servers don't need MDM).
+    - `idp_only_count` and `server_count` are surfaced separately for
+      context — they are NOT problems, but readers want to know they
+      exist when they look at the gap numbers.
+    """
     pct = round(managed / total * 100) if total else 0
     icon = ":white_check_mark:" if sync_status == "success" else ":warning:"
 
@@ -85,6 +98,18 @@ def build_sync_blocks(
     rs_emoji = ":large_green_circle:" if risk_score >= 80 else ":large_yellow_circle:" if risk_score >= 60 else ":large_orange_circle:" if risk_score >= 40 else ":red_circle:"
     rs_label = "Excellent" if risk_score >= 85 else "Good" if risk_score >= 70 else "Fair" if risk_score >= 55 else "At Risk" if risk_score >= 40 else "Critical"
 
+    # Context line for each gap so readers don't conflate real problems
+    # (endpoints that need EDR/MDM) with categories that are by-design
+    # exempt (servers, mobile/IDP_ONLY).
+    edr_context = (
+        f" — _excludes {idp_only_count} IDP-only (mobile / shadow IT, no EDR needed)_"
+        if idp_only_count else ""
+    )
+    mdm_context = (
+        f" — _excludes {server_count} servers/VMs (no MDM needed)_"
+        if server_count else ""
+    )
+
     blocks: list[dict[str, Any]] = [
         _blocks_header(f"{icon} Klar Device Normalizer"),
         _blocks_section(f"Sync completed — *{sync_status.upper()}* — <!date^{int(datetime.now(timezone.utc).timestamp())}^{{date_short_pretty}} {{time}}|{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}>"),
@@ -93,8 +118,8 @@ def build_sync_blocks(
             f"{rs_emoji}  *Risk Score:*  `{risk_score}`  —  *{rs_label}*\n\n"
             f":computer:  *Fleet:*  `{total}` devices\n\n"
             f":shield:  *Managed (MDM+EDR):*  `{managed}` of `{total}`  —  *{pct}%* coverage\n\n"
-            f":red_circle:  *Without EDR:*  `{no_edr_count}` devices need CrowdStrike\n\n"
-            f":large_orange_circle:  *Without MDM:*  `{no_mdm_count}` devices need JumpCloud"
+            f":red_circle:  *Without EDR:*  `{no_edr_count}` endpoints need CrowdStrike{edr_context}\n\n"
+            f":large_orange_circle:  *Without MDM:*  `{no_mdm_count}` endpoints need JumpCloud{mdm_context}"
         ),
         _blocks_divider(),
     ]
@@ -260,12 +285,17 @@ def alert_after_sync(
         )
         return
 
-    no_edr = [d for d in devices if "crowdstrike" not in d.sources]
-    no_mdm = [d for d in devices if "jumpcloud" not in d.sources]
-
+    # Use device.status for gap counts — the enricher already excludes
+    # mobiles (filtered before reaching this stage) and reclassifies
+    # servers as SERVER, so NO_EDR / NO_MDM here are real coverage gaps.
     status_counts: dict[str, int] = {}
     for d in devices:
         status_counts[d.status] = status_counts.get(d.status, 0) + 1
+
+    no_edr_count = status_counts.get("NO_EDR", 0)
+    no_mdm_count = status_counts.get("NO_MDM", 0)
+    idp_only_count = status_counts.get("IDP_ONLY", 0)
+    server_count = status_counts.get("SERVER", 0)
 
     total = len(devices)
     managed = status_counts.get("MANAGED", 0) + status_counts.get("FULLY_MANAGED", 0)
@@ -296,10 +326,20 @@ def alert_after_sync(
         newly_stale=newly_stale,
         new_devices=new_devices,
         dual_use=dual_use_users if dual_use_users else None,
-        no_edr_count=len(no_edr),
-        no_mdm_count=len(no_mdm),
+        no_edr_count=no_edr_count,
+        no_mdm_count=no_mdm_count,
+        idp_only_count=idp_only_count,
+        server_count=server_count,
     )
 
     fallback = f"Klar Sync: {total} devices, {managed} managed"
     send_slack(fallback, blocks=blocks)
-    logger.info("slack_alert_sent", no_edr=len(no_edr), disappeared=len(disappeared or []), newly_stale=len(newly_stale or []))
+    logger.info(
+        "slack_alert_sent",
+        no_edr=no_edr_count,
+        no_mdm=no_mdm_count,
+        idp_only=idp_only_count,
+        server=server_count,
+        disappeared=len(disappeared or []),
+        newly_stale=len(newly_stale or []),
+    )

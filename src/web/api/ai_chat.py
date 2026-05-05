@@ -28,6 +28,7 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from src.storage.repository import DeviceRepository
+from src.web.api.ai_tools import TOOLS_SCHEMA, execute_tool
 from src.web.dependencies import get_current_user, get_repo
 
 router = APIRouter()
@@ -39,6 +40,7 @@ RATE_LIMIT_PER_HOUR = 30
 MAX_INPUT_TOKENS = 800
 MAX_OUTPUT_TOKENS = 600
 MAX_HISTORY_MESSAGES = 10  # keep the conversation short
+MAX_TOOL_ITERATIONS = 4  # cap on tool-call rounds per user message
 
 CANNED_REFUSAL = "Solo puedo ayudar con preguntas sobre Klar Device Normalizer."
 
@@ -158,13 +160,22 @@ You can ONLY answer questions about:
 - Quick wins / insights / recommendations the dashboard surfaces
 - Compliance metrics, risk score, deduplication, sync status
 - Region distribution (MEXICO / AMERICAS / EUROPE / ROW)
+- Specific devices (by serial, by owner, by status — use tools to look them up)
 
 REFUSE any question outside this scope. If asked about cooking, scripts, programming, jokes, current events, general knowledge, or anything unrelated to the inventory — respond with EXACTLY this string and nothing else:
 {CANNED_REFUSAL}
 
 Do NOT generate code unless it is a kubectl, curl, or SQL command to query this app's APIs or its SQLite DB. NEVER write Python, JavaScript, or shell scripts that do anything else.
 
-Use the LATEST FLEET CONTEXT below as authoritative when the user asks for numbers. Do not invent counts. If the answer requires data not in the context, say so and suggest where to look in the dashboard.
+You have TOOLS available to query the live inventory. PREFER tools over the static summary below when the user asks for specific devices, lists, or details:
+- `list_devices(status?, region?, source?, owner_email?, limit?)` — filter the inventory.
+- `lookup_device_by_serial(serial)` — full info on one device.
+- `get_user_devices(email)` — every device a person has.
+- `get_summary()` — fleet-wide aggregate counts.
+
+When the user asks for a "listado" / "list" / "cuáles" / "show me X devices", call `list_devices` with appropriate filters. Don't invent device names.
+
+Use the LATEST FLEET CONTEXT below for quick aggregate questions, but call tools whenever the answer needs specific device-level data.
 
 LATEST FLEET CONTEXT (most recent sync summary):
 {summary_json}
@@ -172,7 +183,9 @@ LATEST FLEET CONTEXT (most recent sync summary):
 LAST SYNC METADATA:
 {last_sync_json}
 
-Respond in the same language as the user (Spanish or English). Keep answers concise — under 200 words unless the user explicitly asks for a long explanation."""
+When you list devices, format as a short markdown table or bullets — never raw JSON. Keep answers concise — under 250 words unless the user explicitly asks for a long explanation.
+
+Respond in the same language as the user (Spanish or English)."""
 
 
 class ChatMessage(BaseModel):
@@ -249,13 +262,67 @@ async def api_ai_chat(
     started = time.time()
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        completion = client.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=[{"role": "system", "content": system_prompt}, *history],
-            max_tokens=MAX_OUTPUT_TOKENS,
-            temperature=0.2,
-        )
-        reply = (completion.choices[0].message.content or "").strip()
+        # Tool-calling loop: the model may request one or more tool
+        # invocations before producing the final reply. We cap the rounds
+        # at MAX_TOOL_ITERATIONS so a runaway prompt can't burn the budget.
+        chat_messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system_prompt},
+            *history,
+        ]
+        tool_calls_made: list[str] = []
+        for _ in range(MAX_TOOL_ITERATIONS):
+            completion = client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=chat_messages,
+                tools=TOOLS_SCHEMA,
+                tool_choice="auto",
+                max_tokens=MAX_OUTPUT_TOKENS,
+                temperature=0.2,
+            )
+            msg = completion.choices[0].message
+            tool_calls = getattr(msg, "tool_calls", None) or []
+            if not tool_calls:
+                reply = (msg.content or "").strip()
+                break
+
+            # Append the assistant's tool-request message so OpenAI can
+            # link the tool results back to it on the next round.
+            chat_messages.append({
+                "role": "assistant",
+                "content": msg.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in tool_calls
+                ],
+            })
+
+            for tc in tool_calls:
+                fn_name = tc.function.name
+                tool_calls_made.append(fn_name)
+                try:
+                    args = json.loads(tc.function.arguments or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                result = execute_tool(fn_name, args, repo)
+                chat_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result, default=str)[:6000],
+                })
+        else:
+            # Exhausted iterations without a final reply.
+            reply = (
+                "Necesité más pasos de los permitidos para responder eso. "
+                "Probá una pregunta más específica (ej. con un serial concreto "
+                "o un status puntual)."
+            )
     except Exception as exc:
         logger.error("ai_chat_openai_error", error=str(exc), user=user)
         return JSONResponse(
@@ -270,10 +337,12 @@ async def api_ai_chat(
         elapsed_ms=elapsed_ms,
         in_scope=True,
         reply_length=len(reply),
+        tools_used=tool_calls_made,
     )
 
     return JSONResponse(content={
         "reply": reply,
         "in_scope": True,
         "elapsed_ms": elapsed_ms,
+        "tools_used": tool_calls_made,
     })

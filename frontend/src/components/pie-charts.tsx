@@ -39,6 +39,22 @@ const OS_COLORS: Record<string, string> = {
   Unknown: "#6b7280",
 };
 
+const REGION_COLORS: Record<string, string> = {
+  MEXICO: "#10b981",
+  AMERICAS: "#3b82f6",
+  EUROPE: "#a855f7",
+  ROW: "#f59e0b",
+  UNKNOWN: "#6b7280",
+};
+
+const REGION_LABELS: Record<string, string> = {
+  MEXICO: "Mexico",
+  AMERICAS: "Americas",
+  EUROPE: "Europe",
+  ROW: "Rest of World",
+  UNKNOWN: "Unknown",
+};
+
 interface PieChartsProps {
   summary: Summary | null;
 }
@@ -47,6 +63,7 @@ export function PieCharts({ summary }: PieChartsProps) {
   const byStatus = summary?.by_status || {};
   const bySource = summary?.by_source || {};
   const byOs = summary?.by_os || {};
+  const byRegion = summary?.by_region || {};
   const endpointTotal = summary?.endpoint_total ?? Object.values(byOs).reduce((a, b) => a + b, 0);
 
   const statusData = Object.entries(byStatus)
@@ -74,6 +91,16 @@ export function PieCharts({ summary }: PieChartsProps) {
     }))
     .sort((a, b) => b.value - a.value);
 
+  const regionData = Object.entries(byRegion)
+    .filter(([, v]) => v > 0)
+    .map(([key, value]) => ({
+      name: REGION_LABELS[key] || key,
+      value,
+      color: REGION_COLORS[key] || "#6b7280",
+    }))
+    .sort((a, b) => b.value - a.value);
+  const regionTotal = regionData.reduce((a, b) => a + b.value, 0);
+
   if (statusData.length === 0) return null;
 
   return (
@@ -90,7 +117,7 @@ export function PieCharts({ summary }: PieChartsProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
             {/* Status distribution */}
             <div>
               <h4 className="mb-2 text-center text-xs font-semibold text-muted">By Status</h4>
@@ -190,6 +217,66 @@ export function PieCharts({ summary }: PieChartsProps) {
                 </ResponsiveContainer>
               </div>
             </div>
+
+            {/* Region distribution — endpoints only (excludes servers/VMs)
+                Region is derived from each device's IANA timezone in the
+                deduplicator (CrowdStrike's `timezone` > JumpCloud's
+                `systemTimezone`). */}
+            {regionData.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-center text-xs font-semibold text-muted">
+                  By Region
+                  <span className="ml-1 font-normal normal-case text-muted/70">
+                    ({regionTotal} endpoints)
+                  </span>
+                </h4>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <defs>
+                        <filter id="glow-region">
+                          <feGaussianBlur stdDeviation="3" result="blur" />
+                          <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                      </defs>
+                      <Pie
+                        data={regionData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={90}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={1}
+                        stroke="rgba(0,0,0,0.3)"
+                        style={{ filter: "url(#glow-region)" }}
+                      >
+                        {regionData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(17, 24, 39, 0.95)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: "0.75rem",
+                          fontSize: "12px",
+                          color: "#f3f4f6",
+                        }}
+                        formatter={(value, name) => [String(value), String(name)]}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: "11px" }}
+                        formatter={(value: string) => <span className="text-muted">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             {/* OS distribution — endpoints only (excludes servers/VMs) */}
             {osData.length > 0 && (

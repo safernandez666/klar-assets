@@ -59,4 +59,11 @@ export const api = {
   getFullReport: () => fetchJson<any>("/api/report/full"),
 
   getControls: () => fetchJson<any>("/api/controls"),
+
+  aiChat: (messages: { role: "user" | "assistant"; content: string }[]) =>
+    fetchJson<{ reply: string; in_scope: boolean; elapsed_ms?: number }>("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    }),
 };

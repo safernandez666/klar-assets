@@ -23,8 +23,10 @@ import {
   Users,
   Settings,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import type { Insight } from "../types";
+import { AIAssistant } from "./ai-assistant";
 
 interface SidebarProps {
   insights: Insight[];
@@ -107,6 +109,7 @@ function ActionItem({ action, index }: { action: Insight; index: number }) {
 export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, syncing, onExportPdf, exporting }: SidebarProps) {
   const [open, setOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState("user");
 
   useEffect(() => {
@@ -205,6 +208,19 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
               Controls
             </span>
           </a>
+
+          {/* AI Assistant */}
+          <button
+            type="button"
+            onClick={() => setAiOpen(true)}
+            aria-label="AI Assistant"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+          >
+            <Sparkles className="h-5 w-5 text-violet-400" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              AI Assistant
+            </span>
+          </button>
 
           {/* Quick Actions */}
           <button
@@ -426,6 +442,8 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
           </>
         )}
       </AnimatePresence>
+
+      <AIAssistant open={aiOpen} onClose={() => setAiOpen(false)} />
     </>
   );
 }

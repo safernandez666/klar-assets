@@ -370,6 +370,15 @@ class Deduplicator:
                 if not primary.owner_email and secondary.owner_email:
                     primary.owner_email = secondary.owner_email
                     primary.owner_name = secondary.owner_name
+                # If primary lacks timezone (typical when it came from CS or
+                # an Okta-only group), pull it from the secondary so the
+                # downstream region tag survives the post-merge. Without
+                # this, devices with the same serial split into multiple
+                # groups end up persisted with timezone=None and the
+                # dashboard's "By Region" pie chart goes 100% UNKNOWN.
+                if not primary.timezone and secondary.timezone:
+                    primary.timezone = secondary.timezone
+                    primary.region = secondary.region
                 if secondary.last_seen and (not primary.last_seen or secondary.last_seen > primary.last_seen):
                     primary.last_seen = secondary.last_seen
                 if secondary.first_seen and (not primary.first_seen or secondary.first_seen < primary.first_seen):

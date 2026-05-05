@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.sync_engine import SyncEngine
+from src.web.api.ai_chat import router as ai_chat_router
 from src.web.api.controls import router as controls_router
 from src.web.api.devices import router as devices_router
 from src.web.api.dual_use import router as dual_use_router
@@ -99,6 +100,7 @@ app.include_router(dual_use_router)
 app.include_router(insights_router)
 app.include_router(slack_router)
 app.include_router(controls_router)
+app.include_router(ai_chat_router)
 
 
 # ── SPA Catch-all (must be last) ─────────────────────────────────────────────

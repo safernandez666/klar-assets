@@ -9,7 +9,9 @@ import {
   User,
   Home,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
+import { AIAssistant } from "./ai-assistant";
 
 const TOOLTIP_CLASSES =
   "pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100";
@@ -20,6 +22,7 @@ export function NavSidebar() {
     return localStorage.getItem("theme") === "dark";
   });
   const [currentUser, setCurrentUser] = useState("user");
+  const [aiOpen, setAiOpen] = useState(false);
   const path = window.location.pathname;
 
   useEffect(() => {
@@ -61,6 +64,16 @@ export function NavSidebar() {
         {navItem("/search", <Search className="h-5 w-5 text-violet-400" aria-hidden="true" />, "Asset Search", "bg-violet-500/10")}
         {navItem("/people", <Users className="h-5 w-5 text-cyan-400" aria-hidden="true" />, "People", "bg-cyan-500/10")}
         {navItem("/controls", <ShieldCheck className="h-5 w-5 text-emerald-400" aria-hidden="true" />, "Controls", "bg-emerald-500/10")}
+
+        <button
+          type="button"
+          onClick={() => setAiOpen(true)}
+          aria-label="AI Assistant"
+          className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+        >
+          <Sparkles className="h-5 w-5 text-violet-400" aria-hidden="true" />
+          <span className={TOOLTIP_CLASSES}>AI Assistant</span>
+        </button>
       </div>
 
       {/* Bottom */}
@@ -99,6 +112,8 @@ export function NavSidebar() {
           <span className={TOOLTIP_CLASSES}>Sign out</span>
         </a>
       </div>
+
+      <AIAssistant open={aiOpen} onClose={() => setAiOpen(false)} />
     </nav>
   );
 }

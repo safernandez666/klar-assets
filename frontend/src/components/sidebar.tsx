@@ -16,6 +16,7 @@ import {
   RotateCw,
   Moon,
   Sun,
+  Home,
   Search,
   LogOut,
   User,
@@ -139,6 +140,22 @@ export function Sidebar({ insights, onRefreshInsights, refreshing, onSync, synci
       {/* Fixed sidebar rail */}
       <div className="fixed left-0 top-0 z-40 flex h-screen w-14 flex-col items-center border-r border-border bg-card/95 pt-20 pb-4 backdrop-blur">
         <div className="flex flex-col items-center gap-1 flex-1">
+          {/* Home / Dashboard — always visible so users can return from
+              any sub-view without browser back. Active when path === "/". */}
+          <a
+            href="/"
+            aria-label="Dashboard"
+            aria-current={typeof window !== "undefined" && window.location.pathname === "/" ? "page" : undefined}
+            className={`group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-blue-500/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${
+              typeof window !== "undefined" && window.location.pathname === "/" ? "bg-blue-500/10" : ""
+            }`}
+          >
+            <Home className="h-5 w-5 text-blue-400" aria-hidden="true" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Dashboard
+            </span>
+          </a>
+
           {/* Sync */}
           <button
             type="button"

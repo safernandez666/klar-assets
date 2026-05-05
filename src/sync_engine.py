@@ -11,7 +11,7 @@ from src.collectors.base import CollectResult
 from src.collectors.crowdstrike import CrowdStrikeCollector
 from src.collectors.jumpcloud import JumpCloudCollector
 from src.collectors.okta import OktaCollector
-from src.models import NormalizedDevice, RawDevice
+from src.models import RawDevice
 from src.normalizer.deduplicator import Deduplicator
 from src.normalizer.enricher import Enricher
 from src.ai_matcher import ai_match

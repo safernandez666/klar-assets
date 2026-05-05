@@ -110,21 +110,12 @@ svg {
 
 <header>
   <h1>Klar Device Normalizer <em style="font-style:italic;font-family:'Instrument Serif',serif;font-weight:400;color:var(--muted);font-size:1.6rem">— Sync Flow</em></h1>
-  <p class="subtitle">sync_devices() · full pipeline from trigger to cache refresh</p>
+  <p class="subtitle">SyncEngine.run() · full pipeline from trigger to cache refresh · ~33s end-to-end</p>
 </header>
 
 <div class="chart-wrap">
-<!--
-  Canvas: 860 wide × 1760 tall
-  Layout columns (x-centers):
-    Left source:  180
-    Center:       430
-    Right source: 680
-  Main flow center: 430
--->
-<svg width="860" height="1760" viewBox="0 0 860 1760" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="860" height="1880" viewBox="0 0 860 1880" fill="none" xmlns="http://www.w3.org/2000/svg">
 <defs>
-  <!-- Arrow markers -->
   <marker id="arrow-ink" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
     <path d="M0,0 L0,6 L8,3 z" fill="#0f0f0f" opacity="0.55"/>
   </marker>
@@ -146,36 +137,34 @@ svg {
 </defs>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- STEP 1: TRIGGER -->
+<!-- STEP 1: TRIGGER + 409 GUARD -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<!-- Trigger node (rounded rect, slightly heavy border) -->
 <rect x="300" y="32" width="260" height="56" rx="8"
       fill="white" stroke="#0f0f0f" stroke-width="1.8"/>
-<!-- small scheduler icon bar -->
 <rect x="300" y="32" width="260" height="8" rx="8" fill="#0f0f0f" opacity="0.08"/>
 <text x="430" y="62" text-anchor="middle" class="label-main">Scheduler / Manual Trigger</text>
-<text x="430" y="76" text-anchor="middle" class="label-mono">cron · sync_devices()</text>
+<text x="430" y="76" text-anchor="middle" class="label-mono">APScheduler · /api/sync/trigger</text>
 
-<!-- Arrow down -->
+<!-- 409 guard side branch -->
+<line x1="560" y1="60" x2="630" y2="60" stroke="#dc2626" stroke-width="1.1" stroke-opacity="0.55" stroke-dasharray="4,3"/>
+<rect x="630" y="46" width="180" height="32" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1" stroke-opacity="0.6"/>
+<text x="720" y="60" text-anchor="middle" class="label-mono" fill="#dc2626" font-weight="600">409 if cache.syncing</text>
+<text x="720" y="71" text-anchor="middle" class="label-mono" fill="#dc2626" opacity="0.8">refuse overlapping run</text>
+
 <line x1="430" y1="88" x2="430" y2="112" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- PARALLEL COLLECT ZONE -->
+<!-- STEP 2: PARALLEL COLLECT -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<!-- Zone bracket -->
 <rect x="30" y="116" width="800" height="128" rx="8"
       stroke="#0f0f0f" stroke-opacity="0.09" stroke-width="1" stroke-dasharray="6 4" fill="rgba(15,15,15,0.015)"/>
 <rect x="42" y="108" width="130" height="16" fill="#f5f5f3"/>
 <text x="48" y="120" class="label-zone">Parallel Collection</text>
 
-<!-- Fan out line from trigger -->
-<!-- Horizontal bus line at y=148 from x=180 to x=680 -->
 <line x1="180" y1="148" x2="680" y2="148" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.2"/>
-<!-- Vertical from trigger center to bus -->
 <line x1="430" y1="112" x2="430" y2="148" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.3"/>
-<!-- Drop lines from bus to each source -->
 <line x1="180" y1="148" x2="180" y2="172" stroke="#dc2626" stroke-width="1.4" stroke-opacity="0.5" marker-end="url(#arrow-red)"/>
 <line x1="430" y1="148" x2="430" y2="172" stroke="#2563eb" stroke-width="1.4" stroke-opacity="0.5" marker-end="url(#arrow-blue)"/>
 <line x1="680" y1="148" x2="680" y2="172" stroke="#d97706" stroke-width="1.4" stroke-opacity="0.5" marker-end="url(#arrow-amber)"/>
@@ -190,319 +179,349 @@ svg {
 <rect x="330" y="176" width="200" height="56" rx="6"
       fill="#eff6ff" stroke="#2563eb" stroke-width="1.4"/>
 <text x="430" y="202" text-anchor="middle" class="label-main" fill="#2563eb">JumpCloud</text>
-<text x="430" y="217" text-anchor="middle" class="label-mono">MDM · REST API v2</text>
+<text x="430" y="217" text-anchor="middle" class="label-mono">MDM · /systems + /systemusers</text>
 
-<!-- Okta -->
+<!-- Okta — updated to expand=user -->
 <rect x="580" y="176" width="200" height="56" rx="6"
       fill="#fffbeb" stroke="#d97706" stroke-width="1.4"/>
 <text x="680" y="202" text-anchor="middle" class="label-main" fill="#d97706">Okta</text>
-<text x="680" y="217" text-anchor="middle" class="label-mono">IDP · SCIM / REST API</text>
+<text x="680" y="217" text-anchor="middle" class="label-mono">IDP · /devices?expand=user</text>
 
-<!-- Collect arrows converging to center bus at y=278 -->
-<line x1="180" y1="232" x2="180" y2="266" stroke="#dc2626" stroke-width="1.4" stroke-opacity="0.4"/>
-<line x1="430" y1="232" x2="430" y2="266" stroke="#2563eb" stroke-width="1.4" stroke-opacity="0.4"/>
-<line x1="680" y1="232" x2="680" y2="266" stroke="#d97706" stroke-width="1.4" stroke-opacity="0.4"/>
-<!-- Horizontal merge bus -->
-<line x1="180" y1="266" x2="680" y2="266" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.18"/>
-<!-- Center drop to next step -->
-<line x1="430" y1="266" x2="430" y2="290" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<!-- Per-source mini-annotations -->
+<text x="180" y="247" text-anchor="middle" class="label-mono" opacity="0.6">~347 devices · 2s</text>
+<text x="430" y="247" text-anchor="middle" class="label-mono" opacity="0.6">~367 devices · 25s</text>
+<text x="680" y="247" text-anchor="middle" class="label-mono" opacity="0.6">~497 · 3 paged calls · 13s</text>
+
+<!-- Collect arrows converging -->
+<line x1="180" y1="232" x2="180" y2="280" stroke="#dc2626" stroke-width="1.4" stroke-opacity="0.4"/>
+<line x1="430" y1="232" x2="430" y2="280" stroke="#2563eb" stroke-width="1.4" stroke-opacity="0.4"/>
+<line x1="680" y1="232" x2="680" y2="280" stroke="#d97706" stroke-width="1.4" stroke-opacity="0.4"/>
+<line x1="180" y1="280" x2="680" y2="280" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.18"/>
+<line x1="430" y1="280" x2="430" y2="304" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- STEP 2: FILTER MOBILE -->
+<!-- STEP 3: FILTER MOBILE -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<!-- Diamond: Filter Mobile? -->
-<!-- Diamond center at (430, 332), half-w=100, half-h=40 -->
-<polygon points="430,292 530,332 430,372 330,332"
+<polygon points="430,308 530,348 430,388 330,348"
          fill="white" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.7"/>
-<text x="430" y="327" text-anchor="middle" class="label-diamond">Filter Mobile?</text>
-<text x="430" y="342" text-anchor="middle" class="label-mono">platform == iOS/Android</text>
+<text x="430" y="343" text-anchor="middle" class="label-diamond">Filter Mobile?</text>
+<text x="430" y="358" text-anchor="middle" class="label-mono">platform == iOS/Android</text>
 
-<!-- "yes → drop" branch to right -->
-<line x1="530" y1="332" x2="620" y2="332" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.35"/>
-<!-- Label "mobile → drop" -->
-<text x="548" y="325" class="label-arrow" fill="#dc2626">mobile</text>
-<!-- End cap / drop indicator -->
-<rect x="620" y="318" width="72" height="28" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1" stroke-opacity="0.6"/>
-<text x="656" y="336" text-anchor="middle" class="label-mono" fill="#dc2626">dropped</text>
+<line x1="530" y1="348" x2="620" y2="348" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.35"/>
+<text x="548" y="341" class="label-arrow" fill="#dc2626">mobile</text>
+<rect x="620" y="334" width="72" height="28" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1" stroke-opacity="0.6"/>
+<text x="656" y="352" text-anchor="middle" class="label-mono" fill="#dc2626">dropped</text>
 
-<!-- "no → continue" arrow down -->
-<line x1="430" y1="372" x2="430" y2="396" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
-<text x="442" y="388" class="label-arrow">desktop/server</text>
+<line x1="430" y1="388" x2="430" y2="412" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<text x="442" y="404" class="label-arrow">desktop/server</text>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- DEDUP ZONE -->
+<!-- STEP 4: DEDUP ZONE — 3 stacked passes -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="140" y="400" width="580" height="210" rx="8"
+<rect x="140" y="416" width="580" height="232" rx="8"
       stroke="#0f0f0f" stroke-opacity="0.08" stroke-width="1" stroke-dasharray="6 4" fill="rgba(15,15,15,0.012)"/>
-<rect x="152" y="392" width="140" height="16" fill="#f5f5f3"/>
-<text x="158" y="404" class="label-zone">Serial Deduplication</text>
+<rect x="152" y="408" width="140" height="16" fill="#f5f5f3"/>
+<text x="158" y="420" class="label-zone">Serial Deduplication</text>
 
-<!-- Dedup pass 1: MAC address -->
-<rect x="300" y="408" width="260" height="52" rx="6"
+<!-- Pass 1: exact identifiers (serial / MAC / source IDs) -->
+<rect x="300" y="424" width="260" height="56" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.6"/>
-<text x="430" y="430" text-anchor="middle" class="label-main">Match by MAC Address</text>
-<text x="430" y="445" text-anchor="middle" class="label-mono">exact hardware identifier</text>
+<text x="430" y="446" text-anchor="middle" class="label-main">Exact Identifiers</text>
+<text x="430" y="461" text-anchor="middle" class="label-mono">serial · MAC · CS aid · Okta id</text>
+<text x="430" y="473" text-anchor="middle" class="label-mono" opacity="0.7">first-priority match</text>
 
-<line x1="430" y1="460" x2="430" y2="480" stroke="#0f0f0f" stroke-width="1.3" stroke-opacity="0.35" marker-end="url(#arrow-ink)"/>
+<line x1="430" y1="480" x2="430" y2="500" stroke="#0f0f0f" stroke-width="1.3" stroke-opacity="0.35" marker-end="url(#arrow-ink)"/>
 
-<!-- Dedup pass 2: owner + OS -->
-<rect x="300" y="484" width="260" height="52" rx="6"
+<!-- Pass 2: owner + OS cross-source -->
+<rect x="300" y="504" width="260" height="52" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.6"/>
-<text x="430" y="506" text-anchor="middle" class="label-main">Match by Owner + OS</text>
-<text x="430" y="521" text-anchor="middle" class="label-mono">email × platform pair</text>
+<text x="430" y="526" text-anchor="middle" class="label-main">Owner + OS Cross-source</text>
+<text x="430" y="541" text-anchor="middle" class="label-mono">email × platform · only across sources</text>
 
-<line x1="430" y1="536" x2="430" y2="556" stroke="#0f0f0f" stroke-width="1.3" stroke-opacity="0.35" marker-end="url(#arrow-ink)"/>
+<line x1="430" y1="556" x2="430" y2="576" stroke="#0f0f0f" stroke-width="1.3" stroke-opacity="0.35" marker-end="url(#arrow-ink)"/>
 
-<!-- Dedup pass 3: hostname -->
-<rect x="300" y="560" width="260" height="52" rx="6"
+<!-- Pass 3: hostname fuzzy -->
+<rect x="300" y="580" width="260" height="52" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.6"/>
-<text x="430" y="582" text-anchor="middle" class="label-main">Match by Hostname</text>
-<text x="430" y="597" text-anchor="middle" class="label-mono">normalized · fuzzy fallback</text>
+<text x="430" y="602" text-anchor="middle" class="label-main">Hostname Fuzzy ≥95%</text>
+<text x="430" y="617" text-anchor="middle" class="label-mono">suffix-stripped · same OS only</text>
 
-<!-- side annotation -->
-<text x="158" y="510" class="label-serif">serial passes</text>
-<text x="158" y="524" class="label-serif">1 → 2 → 3</text>
+<text x="158" y="528" class="label-serif">passes apply</text>
+<text x="158" y="542" class="label-serif">in priority order</text>
+<text x="158" y="558" class="label-mono" opacity="0.5">block if serials</text>
+<text x="158" y="568" class="label-mono" opacity="0.5">conflict</text>
 
-<line x1="430" y1="612" x2="430" y2="636" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<line x1="430" y1="632" x2="430" y2="656" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- POST-MERGE BY SERIAL -->
+<!-- STEP 5: POST-MERGE -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="300" y="640" width="260" height="52" rx="6"
+<rect x="300" y="660" width="260" height="52" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.3" stroke-opacity="0.55"/>
-<text x="430" y="662" text-anchor="middle" class="label-main">Post-merge by Serial</text>
-<text x="430" y="677" text-anchor="middle" class="label-mono">deduplicate across sources</text>
+<text x="430" y="682" text-anchor="middle" class="label-main">Post-merge by Serial</text>
+<text x="430" y="697" text-anchor="middle" class="label-mono">combine groups sharing a serial</text>
 
-<line x1="430" y1="692" x2="430" y2="716" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<line x1="430" y1="712" x2="430" y2="736" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- AI MATCHER -->
+<!-- STEP 6: AI MATCHER -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<!-- Diamond: Ambiguous? -->
-<polygon points="430,720 530,760 430,800 330,760"
+<polygon points="430,740 530,780 430,820 330,780"
          fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
-<text x="430" y="755" text-anchor="middle" class="label-diamond" fill="#7c3aed">Ambiguous</text>
-<text x="430" y="770" text-anchor="middle" class="label-mono" fill="#7c3aed">match?</text>
+<text x="430" y="775" text-anchor="middle" class="label-diamond" fill="#7c3aed">Ambiguous</text>
+<text x="430" y="790" text-anchor="middle" class="label-mono" fill="#7c3aed">match?</text>
 
-<!-- "no → skip AI" to left -->
-<line x1="330" y1="760" x2="230" y2="760" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.3"/>
-<text x="262" y="752" text-anchor="middle" class="label-arrow">clear match</text>
-<!-- Reconnect to post-AI at y=860 -->
-<line x1="230" y1="760" x2="230" y2="860" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
-<line x1="230" y1="860" x2="338" y2="860" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25" marker-end="url(#arrow-ink)"/>
+<line x1="330" y1="780" x2="230" y2="780" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.3"/>
+<text x="262" y="772" text-anchor="middle" class="label-arrow">clear match</text>
+<line x1="230" y1="780" x2="230" y2="880" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="230" y1="880" x2="338" y2="880" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25" marker-end="url(#arrow-ink)"/>
 
-<!-- "yes → AI" down -->
-<line x1="430" y1="800" x2="430" y2="824" stroke="#7c3aed" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arrow-violet)"/>
-<text x="442" y="818" class="label-arrow" fill="#7c3aed">ambiguous</text>
+<line x1="430" y1="820" x2="430" y2="844" stroke="#7c3aed" stroke-width="1.5" stroke-opacity="0.6" marker-end="url(#arrow-violet)"/>
+<text x="442" y="838" class="label-arrow" fill="#7c3aed">ambiguous</text>
 
-<!-- AI Matcher node -->
-<rect x="300" y="828" width="260" height="56" rx="6"
+<rect x="300" y="848" width="260" height="56" rx="6"
       fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.6"/>
-<text x="430" y="854" text-anchor="middle" class="label-main" fill="#7c3aed">AI Matcher</text>
-<text x="430" y="869" text-anchor="middle" class="label-mono">OpenAI · structured output</text>
+<text x="430" y="874" text-anchor="middle" class="label-main" fill="#7c3aed">AI Matcher</text>
+<text x="430" y="889" text-anchor="middle" class="label-mono">≤30 pairs · gpt-4o-mini</text>
 
-<line x1="430" y1="884" x2="430" y2="908" stroke="#7c3aed" stroke-width="1.4" stroke-opacity="0.5" marker-end="url(#arrow-violet)"/>
+<line x1="430" y1="904" x2="430" y2="928" stroke="#7c3aed" stroke-width="1.4" stroke-opacity="0.5" marker-end="url(#arrow-violet)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- ENRICH -->
+<!-- STEP 7: RESOLVE OWNER  (NEW) -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="30" y="912" width="800" height="124" rx="8"
+<rect x="170" y="932" width="520" height="84" rx="8"
+      fill="white" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.7"/>
+<text x="430" y="954" text-anchor="middle" class="label-main">Resolve Owner</text>
+<text x="430" y="970" text-anchor="middle" class="label-mono" opacity="0.75">priority chain · per device</text>
+
+<!-- Priority chain visualization -->
+<rect x="200" y="982" width="120" height="22" rx="4" fill="#eff6ff" stroke="#2563eb" stroke-width="1" stroke-opacity="0.55"/>
+<text x="260" y="996" text-anchor="middle" class="label-mono" fill="#2563eb" font-weight="600">JC user</text>
+<text x="260" y="1006" text-anchor="middle" class="label-mono" fill="#2563eb" opacity="0.65" font-size="6.5">MDM truth</text>
+
+<line x1="320" y1="993" x2="345" y2="993" stroke="#0f0f0f" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+
+<rect x="345" y="982" width="170" height="22" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1" stroke-opacity="0.55"/>
+<text x="430" y="996" text-anchor="middle" class="label-mono" fill="#dc2626" font-weight="600">CS user → Okta lookup</text>
+<text x="430" y="1006" text-anchor="middle" class="label-mono" fill="#dc2626" opacity="0.65" font-size="6.5">username → full email</text>
+
+<line x1="515" y1="993" x2="540" y2="993" stroke="#0f0f0f" stroke-width="1" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+
+<rect x="540" y="982" width="120" height="22" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1" stroke-opacity="0.55"/>
+<text x="600" y="996" text-anchor="middle" class="label-mono" fill="#d97706" font-weight="600">Okta binding</text>
+<text x="600" y="1006" text-anchor="middle" class="label-mono" fill="#d97706" opacity="0.65" font-size="6.5">device.user</text>
+
+<!-- Side note -->
+<text x="700" y="950" class="label-serif">PR #50 · okta_email_lookup</text>
+<text x="700" y="964" class="label-serif">fixes CS bare username</text>
+<text x="700" y="978" class="label-serif">silently dropped</text>
+
+<line x1="430" y1="1016" x2="430" y2="1040" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- STEP 8: ENRICHMENT -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<rect x="30" y="1044" width="800" height="148" rx="8"
       stroke="#0f0f0f" stroke-opacity="0.08" stroke-width="1" stroke-dasharray="6 4" fill="rgba(15,15,15,0.012)"/>
-<rect x="42" y="904" width="88" height="16" fill="#f5f5f3"/>
-<text x="48" y="916" class="label-zone">Enrichment</text>
+<rect x="42" y="1036" width="88" height="16" fill="#f5f5f3"/>
+<text x="48" y="1048" class="label-zone">Enrichment</text>
 
-<!-- Three enrich boxes side by side -->
-<!-- Status -->
-<rect x="50" y="922" width="236" height="100" rx="6"
+<!-- 4 enrich boxes side by side -->
+<rect x="50" y="1058" width="180" height="100" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.5"/>
-<text x="168" y="946" text-anchor="middle" class="label-main">Status Assignment</text>
-<text x="168" y="962" text-anchor="middle" class="label-mono">MANAGED · PARTIAL</text>
-<text x="168" y="976" text-anchor="middle" class="label-mono">UNMANAGED · UNKNOWN</text>
-<text x="168" y="994" text-anchor="middle" class="label-mono">JC+CS → MANAGED</text>
+<text x="140" y="1082" text-anchor="middle" class="label-main">Status</text>
+<text x="140" y="1098" text-anchor="middle" class="label-mono">FULLY_MANAGED</text>
+<text x="140" y="1110" text-anchor="middle" class="label-mono">MANAGED · NO_EDR</text>
+<text x="140" y="1122" text-anchor="middle" class="label-mono">NO_MDM · IDP_ONLY</text>
+<text x="140" y="1140" text-anchor="middle" class="label-mono" opacity="0.6">SERVER · STALE</text>
 
-<!-- Gaps -->
-<rect x="312" y="922" width="236" height="100" rx="6"
+<rect x="245" y="1058" width="180" height="100" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.5"/>
-<text x="430" y="946" text-anchor="middle" class="label-main">Gap Detection</text>
-<text x="430" y="962" text-anchor="middle" class="label-mono">missing_jc · missing_cs</text>
-<text x="430" y="976" text-anchor="middle" class="label-mono">missing_okta · stale</text>
-<text x="430" y="994" text-anchor="middle" class="label-mono">last_seen thresholds</text>
+<text x="335" y="1082" text-anchor="middle" class="label-main">Coverage Gaps</text>
+<text x="335" y="1098" text-anchor="middle" class="label-mono">missing_edr</text>
+<text x="335" y="1110" text-anchor="middle" class="label-mono">missing_mdm</text>
+<text x="335" y="1122" text-anchor="middle" class="label-mono">missing_idp</text>
+<text x="335" y="1140" text-anchor="middle" class="label-mono" opacity="0.6">stale (90+ days)</text>
 
-<!-- Server -->
-<rect x="574" y="922" width="236" height="100" rx="6"
+<rect x="440" y="1058" width="180" height="100" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.5"/>
-<text x="692" y="946" text-anchor="middle" class="label-main">Server Detection</text>
-<text x="692" y="962" text-anchor="middle" class="label-mono">hostname patterns</text>
-<text x="692" y="976" text-anchor="middle" class="label-mono">OS heuristics</text>
-<text x="692" y="994" text-anchor="middle" class="label-mono">is_server flag</text>
+<text x="530" y="1082" text-anchor="middle" class="label-main">Server Detection</text>
+<text x="530" y="1098" text-anchor="middle" class="label-mono">hostname patterns</text>
+<text x="530" y="1110" text-anchor="middle" class="label-mono">ip-*.compute.internal</text>
+<text x="530" y="1122" text-anchor="middle" class="label-mono">VMware-* serials</text>
+<text x="530" y="1140" text-anchor="middle" class="label-mono" opacity="0.6">→ skip MDM check</text>
 
-<!-- Arrows into enrich boxes from AI/merged flow -->
-<line x1="430" y1="908" x2="168" y2="922" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
-<line x1="430" y1="908" x2="430" y2="922" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
-<line x1="430" y1="908" x2="692" y2="922" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<!-- NEW: Region tagging -->
+<rect x="635" y="1058" width="180" height="100" rx="6"
+      fill="#ecfdf5" stroke="#059669" stroke-width="1.3" stroke-opacity="0.7"/>
+<text x="725" y="1082" text-anchor="middle" class="label-main" fill="#059669">Region Tagging</text>
+<text x="725" y="1098" text-anchor="middle" class="label-mono" fill="#059669">timezone → bucket</text>
+<text x="725" y="1110" text-anchor="middle" class="label-mono" fill="#059669">MEXICO · AMERICAS</text>
+<text x="725" y="1122" text-anchor="middle" class="label-mono" fill="#059669">EUROPE · ROW</text>
+<text x="725" y="1140" text-anchor="middle" class="label-mono" fill="#059669" opacity="0.7">PR #54 · IANA</text>
 
-<!-- Merge arrows out of enrich -->
-<line x1="168" y1="1022" x2="168" y2="1054" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
-<line x1="430" y1="1022" x2="430" y2="1054" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
-<line x1="692" y1="1022" x2="692" y2="1054" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
-<line x1="168" y1="1054" x2="692" y2="1054" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.18"/>
-<line x1="430" y1="1054" x2="430" y2="1078" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<line x1="430" y1="1040" x2="140" y2="1058" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="430" y1="1040" x2="335" y2="1058" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="430" y1="1040" x2="530" y2="1058" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="430" y1="1040" x2="725" y2="1058" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+
+<line x1="140" y1="1158" x2="140" y2="1190" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="335" y1="1158" x2="335" y2="1190" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="530" y1="1158" x2="530" y2="1190" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="725" y1="1158" x2="725" y2="1190" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.25"/>
+<line x1="140" y1="1190" x2="725" y2="1190" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.18"/>
+<line x1="430" y1="1190" x2="430" y2="1214" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- UPSERT TO SQLITE -->
+<!-- STEP 9: UPSERT TO SQLITE -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="300" y="1082" width="260" height="52" rx="6"
+<rect x="300" y="1218" width="260" height="56" rx="6"
       fill="white" stroke="#059669" stroke-width="1.4"/>
-<text x="430" y="1104" text-anchor="middle" class="label-main" fill="#059669">Upsert to SQLite</text>
-<text x="430" y="1119" text-anchor="middle" class="label-mono">devices table · ON CONFLICT</text>
+<text x="430" y="1240" text-anchor="middle" class="label-main" fill="#059669">Upsert to SQLite</text>
+<text x="430" y="1255" text-anchor="middle" class="label-mono">soft-delete prior · clean snapshot</text>
+<text x="430" y="1267" text-anchor="middle" class="label-mono" opacity="0.65">devices table</text>
 
-<line x1="430" y1="1134" x2="430" y2="1158" stroke="#059669" stroke-width="1.4" stroke-opacity="0.5" marker-end="url(#arrow-green)"/>
+<line x1="430" y1="1274" x2="430" y2="1298" stroke="#059669" stroke-width="1.4" stroke-opacity="0.5" marker-end="url(#arrow-green)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- SAVE SNAPSHOT -->
+<!-- STEP 10: SAVE SNAPSHOT -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="300" y="1162" width="260" height="52" rx="6"
+<rect x="300" y="1302" width="260" height="52" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.3" stroke-opacity="0.55"/>
-<text x="430" y="1184" text-anchor="middle" class="label-main">Save Snapshot</text>
-<text x="430" y="1199" text-anchor="middle" class="label-mono">snapshots table · timestamped</text>
+<text x="430" y="1324" text-anchor="middle" class="label-main">Save Status Snapshot</text>
+<text x="430" y="1339" text-anchor="middle" class="label-mono">status_snapshots · timestamped</text>
 
-<line x1="430" y1="1214" x2="430" y2="1238" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<line x1="430" y1="1354" x2="430" y2="1378" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- DETECT CHANGES -->
+<!-- STEP 11: DETECT CHANGES -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<!-- Diamond: Changes? -->
-<polygon points="430,1242 550,1292 430,1342 310,1292"
+<polygon points="430,1382 550,1432 430,1482 310,1432"
          fill="white" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.65"/>
-<text x="430" y="1286" text-anchor="middle" class="label-diamond">Changes</text>
-<text x="430" y="1301" text-anchor="middle" class="label-mono">detected?</text>
+<text x="430" y="1426" text-anchor="middle" class="label-diamond">Changes</text>
+<text x="430" y="1441" text-anchor="middle" class="label-mono">detected?</text>
 
-<!-- Three outcome labels branching out -->
-<!-- new devices → right -->
-<line x1="550" y1="1292" x2="660" y2="1292" stroke="#dc2626" stroke-width="1.3" stroke-opacity="0.5"/>
-<text x="596" y="1284" class="label-arrow" fill="#dc2626">new</text>
-<rect x="660" y="1278" width="88" height="28" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1" stroke-opacity="0.7"/>
-<text x="704" y="1296" text-anchor="middle" class="label-mono" fill="#dc2626">new device</text>
+<!-- new → right -->
+<line x1="550" y1="1432" x2="660" y2="1432" stroke="#dc2626" stroke-width="1.3" stroke-opacity="0.5"/>
+<text x="596" y="1424" class="label-arrow" fill="#dc2626">new</text>
+<rect x="660" y="1418" width="88" height="28" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1" stroke-opacity="0.7"/>
+<text x="704" y="1436" text-anchor="middle" class="label-mono" fill="#dc2626">new device</text>
 
 <!-- disappeared → left -->
-<line x1="310" y1="1292" x2="110" y2="1292" stroke="#d97706" stroke-width="1.3" stroke-opacity="0.5"/>
-<text x="194" y="1284" class="label-arrow" fill="#d97706">gone</text>
-<rect x="30" y="1278" width="100" height="28" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1" stroke-opacity="0.7"/>
-<text x="80" y="1296" text-anchor="middle" class="label-mono" fill="#d97706">disappeared</text>
+<line x1="310" y1="1432" x2="110" y2="1432" stroke="#d97706" stroke-width="1.3" stroke-opacity="0.5"/>
+<text x="194" y="1424" class="label-arrow" fill="#d97706">gone</text>
+<rect x="30" y="1418" width="100" height="28" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1" stroke-opacity="0.7"/>
+<text x="80" y="1436" text-anchor="middle" class="label-mono" fill="#d97706">disappeared</text>
 
-<!-- stale → down-right offset, then back to Slack -->
-<!-- stale label inside diamond area handled as annotation -->
-<text x="560" y="1330" class="label-arrow" fill="#7c3aed">stale</text>
-<line x1="490" y1="1342" x2="638" y2="1358" stroke="#7c3aed" stroke-width="1.2" stroke-opacity="0.4"/>
-<rect x="638" y="1344" width="82" height="28" rx="4" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1" stroke-opacity="0.7"/>
-<text x="679" y="1362" text-anchor="middle" class="label-mono" fill="#7c3aed">stale agent</text>
+<!-- stale -->
+<text x="560" y="1470" class="label-arrow" fill="#7c3aed">stale</text>
+<line x1="490" y1="1482" x2="638" y2="1498" stroke="#7c3aed" stroke-width="1.2" stroke-opacity="0.4"/>
+<rect x="638" y="1484" width="82" height="28" rx="4" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1" stroke-opacity="0.7"/>
+<text x="679" y="1502" text-anchor="middle" class="label-mono" fill="#7c3aed">stale agent</text>
 
-<!-- Reconnect all three outcomes to Slack alert at y=1440 -->
-<line x1="704" y1="1306" x2="704" y2="1432" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.2"/>
-<line x1="80" y1="1306" x2="80" y2="1432" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.2"/>
-<line x1="679" y1="1372" x2="679" y2="1432" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.2"/>
-<!-- Horizontal to center -->
-<line x1="80" y1="1432" x2="704" y2="1432" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.18"/>
-<line x1="430" y1="1432" x2="430" y2="1456" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<!-- Reconnect to Slack alert -->
+<line x1="704" y1="1446" x2="704" y2="1572" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.2"/>
+<line x1="80" y1="1446" x2="80" y2="1572" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.2"/>
+<line x1="679" y1="1512" x2="679" y2="1572" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.2"/>
+<line x1="80" y1="1572" x2="704" y2="1572" stroke="#0f0f0f" stroke-width="1.1" stroke-opacity="0.18"/>
+<line x1="430" y1="1572" x2="430" y2="1596" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
-<!-- "no changes" path: straight down from diamond -->
-<line x1="430" y1="1342" x2="430" y2="1380" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.3"/>
-<text x="444" y="1368" class="label-arrow">no change</text>
-<!-- Bypass to Refresh cache arrow label -->
-<line x1="430" y1="1380" x2="224" y2="1380" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.2"/>
-<line x1="224" y1="1380" x2="224" y2="1628" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.15"/>
-<line x1="224" y1="1628" x2="310" y2="1628" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.2" marker-end="url(#arrow-ink)"/>
-<text x="148" y="1510" class="label-serif" transform="rotate(-90,148,1510)">skip alert</text>
+<!-- "no changes" path: bypass Slack -->
+<line x1="430" y1="1482" x2="430" y2="1520" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.3"/>
+<text x="444" y="1508" class="label-arrow">no change</text>
+<line x1="430" y1="1520" x2="224" y2="1520" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.2"/>
+<line x1="224" y1="1520" x2="224" y2="1748" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.15"/>
+<line x1="224" y1="1748" x2="310" y2="1748" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.2" marker-end="url(#arrow-ink)"/>
+<text x="148" y="1640" class="label-serif" transform="rotate(-90,148,1640)">skip alert</text>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- SLACK ALERT -->
+<!-- STEP 12: SLACK ALERT -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="300" y="1460" width="260" height="56" rx="6"
+<rect x="300" y="1600" width="260" height="56" rx="6"
       fill="white" stroke="#0f0f0f" stroke-width="1.3" stroke-opacity="0.6"/>
-<!-- Slack-ish color accent strip -->
-<rect x="300" y="1460" width="6" height="56" rx="3" fill="#4a154b" opacity="0.7"/>
-<text x="432" y="1486" text-anchor="middle" class="label-main">Send Slack Alert</text>
-<text x="432" y="1501" text-anchor="middle" class="label-mono">webhook · per change type</text>
+<rect x="300" y="1600" width="6" height="56" rx="3" fill="#4a154b" opacity="0.7"/>
+<text x="432" y="1626" text-anchor="middle" class="label-main">Send Slack Alert</text>
+<text x="432" y="1641" text-anchor="middle" class="label-mono">Block Kit · per change type</text>
 
-<line x1="430" y1="1516" x2="430" y2="1540" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<line x1="430" y1="1656" x2="430" y2="1680" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!-- REFRESH CACHE -->
+<!-- STEP 13: REFRESH CACHE -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="300" y="1544" width="260" height="52" rx="6"
+<rect x="300" y="1684" width="260" height="56" rx="6"
       fill="white" stroke="#059669" stroke-width="1.4"/>
-<text x="430" y="1566" text-anchor="middle" class="label-main" fill="#059669">Refresh Cache</text>
-<text x="430" y="1581" text-anchor="middle" class="label-mono">invalidate · warm summary</text>
+<text x="430" y="1708" text-anchor="middle" class="label-main" fill="#059669">Refresh Cache</text>
+<text x="430" y="1722" text-anchor="middle" class="label-mono">invalidate · warm summary</text>
+<text x="430" y="1734" text-anchor="middle" class="label-mono" opacity="0.65">cache.syncing → false</text>
+
+<!-- Side annotation: cache.syncing flips back -->
+<rect x="600" y="1690" width="172" height="46" rx="4" fill="rgba(15,15,15,0.03)" stroke="#0f0f0f" stroke-opacity="0.15" stroke-width="1" stroke-dasharray="3,3"/>
+<text x="686" y="1706" text-anchor="middle" class="label-mono" font-weight="600" opacity="0.7">UI poll terminates</text>
+<text x="686" y="1718" text-anchor="middle" class="label-mono" opacity="0.55">syncing=false +</text>
+<text x="686" y="1728" text-anchor="middle" class="label-mono" opacity="0.55">new sync_run id</text>
 
 <!-- Terminal dot -->
-<circle cx="430" cy="1636" r="10" fill="#0f0f0f" opacity="0.8"/>
-<circle cx="430" cy="1636" r="16" fill="none" stroke="#0f0f0f" stroke-width="1.5" stroke-opacity="0.4"/>
-<line x1="430" y1="1596" x2="430" y2="1620" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
+<circle cx="430" cy="1776" r="10" fill="#0f0f0f" opacity="0.8"/>
+<circle cx="430" cy="1776" r="16" fill="none" stroke="#0f0f0f" stroke-width="1.5" stroke-opacity="0.4"/>
+<line x1="430" y1="1740" x2="430" y2="1760" stroke="#0f0f0f" stroke-width="1.4" stroke-opacity="0.4" marker-end="url(#arrow-ink)"/>
 
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- STEP NUMBER ANNOTATIONS -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<!-- Step pills down the right edge -->
 <g opacity="0.45">
   <text x="592" y="65" class="label-mono">① trigger</text>
   <text x="736" y="209" class="label-mono">② collect</text>
-  <text x="576" y="345" class="label-mono">③ filter</text>
-  <text x="736" y="495" class="label-mono">④ dedup</text>
-  <text x="592" y="659" class="label-mono">⑤ post-merge</text>
-  <text x="592" y="763" class="label-mono">⑥ ai match</text>
-  <text x="736" y="980" class="label-mono">⑦ enrich</text>
-  <text x="592" y="1112" class="label-mono">⑧ upsert</text>
-  <text x="592" y="1190" class="label-mono">⑨ snapshot</text>
-  <text x="592" y="1295" class="label-mono">⑩ diff</text>
-  <text x="592" y="1490" class="label-mono">⑪ alert</text>
-  <text x="592" y="1570" class="label-mono">⑫ cache</text>
+  <text x="576" y="361" class="label-mono">③ filter</text>
+  <text x="736" y="510" class="label-mono">④ dedup</text>
+  <text x="592" y="679" class="label-mono">⑤ post-merge</text>
+  <text x="592" y="783" class="label-mono">⑥ ai match</text>
+  <text x="736" y="976" class="label-mono">⑦ resolve owner</text>
+  <text x="736" y="1110" class="label-mono">⑧ enrich</text>
+  <text x="592" y="1248" class="label-mono">⑨ upsert</text>
+  <text x="592" y="1330" class="label-mono">⑩ snapshot</text>
+  <text x="592" y="1435" class="label-mono">⑪ diff</text>
+  <text x="592" y="1630" class="label-mono">⑫ alert</text>
+  <text x="592" y="1710" class="label-mono">⑬ cache</text>
 </g>
 
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- LEGEND -->
 <!-- ═══════════════════════════════════════════════════════ -->
 
-<rect x="30" y="1680" width="800" height="60" rx="8"
+<rect x="30" y="1810" width="800" height="60" rx="8"
       fill="rgba(15,15,15,0.03)" stroke="#0f0f0f" stroke-opacity="0.08" stroke-width="1"/>
 
-<!-- Legend items -->
-<!-- CrowdStrike -->
-<rect x="52" y="1700" width="12" height="12" rx="2" fill="#fef2f2" stroke="#dc2626" stroke-width="1.3"/>
-<text x="70" y="1711" class="label-mono" fill="#dc2626">CrowdStrike (EDR)</text>
+<rect x="52" y="1830" width="12" height="12" rx="2" fill="#fef2f2" stroke="#dc2626" stroke-width="1.3"/>
+<text x="70" y="1841" class="label-mono" fill="#dc2626">CrowdStrike (EDR)</text>
 
-<!-- JumpCloud -->
-<rect x="202" y="1700" width="12" height="12" rx="2" fill="#eff6ff" stroke="#2563eb" stroke-width="1.3"/>
-<text x="220" y="1711" class="label-mono" fill="#2563eb">JumpCloud (MDM)</text>
+<rect x="202" y="1830" width="12" height="12" rx="2" fill="#eff6ff" stroke="#2563eb" stroke-width="1.3"/>
+<text x="220" y="1841" class="label-mono" fill="#2563eb">JumpCloud (MDM)</text>
 
-<!-- Okta -->
-<rect x="352" y="1700" width="12" height="12" rx="2" fill="#fffbeb" stroke="#d97706" stroke-width="1.3"/>
-<text x="370" y="1711" class="label-mono" fill="#d97706">Okta (IDP)</text>
+<rect x="352" y="1830" width="12" height="12" rx="2" fill="#fffbeb" stroke="#d97706" stroke-width="1.3"/>
+<text x="370" y="1841" class="label-mono" fill="#d97706">Okta (IDP)</text>
 
-<!-- AI -->
-<rect x="466" y="1700" width="12" height="12" rx="2" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.3"/>
-<text x="484" y="1711" class="label-mono" fill="#7c3aed">AI Matcher (OpenAI)</text>
+<rect x="466" y="1830" width="12" height="12" rx="2" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.3"/>
+<text x="484" y="1841" class="label-mono" fill="#7c3aed">AI Matcher</text>
 
-<!-- Diamond -->
-<polygon points="628,1706 638,1712 628,1718 618,1712" fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.6"/>
-<text x="646" y="1717" class="label-mono">decision</text>
+<rect x="580" y="1830" width="12" height="12" rx="2" fill="#ecfdf5" stroke="#059669" stroke-width="1.3"/>
+<text x="598" y="1841" class="label-mono" fill="#059669">Persistence / Region</text>
 
-<!-- Rect -->
-<rect x="718" y="1700" width="14" height="14" rx="2" fill="white" stroke="#059669" stroke-width="1.3"/>
-<text x="738" y="1712" class="label-mono" fill="#059669">persistence</text>
+<polygon points="728,1836 738,1842 728,1848 718,1842" fill="white" stroke="#0f0f0f" stroke-width="1.2" stroke-opacity="0.6"/>
+<text x="746" y="1847" class="label-mono">decision</text>
 
-<!-- Row 2 -->
-<text x="52" y="1732" class="label-mono" fill="#0f0f0f" opacity="0.4">Dashed zones = logical groupings (parallel / serial). Converging lines = fan-in / merge. Bypass lines = conditional skip.</text>
+<text x="52" y="1862" class="label-mono" fill="#0f0f0f" opacity="0.4">Dashed zones = logical groupings (parallel / serial). Converging lines = fan-in / merge. Bypass lines = conditional skip.</text>
 
 </svg>
 </div>

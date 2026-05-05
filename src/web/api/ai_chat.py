@@ -50,6 +50,7 @@ CANNED_REFUSAL = "Solo puedo ayudar con preguntas sobre Klar Device Normalizer."
 _DOMAIN_KEYWORDS = {
     # Core nouns
     "device", "devices", "dispositivo", "dispositivos", "equipo", "equipos",
+    "maquina", "maquinas", "máquina", "máquinas",
     "laptop", "macbook", "windows", "linux", "iphone", "android",
     "fleet", "parque", "inventory", "inventario",
     # Sources
@@ -60,10 +61,16 @@ _DOMAIN_KEYWORDS = {
     # Concepts the dashboard surfaces
     "owner", "compliance", "cobertura", "coverage",
     "policy", "policies", "mfa", "filevault", "bitlocker",
-    "sync", "snapshot", "trend", "deploy", "deprovision",
+    "sync", "snapshot", "trend", "deploy", "desplegar", "deployar",
+    "deprovision", "deprovisionado",
     "region", "mexico", "americas", "europe", "row",
     "risk", "quick win", "insight", "report",
     "serial", "hostname",
+    # Meta — questions ABOUT the assistant's capabilities
+    "ayuda", "ayudar", "ayudas", "ayudame", "ayúdame",
+    "podés", "podes", "puedes",
+    "qué hacés", "que haces", "qué sabés", "que sabes",
+    "what can you", "help me", "capabilities",
 }
 
 # Phrases we explicitly refuse, even if domain keywords sneak in.
@@ -82,15 +89,47 @@ _OFF_TOPIC_RED_FLAGS = re.compile(
 _RATE_LIMIT: dict[str, deque[float]] = defaultdict(deque)
 
 
-def _is_in_scope(message: str) -> bool:
-    """Cheap pre-filter: must contain at least one domain keyword AND
-    not match any off-topic red flag."""
+def _is_in_scope(message: str, prior_messages: list[Any] | None = None) -> bool:
+    """Cheap pre-filter for whether to call OpenAI.
+
+    Rules (in order):
+    1. Empty / whitespace → False.
+    2. Red-flag pattern (cooking, prompt injection, "write me a script",
+       etc.) → False, regardless of any context.
+    3. Has a domain keyword in this message → True.
+    4. No domain keyword in this message, BUT there is at least one
+       prior user message in the same conversation that itself was
+       in-scope → True. This handles natural follow-ups like
+       "give me the top 10" after "which devices have NO_EDR?", which
+       on its own contains no domain keyword.
+    5. Otherwise → False.
+
+    `prior_messages` is the list of messages BEFORE the latest one,
+    in OpenAI shape: items have a `.role` attribute or "role" key and
+    a `.content` / "content" string.
+    """
     if not message or not message.strip():
         return False
     if _OFF_TOPIC_RED_FLAGS.search(message):
         return False
     lowered = message.lower()
-    return any(kw in lowered for kw in _DOMAIN_KEYWORDS)
+    if any(kw in lowered for kw in _DOMAIN_KEYWORDS):
+        return True
+
+    # Follow-up heuristic: any earlier user turn that was itself in-scope
+    # earns the conversation a pass for this turn (still subject to red flags).
+    for prev in prior_messages or []:
+        role = getattr(prev, "role", None) or (prev.get("role") if isinstance(prev, dict) else None)
+        if role != "user":
+            continue
+        content = getattr(prev, "content", None) or (prev.get("content") if isinstance(prev, dict) else "")
+        prev_lower = (content or "").lower()
+        if _OFF_TOPIC_RED_FLAGS.search(prev_lower):
+            continue
+        if any(kw in prev_lower for kw in _DOMAIN_KEYWORDS):
+            return True
+
+    return False
 
 
 def _check_rate_limit(user: str) -> bool:
@@ -186,8 +225,10 @@ async def api_ai_chat(
 
     last_user_msg = body.messages[-1].content.strip()
 
-    # Pre-filter: cheap reject without burning OpenAI tokens.
-    if not _is_in_scope(last_user_msg):
+    # Pre-filter: cheap reject without burning OpenAI tokens. We pass the
+    # earlier turns so a natural follow-up after an in-scope turn doesn't
+    # get refused for not repeating the keyword.
+    if not _is_in_scope(last_user_msg, prior_messages=body.messages[:-1]):
         logger.info("ai_chat_refused_offtopic", user=user, length=len(last_user_msg))
         return JSONResponse(content={
             "reply": CANNED_REFUSAL,

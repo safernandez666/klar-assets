@@ -163,11 +163,23 @@ class JumpCloudCollector(BaseCollector):
                     user_emails.append(email)
 
             last_user = user_emails[0] if user_emails else None
-            # JumpCloud may return systemTimezone as an int (UTC offset in minutes,
-            # e.g. -300 for UTC-5) instead of an IANA name. Only accept strings;
-            # CrowdStrike's IANA timezone takes precedence in the deduplicator anyway.
-            raw_tz = sys.get("systemTimezone") or sys.get("timezone")
-            timezone_str = raw_tz.strip() if isinstance(raw_tz, str) and raw_tz.strip() else None
+            # JumpCloud `systemTimezone` is almost always an int (the format
+            # depends on agent version: newer agents return HHMM like -600 for
+            # UTC-6:00 or 530 for UTC+5:30; older ones return plain hours
+            # like -6, 2). Normalize to a string so the RawDevice stays
+            # str | None typed end-to-end. region_from_timezone() handles
+            # both numeric strings and IANA strings.
+            raw_tz = sys.get("systemTimezone")
+            if raw_tz is None:
+                raw_tz = sys.get("timezone")
+            if raw_tz is None:
+                timezone_str: str | None = None
+            elif isinstance(raw_tz, str):
+                timezone_str = raw_tz.strip() or None
+            elif isinstance(raw_tz, (int, float)):
+                timezone_str = str(int(raw_tz))
+            else:
+                timezone_str = None
 
             results.append(
                 RawDevice(

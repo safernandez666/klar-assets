@@ -5,9 +5,9 @@ metadata:
   namespace: klar-assets
 spec:
   gateways:
-  - istio-system/public-gateway
+  - istio-system/internal-tooling-gateway
   hosts:
-  - klar-assets.security.neutral.klar.technology
+  - klar-assets.tooling.neutral.klar.internal.io
   http:
   - route:
     - destination:

@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS devices (
     last_seen TEXT NOT NULL,
     deleted_at TEXT,
     timezone TEXT,
-    region TEXT
+    region TEXT,
+    source_last_seen TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS sync_runs (
@@ -102,6 +103,10 @@ def init_db(db_path: str) -> None:
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA_SQL)
     # Migrations for older DBs created before these columns existed.
-    _ensure_columns(conn, "devices", {"timezone": "TEXT", "region": "TEXT"})
+    _ensure_columns(conn, "devices", {
+        "timezone": "TEXT",
+        "region": "TEXT",
+        "source_last_seen": "TEXT NOT NULL DEFAULT '{}'",
+    })
     conn.commit()
     conn.close()

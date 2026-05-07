@@ -374,6 +374,16 @@ class Deduplicator:
                     primary.last_seen = secondary.last_seen
                 if secondary.first_seen and (not primary.first_seen or secondary.first_seen < primary.first_seen):
                     primary.first_seen = secondary.first_seen
+                # Per-source last_seen — keep the most recent entry per source
+                # across both records. Without this, a post-merged device
+                # would lose the secondary's source-level freshness signal
+                # and CTL-009 could miss a dormant agent.
+                for src, ts in (secondary.source_last_seen or {}).items():
+                    prev = primary.source_last_seen.get(src) if primary.source_last_seen else None
+                    if not prev or ts > prev:
+                        if primary.source_last_seen is None:
+                            primary.source_last_seen = {}
+                        primary.source_last_seen[src] = ts
                 merged_indices.add(secondary_idx)
 
             # Update confidence based on merged sources
@@ -404,6 +414,9 @@ class Deduplicator:
         macs: list[str] = []
         sources: list[str] = []
         source_ids: dict[str, str] = {}
+        # Track each source's most recent last_seen so we can spot dormant
+        # agents even when other sources are reporting fine (CTL-009).
+        source_last_seen: dict[str, datetime] = {}
         os_type = ""
         first_seen: datetime | None = None
         last_seen: datetime | None = None
@@ -443,6 +456,12 @@ class Deduplicator:
                     first_seen = d.last_seen
                 if last_seen is None or d.last_seen > last_seen:
                     last_seen = d.last_seen
+                # Per-source max — within a group, multiple raw devices from
+                # the same source can show up (rare, but possible during
+                # cross-source merges). Always keep the most recent.
+                prev = source_last_seen.get(d.source)
+                if prev is None or d.last_seen > prev:
+                    source_last_seen[d.source] = d.last_seen
 
             # Owner extraction
             if d.source == "okta":
@@ -522,6 +541,7 @@ class Deduplicator:
             os_type=os_type or None,
             sources=sources,
             source_ids=source_ids,
+            source_last_seen={s: dt.isoformat() for s, dt in source_last_seen.items()},
             status="UNKNOWN",
             confidence_score=confidence,
             match_reason=match_reason,

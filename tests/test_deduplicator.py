@@ -417,3 +417,58 @@ class TestDeduplicator:
         # Only the desktop device should remain
         assert len(result) == 1
         assert "crowdstrike" in result[0].sources
+
+
+# ── source_last_seen — per-source freshness tracking (CTL-009 input) ──
+
+class TestSourceLastSeen:
+    """The deduplicator must surface per-source ``last_seen`` so downstream
+    controls can spot a single dormant agent on an otherwise-healthy device."""
+
+    def test_populates_one_entry_per_source(self) -> None:
+        old = datetime(2026, 4, 9, 3, 0, 0, tzinfo=timezone.utc)   # CS dead since
+        recent = datetime(2026, 5, 7, 15, 0, 0, tzinfo=timezone.utc)  # JC fresh
+
+        cs = RawDevice(device_id="aid", hostname="LAPTOP", serial_number="SN1",
+                       last_seen=old, source="crowdstrike", source_device_id="aid",
+                       raw_data={})
+        jc = RawDevice(device_id="jc", hostname="LAPTOP", serial_number="SN1",
+                       last_seen=recent, source="jumpcloud", source_device_id="jc",
+                       raw_data={})
+
+        out = Deduplicator().deduplicate([cs, jc])
+        assert len(out) == 1
+        sls = out[0].source_last_seen
+        assert "crowdstrike" in sls and "jumpcloud" in sls
+        # Must keep the original timestamps, not collapse to merged max.
+        assert sls["crowdstrike"] == old.isoformat()
+        assert sls["jumpcloud"] == recent.isoformat()
+
+    def test_merged_last_seen_takes_max_but_per_source_preserved(self) -> None:
+        """The merged ``last_seen`` is the max (existing behavior); the
+        per-source dict is the new signal for finding dormant agents."""
+        old = datetime(2026, 4, 9, tzinfo=timezone.utc)
+        recent = datetime(2026, 5, 7, tzinfo=timezone.utc)
+        cs = RawDevice(serial_number="SN1", last_seen=old, source="crowdstrike",
+                       source_device_id="aid", raw_data={})
+        jc = RawDevice(serial_number="SN1", last_seen=recent, source="jumpcloud",
+                       source_device_id="jc", raw_data={})
+
+        d = Deduplicator().deduplicate([cs, jc])[0]
+        # Merged last_seen = max → recent (this is what hides dormant agents)
+        assert d.last_seen == recent
+        # Per-source preserves both → CTL-009 can spot CS as dormant
+        assert d.source_last_seen["crowdstrike"] == old.isoformat()
+
+    def test_keeps_most_recent_when_same_source_appears_twice(self) -> None:
+        """Edge case: cross-source merging can land two records from the
+        same source in one group. We must keep the most recent timestamp."""
+        old = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        new = datetime(2026, 5, 1, tzinfo=timezone.utc)
+        a = RawDevice(serial_number="SN1", last_seen=old, source="crowdstrike",
+                      source_device_id="aid-1", raw_data={})
+        b = RawDevice(serial_number="SN1", last_seen=new, source="crowdstrike",
+                      source_device_id="aid-2", raw_data={})
+
+        d = Deduplicator().deduplicate([a, b])[0]
+        assert d.source_last_seen["crowdstrike"] == new.isoformat()

@@ -31,6 +31,16 @@ class NormalizedDevice(BaseModel):
     os_type: str | None = None
     sources: list[str] = Field(default_factory=list)
     source_ids: dict[str, str] = Field(default_factory=dict)
+    # Per-source last-seen, keyed by source name ("crowdstrike" / "jumpcloud" /
+    # "okta"), stored as ISO-8601 strings for JSON-friendly persistence.
+    # Populated by the deduplicator from each merged RawDevice's last_seen.
+    # Letting the merged ``last_seen`` be the max-across-sources hides the
+    # case where one agent is healthy and another is dormant — this dict
+    # preserves that signal for compliance controls (CTL-009) and Slack
+    # alerts. Older device rows that predate the migration may have empty
+    # dicts; that's fine, the controls code treats missing entries as
+    # "never seen by that source".
+    source_last_seen: dict[str, str] = Field(default_factory=dict)
     status: str = "UNKNOWN"
     confidence_score: float = 0.0
     match_reason: str = ""

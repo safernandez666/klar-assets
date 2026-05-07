@@ -14,20 +14,14 @@ function Write-LogInfo  { param([string]$m) Write-Host "[INFO]  $m" }
 function Write-LogWarn  { param([string]$m) Write-Warning "[WARN]  $m" }
 function Write-LogError { param([string]$m) Write-Error "[ERROR] $m"; exit 1 }
 
-# ---------------------------------------------------------------------------
-# Force JumpCloud agent restart. Always called — even on the idempotent path
-# where the rename is a no-op — so that JC's `hostname` field reconciles
-# in case it lagged behind a previous run.
-# ---------------------------------------------------------------------------
-function Restart-JCAgent {
-    Write-LogInfo "Restarting JumpCloud agent so the console picks up the new hostname."
-    try {
-        Restart-Service -Name 'JumpCloud-agent' -Force -ErrorAction Stop
-        Write-LogInfo "JC agent restarted. Console hostname should refresh on next inventory."
-    } catch {
-        Write-LogWarn "Could not restart JumpCloud-agent service: $($_.Exception.Message)"
-    }
-}
+# NOTE: We deliberately do NOT call Restart-Service -Name 'JumpCloud-agent'
+# here. The rename script runs *inside* the JumpCloud agent's process tree,
+# so restarting it before the script exits kills our own stdout/stderr and
+# JC never receives a commandresult — the run looks like it never happened
+# (no exit code, no output). On Windows the rename is pending until reboot
+# anyway, so kicking the agent doesn't buy us anything; the next inventory
+# cycle (or the post-reboot connect) will pick up the new hostname on its
+# own.
 
 # ---------------------------------------------------------------------------
 # Country mapping from Windows TimeZone
@@ -106,7 +100,6 @@ $currentName = $env:COMPUTERNAME
 # Idempotency
 if ($currentName -eq $newName) {
     Write-LogInfo "Computer name already correct: $newName"
-    Restart-JCAgent  # still nudge JC so displayName/hostname reconcile
     exit 0
 }
 
@@ -121,8 +114,6 @@ Rename-Computer -NewName $newName -Force -ErrorAction Stop
 
 Write-LogInfo "Rename command executed successfully."
 Write-LogInfo "Please schedule or perform a reboot when convenient."
-
-Restart-JCAgent
-
 Write-LogInfo "NOTE: JC 'displayName' is set at enrollment and is sticky."
 Write-LogInfo "      klar_assets reconciles it automatically on the next sync cycle."
+Write-LogInfo "NOTE: Hostname won't be visible in JC until after the reboot."

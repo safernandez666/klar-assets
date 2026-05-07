@@ -1,23 +1,30 @@
-"""Tests for the on-demand JumpCloud reconcile-displaynames endpoint.
+"""Tests for the on-demand JumpCloud refresh endpoint.
 
 The endpoint:
-- Returns 503 if ``JC_API_KEY`` is unset (no fallback behavior).
-- Walks the persisted device list (no source re-collect).
-- Picks JC-sourced devices whose hostname starts with ``KLR-``.
-- Calls live JC ``GET /systems/{id}`` for each candidate.
-- Hands the result + devices to ``reconcile_displaynames``.
-- Returns the same summary the in-sync reconciler returns.
+- Returns 503 if ``JC_API_KEY`` is unset.
+- Returns 502 if the JumpCloud collector fails.
+- Otherwise:
+  1. Re-collects from JC only.
+  2. Patches each existing DB row whose serial matches a fresh JC RawDevice
+     (prepends the new hostname, refreshes ``source_ids[jumpcloud]`` and
+     ``last_seen``).
+  3. Hands the updated device list + fresh JC raw_data displaynames to
+     ``reconcile_displaynames``.
+  4. Refreshes the in-memory cache.
+- Returns a summary that surfaces both phases (jc_collected,
+  devices_refreshed, new_hostnames) on top of the reconciler counts.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.models import NormalizedDevice
+from src.collectors.base import CollectResult
+from src.models import NormalizedDevice, RawDevice
 from src.storage.repository import DeviceRepository
 from src.web.api.jumpcloud import router as jumpcloud_router
 
@@ -46,25 +53,39 @@ def _device(
     )
 
 
+def _raw_jc(
+    serial: str,
+    hostname: str,
+    sid: str,
+    *,
+    display_name: str | None = None,
+) -> RawDevice:
+    return RawDevice(
+        device_id=sid,
+        hostname=hostname,
+        serial_number=serial,
+        source="jumpcloud",
+        source_device_id=sid,
+        last_seen=NOW,
+        raw_data={"displayName": display_name or hostname},
+    )
+
+
 @pytest.fixture
 def app_with_repo(tmp_path):
-    """FastAPI app with the jumpcloud router and a fresh repo dependency."""
+    """FastAPI app + a fresh DeviceRepository with seeded fixture rows."""
     repo = DeviceRepository(str(tmp_path / "test.db"))
     repo.upsert_devices([
-        _device("a", ["KLR-MXM-DG27"], ["jumpcloud"], jc_id="jc1", serial="DG27"),
-        _device("b", ["KLR-ARM-X4FV"], ["jumpcloud"], jc_id="jc2", serial="X4FV"),
-        _device("c", ["legacy.local"], ["jumpcloud"], jc_id="jc3", serial="OLD1"),  # not KLR-*
-        _device("d", ["KLR-MXM-NOID"], ["jumpcloud"], jc_id=None),                  # no jc_id
-        _device("e", ["KLR-MXM-NOSRC"], ["crowdstrike"]),                           # not jumpcloud
+        _device("a", ["old-jc-name.local"], ["jumpcloud"], jc_id="jc1", serial="DG27"),
+        _device("b", ["KLR-ARM-X4FV"],     ["jumpcloud"], jc_id="jc2", serial="X4FV"),
+        _device("c", ["legacy.local"],     ["crowdstrike"], serial="ONLY-CS"),
     ])
 
     app = FastAPI()
     app.include_router(jumpcloud_router)
-    app.dependency_overrides = {}
 
     from src.web.dependencies import get_repo
     app.dependency_overrides[get_repo] = lambda: repo
-
     return app, repo
 
 
@@ -80,78 +101,175 @@ class TestNoApiKey:
         body = r.json()
         assert "JC_API_KEY not configured" in body["error"]
         assert body["scanned"] == 0
+        assert body["jc_collected"] == 0
+
+
+# ── 502 when JC collector fails ───────────────────────────────────────
+
+class TestCollectorFailure:
+    def test_returns_502_when_jc_collect_fails(self, app_with_repo, monkeypatch) -> None:
+        app, _ = app_with_repo
+        monkeypatch.setenv("JC_API_KEY", "fake-key")
+
+        # Build a CollectResult tolerant of both shapes (with/without `error`).
+        try:
+            bad_result = CollectResult(devices=[], success=False, error="rate_limited")
+            expect_detail = "rate_limited"
+        except TypeError:
+            bad_result = CollectResult(devices=[], success=False)
+            expect_detail = "unknown"
+
+        with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector:
+            instance = MockCollector.return_value
+            instance.safe_collect.return_value = bad_result
+            with TestClient(app) as client:
+                r = client.post("/api/jumpcloud/reconcile-displaynames")
+
+        assert r.status_code == 502
+        body = r.json()
+        assert "JumpCloud collection failed" in body["error"]
+        assert expect_detail in body["error"]
 
 
 # ── happy path ────────────────────────────────────────────────────────
 
-class TestReconcileEndpoint:
-    def test_only_klr_jc_devices_are_candidates(self, app_with_repo, monkeypatch) -> None:
-        app, _ = app_with_repo
+class TestRefreshEndpoint:
+    def test_merges_fresh_hostnames_into_existing_rows(self, app_with_repo, monkeypatch) -> None:
+        app, repo = app_with_repo
         monkeypatch.setenv("JC_API_KEY", "fake-key")
 
-        captured_ids: list[str] = []
+        fresh = [
+            _raw_jc("DG27", "KLR-MXM-DG27", "jc1", display_name="KLR-MXM-DG27"),
+            _raw_jc("X4FV", "KLR-ARM-X4FV", "jc2", display_name="KLR-ARM-X4FV"),
+        ]
+        good_result = CollectResult(devices=fresh, success=True)
 
-        def fake_fetch(system_ids, *, api_key):
-            captured_ids.extend(system_ids)
-            return {sid: "stale-name" for sid in system_ids}
+        # Mock cache.refresh to a no-op (cache is fragile in tests).
+        with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector, \
+             patch("src.web.api.jumpcloud.get_cache") as MockCache:
+            MockCollector.return_value.safe_collect.return_value = good_result
+            MockCache.return_value.refresh = MagicMock()
 
-        with patch("src.web.api.jumpcloud.fetch_jc_displaynames_live", side_effect=fake_fetch), \
-             patch("src.web.api.jumpcloud.reconcile_displaynames",
-                   return_value={"scanned": 5, "drifted": 2, "updated": 2,
-                                 "failed": 0, "capped": 0, "dry_run": False}):
             with TestClient(app) as client:
                 r = client.post("/api/jumpcloud/reconcile-displaynames")
 
         assert r.status_code == 200
-        # Only jc1 and jc2 qualify: KLR-* hostname AND jumpcloud source AND jc_id present.
-        # jc3 has non-KLR hostname; "d" has no jc_id; "e" has no jumpcloud source.
-        assert sorted(captured_ids) == ["jc1", "jc2"]
+        body = r.json()
+        assert body["jc_collected"] == 2
+        assert body["devices_refreshed"] == 2
 
-    def test_returns_reconciler_summary_with_candidates(self, app_with_repo, monkeypatch) -> None:
-        app, _ = app_with_repo
+        # DG27's row had old-jc-name.local; the fresh KLR-MXM-DG27 should now be
+        # at hostnames[0] with the old name still present as secondary.
+        rows = repo.get_all_devices()
+        dg27 = [r for r in rows if r.get("serial_number") == "DG27"][0]
+        assert dg27["hostnames"][0] == "KLR-MXM-DG27"
+        assert "old-jc-name.local" in dg27["hostnames"]
+
+        # X4FV already had KLR-ARM-X4FV — no new hostname added, just dedupe.
+        x4fv = [r for r in rows if r.get("serial_number") == "X4FV"][0]
+        assert x4fv["hostnames"] == ["KLR-ARM-X4FV"]
+
+    def test_skips_devices_not_in_fresh_collection(self, app_with_repo, monkeypatch) -> None:
+        """If JC's collect doesn't return a serial we have in DB, that row
+        is left alone (no spurious updates, no errors)."""
+        app, repo = app_with_repo
         monkeypatch.setenv("JC_API_KEY", "fake-key")
 
-        with patch("src.web.api.jumpcloud.fetch_jc_displaynames_live",
-                   return_value={"jc1": "old", "jc2": "KLR-ARM-X4FV"}), \
-             patch("src.web.api.jumpcloud.reconcile_displaynames",
-                   return_value={"scanned": 5, "drifted": 1, "updated": 1,
-                                 "failed": 0, "capped": 0, "dry_run": False}):
+        # Only return DG27 — X4FV and ONLY-CS are not in fresh collection
+        fresh = [_raw_jc("DG27", "KLR-MXM-DG27", "jc1")]
+        good_result = CollectResult(devices=fresh, success=True)
+
+        with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector, \
+             patch("src.web.api.jumpcloud.get_cache") as MockCache:
+            MockCollector.return_value.safe_collect.return_value = good_result
+            MockCache.return_value.refresh = MagicMock()
             with TestClient(app) as client:
                 r = client.post("/api/jumpcloud/reconcile-displaynames")
 
         body = r.json()
-        assert body["scanned"] == 5
+        assert body["devices_refreshed"] == 1  # only DG27
+
+        rows = repo.get_all_devices()
+        x4fv = [r for r in rows if r.get("serial_number") == "X4FV"][0]
+        # Untouched
+        assert x4fv["hostnames"] == ["KLR-ARM-X4FV"]
+        cs_only = [r for r in rows if r.get("serial_number") == "ONLY-CS"][0]
+        assert cs_only["hostnames"] == ["legacy.local"]
+
+    def test_summary_includes_phase_counters_and_reconcile_summary(
+        self, app_with_repo, monkeypatch
+    ) -> None:
+        """Response is a single dict that combines the JC-collect phase and
+        the reconciler phase, so the UI can compose one toast."""
+        app, _ = app_with_repo
+        monkeypatch.setenv("JC_API_KEY", "fake-key")
+
+        fresh = [_raw_jc("DG27", "KLR-MXM-DG27", "jc1")]
+
+        with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector, \
+             patch("src.web.api.jumpcloud.reconcile_displaynames",
+                   return_value={"scanned": 3, "drifted": 1, "updated": 1,
+                                 "failed": 0, "capped": 0, "dry_run": False}), \
+             patch("src.web.api.jumpcloud.get_cache") as MockCache:
+            MockCollector.return_value.safe_collect.return_value = CollectResult(
+                devices=fresh, success=True)
+            MockCache.return_value.refresh = MagicMock()
+            with TestClient(app) as client:
+                r = client.post("/api/jumpcloud/reconcile-displaynames")
+
+        body = r.json()
+        assert body["jc_collected"] == 1
+        assert body["devices_refreshed"] == 1
+        assert body["new_hostnames"] == 1   # DG27 had old-jc-name.local
+        assert body["scanned"] == 3
         assert body["drifted"] == 1
         assert body["updated"] == 1
-        assert body["candidates"] == 2  # endpoint adds this field
+        assert "candidates" in body
 
-    def test_no_klr_devices_short_circuits_cleanly(self, tmp_path, monkeypatch) -> None:
-        """An empty fleet (or no KLR-* devices) returns a no-op summary
-        without error."""
-        repo = DeviceRepository(str(tmp_path / "empty.db"))
-        repo.upsert_devices([
-            _device("z", ["legacy.local"], ["jumpcloud"], jc_id="jc-only"),
-        ])
-
-        app = FastAPI()
-        app.include_router(jumpcloud_router)
-        from src.web.dependencies import get_repo
-        app.dependency_overrides[get_repo] = lambda: repo
-
+    def test_cache_refresh_failure_does_not_break_response(
+        self, app_with_repo, monkeypatch
+    ) -> None:
+        """If cache.refresh() raises, the response still succeeds — the
+        actual reconciliation already happened."""
+        app, _ = app_with_repo
         monkeypatch.setenv("JC_API_KEY", "fake-key")
 
-        with patch("src.web.api.jumpcloud.fetch_jc_displaynames_live",
-                   return_value={}) as fetch_mock, \
-             patch("src.web.api.jumpcloud.reconcile_displaynames",
-                   return_value={"scanned": 1, "drifted": 0, "updated": 0,
-                                 "failed": 0, "capped": 0, "dry_run": False}):
+        with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector, \
+             patch("src.web.api.jumpcloud.get_cache") as MockCache:
+            MockCollector.return_value.safe_collect.return_value = CollectResult(
+                devices=[], success=True)
+            MockCache.return_value.refresh.side_effect = RuntimeError("cache boom")
             with TestClient(app) as client:
                 r = client.post("/api/jumpcloud/reconcile-displaynames")
 
         assert r.status_code == 200
-        # No KLR-* candidates → fetch should be called with empty list
-        fetch_mock.assert_called_once()
-        called_with = list(fetch_mock.call_args[0][0])
-        assert called_with == []
-        body = r.json()
-        assert body["candidates"] == 0
+
+
+# ── repo.update_device_jc_view ────────────────────────────────────────
+
+class TestRepoUpdate:
+    def test_update_device_jc_view_persists_new_hostnames(self, tmp_path) -> None:
+        repo = DeviceRepository(str(tmp_path / "test.db"))
+        repo.upsert_devices([
+            _device("d1", ["old.local"], ["jumpcloud"], jc_id="jc-old", serial="S1"),
+        ])
+        ok = repo.update_device_jc_view(
+            "d1",
+            hostnames=["KLR-XXX-NEW", "old.local"],
+            source_ids={"jumpcloud": "jc-new"},
+            last_seen=NOW,
+        )
+        assert ok is True
+        rows = repo.get_all_devices()
+        assert isinstance(rows, list)
+        assert rows[0]["hostnames"] == ["KLR-XXX-NEW", "old.local"]
+        assert rows[0]["source_ids"]["jumpcloud"] == "jc-new"
+
+    def test_update_device_jc_view_returns_false_for_unknown_id(self, tmp_path) -> None:
+        repo = DeviceRepository(str(tmp_path / "test.db"))
+        ok = repo.update_device_jc_view(
+            "does-not-exist",
+            hostnames=["x"],
+            source_ids={},
+        )
+        assert ok is False

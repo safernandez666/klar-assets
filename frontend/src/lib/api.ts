@@ -66,4 +66,17 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
     }),
+
+  reconcileJcDisplayNames: () =>
+    fetchJson<{
+      scanned: number;
+      drifted: number;
+      updated: number;
+      failed: number;
+      capped: number;
+      candidates?: number;
+      dry_run: boolean;
+      error?: string;
+      reason?: string;
+    }>("/api/jumpcloud/reconcile-displaynames", { method: "POST" }),
 };

@@ -174,3 +174,37 @@ def jc_displaynames_from_raw(raw_devices: Iterable) -> dict[str, str]:
         raw = getattr(r, "raw_data", {}) or {}
         out[sid] = (raw.get("displayName") or "").strip()
     return out
+
+
+def fetch_jc_displaynames_live(
+    system_ids: Iterable[str],
+    *,
+    api_key: str,
+) -> dict[str, str]:
+    """Fetch current ``displayName`` for each JC system_id via the live API.
+
+    Use this when the caller doesn't have a fresh ``RawDevice`` collection
+    available (e.g., the on-demand reconciliation endpoint that runs outside
+    of ``SyncEngine.run``). Best-effort: a failed GET is logged and the
+    system_id is omitted from the result, which causes ``find_drift`` to
+    treat that device as drifted (current=``""``) — safe default since it
+    forces the next call to re-resolve.
+    """
+    out: dict[str, str] = {}
+    if not api_key:
+        return out
+    session = requests.Session()
+    session.headers.update({
+        "x-api-key": api_key,
+        "Accept": "application/json",
+    })
+    for sid in system_ids:
+        if not sid:
+            continue
+        try:
+            r = session.get(f"{JC_API}/systems/{sid}", timeout=15)
+            r.raise_for_status()
+            out[sid] = (r.json().get("displayName") or "").strip()
+        except requests.RequestException as exc:
+            logger.warning("jc_fetch_displayname_failed", jc_id=sid, error=str(exc))
+    return out

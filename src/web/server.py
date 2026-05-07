@@ -21,6 +21,7 @@ from src.web.api.dual_use import router as dual_use_router
 from src.web.api.export import router as export_router
 from src.web.api.gaps import router as gaps_router
 from src.web.api.insights import router as insights_router
+from src.web.api.jumpcloud import router as jumpcloud_router
 from src.web.api.people import router as people_router
 from src.web.api.settings import router as settings_router
 from src.web.api.slack import router as slack_router
@@ -99,6 +100,7 @@ app.include_router(dual_use_router)
 app.include_router(insights_router)
 app.include_router(slack_router)
 app.include_router(controls_router)
+app.include_router(jumpcloud_router)
 
 
 # ── SPA Catch-all (must be last) ─────────────────────────────────────────────

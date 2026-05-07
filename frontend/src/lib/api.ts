@@ -56,4 +56,17 @@ export const api = {
   getFullReport: () => fetchJson<any>("/api/report/full"),
 
   getControls: () => fetchJson<any>("/api/controls"),
+
+  reconcileJcDisplayNames: () =>
+    fetchJson<{
+      scanned: number;
+      drifted: number;
+      updated: number;
+      failed: number;
+      capped: number;
+      candidates?: number;
+      dry_run: boolean;
+      error?: string;
+      reason?: string;
+    }>("/api/jumpcloud/reconcile-displaynames", { method: "POST" }),
 };

@@ -19,6 +19,7 @@ import pytest
 import requests
 
 from src.jumpcloud_reconciler import (
+    fetch_jc_displaynames_live,
     find_drift,
     jc_displaynames_from_raw,
     reconcile_displaynames,
@@ -207,3 +208,68 @@ class TestJCDisplaynamesFromRaw:
         ]
         out = jc_displaynames_from_raw(raws)
         assert out == {"jc1": "", "jc2": ""}
+
+
+# ── fetch_jc_displaynames_live ────────────────────────────────────────
+
+class TestFetchJCDisplaynamesLive:
+    def test_returns_empty_when_no_api_key(self) -> None:
+        out = fetch_jc_displaynames_live(["jc1", "jc2"], api_key="")
+        assert out == {}
+
+    def test_returns_empty_for_empty_input(self) -> None:
+        out = fetch_jc_displaynames_live([], api_key="fake")
+        assert out == {}
+
+    def test_skips_blank_system_ids(self) -> None:
+        mock_session = MagicMock()
+        with patch("src.jumpcloud_reconciler.requests.Session", return_value=mock_session):
+            fetch_jc_displaynames_live(["", None, "jc1"], api_key="fake")  # type: ignore[list-item]
+        # Only jc1 should hit the network
+        assert mock_session.get.call_count == 1
+        args, _ = mock_session.get.call_args
+        assert args[0].endswith("/systems/jc1")
+
+    def test_collects_displaynames_from_responses(self) -> None:
+        mock_session = MagicMock()
+        responses = {
+            "jc1": MagicMock(),
+            "jc2": MagicMock(),
+        }
+        responses["jc1"].json.return_value = {"displayName": "Macbook A"}
+        responses["jc2"].json.return_value = {"displayName": "Macbook B"}
+        for r in responses.values():
+            r.raise_for_status.return_value = None
+
+        def by_url(url, *_, **__):
+            sid = url.rsplit("/", 1)[-1]
+            return responses[sid]
+
+        mock_session.get.side_effect = by_url
+        with patch("src.jumpcloud_reconciler.requests.Session", return_value=mock_session):
+            out = fetch_jc_displaynames_live(["jc1", "jc2"], api_key="fake")
+        assert out == {"jc1": "Macbook A", "jc2": "Macbook B"}
+
+    def test_omits_failed_lookups(self) -> None:
+        mock_session = MagicMock()
+        ok = MagicMock()
+        ok.raise_for_status.return_value = None
+        ok.json.return_value = {"displayName": "Macbook OK"}
+        mock_session.get.side_effect = [
+            ok,
+            requests.HTTPError("500 boom"),
+        ]
+        with patch("src.jumpcloud_reconciler.requests.Session", return_value=mock_session):
+            out = fetch_jc_displaynames_live(["jc-ok", "jc-fail"], api_key="fake")
+        # The failed one is omitted; find_drift will treat it as drifted (current="").
+        assert out == {"jc-ok": "Macbook OK"}
+
+    def test_strips_whitespace_in_returned_displayname(self) -> None:
+        mock_session = MagicMock()
+        resp = MagicMock()
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = {"displayName": "  KLR-MXM-DG27  "}
+        mock_session.get.return_value = resp
+        with patch("src.jumpcloud_reconciler.requests.Session", return_value=mock_session):
+            out = fetch_jc_displaynames_live(["jc1"], api_key="fake")
+        assert out == {"jc1": "KLR-MXM-DG27"}

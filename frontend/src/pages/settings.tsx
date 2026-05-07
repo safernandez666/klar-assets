@@ -7,12 +7,14 @@ import {
   Clock,
   Server,
   Send,
+  Tag,
 } from "lucide-react";
 import { toast } from "../components/toasts";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { formatDate } from "../lib/utils";
+import { api } from "../lib/api";
 
 interface SourceStatus {
   configured: boolean;
@@ -46,6 +48,7 @@ export default function SettingsPage() {
   const [interval, setInterval_] = useState(6);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -123,6 +126,41 @@ export default function SettingsPage() {
     }
   };
 
+  const handleReconcileDisplayNames = async () => {
+    setReconciling(true);
+    try {
+      const r = await api.reconcileJcDisplayNames();
+      if (r.error) {
+        toast({ type: "error", title: r.error, duration: 5000 });
+      } else if (r.reason === "no_api_key" || r.reason === "disabled") {
+        toast({ type: "error", title: `JC reconcile skipped: ${r.reason}`, duration: 5000 });
+      } else if (r.drifted === 0) {
+        toast({
+          type: "success",
+          title: `All ${r.candidates ?? 0} KLR-* devices already in sync`,
+          duration: 4000,
+        });
+      } else if (r.failed === 0) {
+        toast({
+          type: "success",
+          title: `Reconciled ${r.updated} JC displayName${r.updated === 1 ? "" : "s"}`,
+          duration: 4000,
+        });
+      } else {
+        toast({
+          type: "error",
+          title: `Reconciled ${r.updated}, ${r.failed} failed — check logs`,
+          duration: 6000,
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ type: "error", title: "Reconcile request failed", duration: 5000 });
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   const statusBadge = (status: string) => {
     if (status === "success") return <Badge variant="success">Success</Badge>;
     if (status === "aborted") return <Badge variant="error">Aborted</Badge>;
@@ -182,6 +220,16 @@ export default function SettingsPage() {
                   }}>
                     <Send className="h-4 w-4 mr-1" />
                     Test Slack
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReconcileDisplayNames}
+                    disabled={reconciling}
+                    title="Push canonical KLR-* hostnames into JC console displayNames. Skips full sync — typically 2–5s."
+                  >
+                    <Tag className={`h-4 w-4 mr-1 ${reconciling ? "animate-pulse" : ""}`} />
+                    {reconciling ? "Reconciling..." : "Reconcile JC names"}
                   </Button>
                 </div>
                 {data.syncing && (

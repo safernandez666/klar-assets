@@ -126,36 +126,49 @@ export default function SettingsPage() {
     }
   };
 
-  const handleReconcileDisplayNames = async () => {
+  const handleRefreshJumpCloud = async () => {
     setReconciling(true);
     try {
-      const r = await api.reconcileJcDisplayNames();
+      const r = await api.refreshJumpCloud();
       if (r.error) {
         toast({ type: "error", title: r.error, duration: 5000 });
       } else if (r.reason === "no_api_key" || r.reason === "disabled") {
-        toast({ type: "error", title: `JC reconcile skipped: ${r.reason}`, duration: 5000 });
-      } else if (r.drifted === 0) {
-        toast({
-          type: "success",
-          title: `All ${r.candidates ?? 0} KLR-* devices already in sync`,
-          duration: 4000,
-        });
-      } else if (r.failed === 0) {
-        toast({
-          type: "success",
-          title: `Reconciled ${r.updated} JC displayName${r.updated === 1 ? "" : "s"}`,
-          duration: 4000,
-        });
+        toast({ type: "error", title: `JC refresh skipped: ${r.reason}`, duration: 5000 });
       } else {
-        toast({
-          type: "error",
-          title: `Reconciled ${r.updated}, ${r.failed} failed — check logs`,
-          duration: 6000,
-        });
+        // Compose a single sentence summary across both phases:
+        //   1. JC re-collect → devices_refreshed (rows in DB updated with new hostnames)
+        //   2. Reconciler   → updated (JC displayNames PATCHed)
+        const collected = r.jc_collected ?? 0;
+        const refreshed = r.devices_refreshed ?? 0;
+        const newNames = r.new_hostnames ?? 0;
+        const fixed = r.updated;
+        const failed = r.failed;
+
+        const parts: string[] = [`${collected} JC devices collected`];
+        if (newNames > 0) {
+          parts.push(`${newNames} new hostname${newNames === 1 ? "" : "s"} merged`);
+        } else if (refreshed > 0) {
+          parts.push(`${refreshed} row${refreshed === 1 ? "" : "s"} refreshed`);
+        }
+        if (fixed > 0) {
+          parts.push(`${fixed} displayName${fixed === 1 ? "" : "s"} fixed in JC`);
+        } else {
+          parts.push("displayNames in sync");
+        }
+        const title = parts.join(" · ");
+
+        if (failed > 0) {
+          toast({ type: "error", title: `${title} · ${failed} PATCH failure${failed === 1 ? "" : "s"}`, duration: 6000 });
+        } else {
+          toast({ type: "success", title, duration: 4000 });
+        }
+        // The cache was refreshed server-side; reload local data so the
+        // sync history table and source-status grid reflect the new state.
+        loadData();
       }
     } catch (e) {
       console.error(e);
-      toast({ type: "error", title: "Reconcile request failed", duration: 5000 });
+      toast({ type: "error", title: "Refresh request failed", duration: 5000 });
     } finally {
       setReconciling(false);
     }
@@ -224,12 +237,12 @@ export default function SettingsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleReconcileDisplayNames}
-                    disabled={reconciling}
-                    title="Push canonical KLR-* hostnames into JC console displayNames. Skips full sync — typically 2–5s."
+                    onClick={handleRefreshJumpCloud}
+                    disabled={reconciling || data.syncing}
+                    title="Re-collect from JumpCloud, merge new hostnames into the local DB, and reconcile displayName drift in one shot. Skips CrowdStrike + Okta — typically ~15s."
                   >
                     <Tag className={`h-4 w-4 mr-1 ${reconciling ? "animate-pulse" : ""}`} />
-                    {reconciling ? "Reconciling..." : "Reconcile JC names"}
+                    {reconciling ? "Refreshing JumpCloud..." : "Refresh JumpCloud"}
                   </Button>
                 </div>
                 {data.syncing && (

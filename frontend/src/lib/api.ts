@@ -67,7 +67,7 @@ export const api = {
       body: JSON.stringify({ messages }),
     }),
 
-  reconcileJcDisplayNames: () =>
+  refreshJumpCloud: () =>
     fetchJson<{
       scanned: number;
       drifted: number;
@@ -76,6 +76,9 @@ export const api = {
       capped: number;
       candidates?: number;
       dry_run: boolean;
+      jc_collected?: number;
+      devices_refreshed?: number;
+      new_hostnames?: number;
       error?: string;
       reason?: string;
     }>("/api/jumpcloud/reconcile-displaynames", { method: "POST" }),

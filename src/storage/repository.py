@@ -78,6 +78,42 @@ class DeviceRepository:
                 )
         conn.close()
 
+    def update_device_jc_view(
+        self,
+        canonical_id: str,
+        *,
+        hostnames: list[str],
+        source_ids: dict[str, str],
+        last_seen: datetime | None = None,
+    ) -> bool:
+        """In-place patch of a single device's JC-derived fields.
+
+        Used by the quick JumpCloud refresh path that wants to push a freshly
+        collected hostname into an existing device row without going through
+        the full ``upsert_devices`` snapshot rotation (which would soft-delete
+        every other source's data). Returns True if a row was updated.
+        """
+        conn = self._connect()
+        try:
+            with conn:
+                params: list[Any] = [
+                    self._serialize(hostnames),
+                    self._serialize(source_ids),
+                ]
+                sets = ["hostnames = ?", "source_ids = ?"]
+                if last_seen is not None:
+                    sets.append("last_seen = ?")
+                    params.append(last_seen.isoformat())
+                params.append(canonical_id)
+                cur = conn.execute(
+                    f"UPDATE devices SET {', '.join(sets)} "
+                    "WHERE canonical_id = ? AND deleted_at IS NULL",
+                    params,
+                )
+                return cur.rowcount > 0
+        finally:
+            conn.close()
+
     # Whitelist of sortable columns → SQL expression. Keep keys aligned with
     # the column ids the frontend exposes; reject anything else to avoid
     # injection via the ORDER BY clause.

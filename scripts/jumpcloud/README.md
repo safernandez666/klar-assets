@@ -3,15 +3,15 @@
 Scripts para renombrar endpoints corporativos a la nomenclatura:
 
 ```
-KLR-<COUNTRY><OS>-<LAST4SERIAL>
+KLR-<COUNTRY><OS>-<LAST5SERIAL>
 ```
 
 Ejemplos:
-- `KLR-ARM-A92F`  (Argentina, macOS)
-- `KLR-ARW-A92F`  (Argentina, Windows)
-- `KLR-MXM-71QK`  (México, macOS)
-- `KLR-DEW-8XZ1`  (Alemania, Windows)
-- `KLR-OTM-3F9A`  (Otro país, macOS)
+- `KLR-ARM-XA92F`  (Argentina, macOS)
+- `KLR-ARW-XA92F`  (Argentina, Windows)
+- `KLR-MXM-Q71QK`  (México, macOS)
+- `KLR-DEW-X8XZ1`  (Alemania, Windows)
+- `KLR-OTM-X3F9A`  (Otro país, macOS)
 
 ---
 
@@ -42,7 +42,7 @@ Ejemplos:
 - Antes de aplicar a toda la flota, ejecutar en un **grupo piloto de 5–10 máquinas por OS**.
 - Verificar que:
   - El nombre resultante cumple el formato esperado.
-  - No hay colisiones de nombre (últimos 4 del serial).
+  - No hay colisiones de nombre (últimos 5 del serial).
   - Las máquinas siguen apareciendo en JumpCloud con el nuevo nombre.
 
 ### 4. Reboot
@@ -81,10 +81,12 @@ Ejemplos:
 - El script de Windows rechaza explícitamente esos valores. El script de macOS los dejará pasar si son > 4 caracteres, pero el resultado (`KLR-XXM-O.E.`) será inútil.
 - **Mitigación**: revisar el grupo piloto; los placeholders serán evidentes de inmediato.
 
-### Duplicados por LAST4 del serial
-- La probabilidad es baja en flotas < 10.000 endpoints, pero no cero.
+### Duplicados por LAST5 del serial
+- La probabilidad es muy baja con LAST5 (16M combinaciones para alfanuméricos).
+- En la práctica, Apple genera serials donde los últimos 4-5 chars son seriado por modelo/fecha — observamos en prod un caso real de colisión por LAST4 (`C02DN4XQQ05D` y `C02FGKSEQ05D` ambos terminan en `Q05D`). LAST5 elimina ese caso (`XQ05D` vs `EQ05D`).
 - Si ocurre, Windows y macOS permiten nombres duplicados en redes no unidas a AD, pero puede causar conflictos de resolución DNS/Bonjour.
-- **Mitigación**: la nomenclatura KLR asume que los últimos 4 del serial son únicos dentro de la flota. Si no lo son, considerar ampliar a LAST5 o agregar un hash.
+- **Mitigación 1**: el helper `rename_batch.py --dry-run` detecta colisiones intra-batch antes de firear el trigger.
+- **Mitigación 2**: si LAST5 no alcanza algún día, se puede ampliar a LAST6 (serial estándar Apple es 12 chars, así que LAST6 = primera mitad del año + secuencia).
 
 ### Alemania — `W. Europe Standard Time`
 - Windows usa el ID `W. Europe Standard Time` para Alemania (no solo `Europe/Berlin`).

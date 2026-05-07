@@ -131,18 +131,22 @@ OS_LETTER="M"   # macOS
 SERIAL=$(get_serial)
 SERIAL_CLEAN=$(printf '%s' "$SERIAL" | tr -d '\n')
 
-# Validate serial
-if [[ -z "$SERIAL_CLEAN" ]] || [[ "${#SERIAL_CLEAN}" -lt 4 ]]; then
+# Validate serial — need 5 chars now (was 4) since we use last 5 for the
+# canonical name to avoid the apple-style collision where serials of the
+# same generation share the last 4 characters (e.g., C02DN4XQQ05D and
+# C02FGKSEQ05D both end in "Q05D").
+if [[ -z "$SERIAL_CLEAN" ]] || [[ "${#SERIAL_CLEAN}" -lt 5 ]]; then
     log_error "Serial number missing or too short (len=${#SERIAL_CLEAN}): '$SERIAL_CLEAN'"
     exit 1
 fi
 
-# Extract last 4 chars, uppercase
-LAST4=$(printf '%s' "$SERIAL_CLEAN" | awk '{print substr($0, length-3)}' | tr '[:lower:]' '[:upper:]')
+# Extract last 5 chars, uppercase
+LAST5=$(printf '%s' "$SERIAL_CLEAN" | awk '{print substr($0, length-4)}' | tr '[:lower:]' '[:upper:]')
 
-NEW_NAME="KLR-${COUNTRY}${OS_LETTER}-${LAST4}"
+NEW_NAME="KLR-${COUNTRY}${OS_LETTER}-${LAST5}"
 
-# Validate computed name length (DNS/NetBIOS friendly)
+# Validate computed name length (DNS/NetBIOS friendly).
+# Format is KLR-XXX-AAAAA = 13 chars, well under the 15-char NetBIOS limit.
 if [[ "${#NEW_NAME}" -gt 15 ]]; then
     log_error "Computed name exceeds 15 chars: '$NEW_NAME'"
     exit 1
@@ -158,7 +162,7 @@ fi
 
 log_info "Timezone detected:  $TZ"
 log_info "Country code:       $COUNTRY"
-log_info "Serial (last 4):    $LAST4"
+log_info "Serial (last 5):    $LAST5"
 log_info "Previous name:      ${CURRENT_COMPUTER_NAME:-<empty>}"
 log_info "New name:           $NEW_NAME"
 

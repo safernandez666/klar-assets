@@ -86,12 +86,15 @@ $invalidSerials = @(
     ''
 )
 
-if ($serialClean.Length -lt 4 -or $invalidSerials -contains $serialClean) {
+if ($serialClean.Length -lt 5 -or $invalidSerials -contains $serialClean) {
     Write-LogError "Serial number invalid or too short: '$serialClean'"
 }
 
-$last4 = ($serialClean.ToUpper())[-4..-1] -join ''
-$newName = "KLR-$country$osLetter-$last4"
+# Extract last 5 chars to avoid serial-suffix collisions across the fleet
+# (Apple-style serials of the same generation can share their last 4 chars,
+# but rarely their last 5).
+$last5 = ($serialClean.ToUpper())[-5..-1] -join ''
+$newName = "KLR-$country$osLetter-$last5"
 
 # NetBIOS limit = 15 chars
 if ($newName.Length -gt 15) {
@@ -109,7 +112,7 @@ if ($currentName -eq $newName) {
 
 Write-LogInfo "Timezone detected:  $($tz.Id) ($($tz.StandardName))"
 Write-LogInfo "Country code:       $country"
-Write-LogInfo "Serial (last 4):    $last4"
+Write-LogInfo "Serial (last 5):    $last5"
 Write-LogInfo "Previous name:      $currentName"
 Write-LogInfo "New name:           $newName"
 Write-LogWarn "This change requires a reboot to fully propagate."

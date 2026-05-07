@@ -141,6 +141,45 @@ def pick_batch(macs: list[dict], *, count: int, include_renamed: bool, serials: 
     return pool[:count]
 
 
+# ── Collision detection (avoid the LAST5 dup foot-gun) ───────────────────
+
+LAST_N = 5  # Mirrors the rename script's LAST5 suffix.
+
+
+def _suffix(serial: str) -> str:
+    s = (serial or "").strip().upper()
+    return s[-LAST_N:] if len(s) >= LAST_N else ""
+
+
+def find_collisions(batch: list[dict], all_macs: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Return ``[(suffix, [macs...])]`` for any LAST5 suffix shared by two
+    or more Macs, considering both the batch and the rest of the active
+    fleet. The rename script does ``KLR-XXX-<LAST5>`` so any duplicate
+    suffix means duplicate hostname after the rename runs.
+
+    Only collisions that involve at least one batch member are returned —
+    pre-existing duplicates that don't touch this batch aren't our problem
+    right now.
+    """
+    by_suffix: dict[str, list[dict]] = {}
+    seen_ids: set[str] = set()
+    for m in batch + all_macs:
+        if m.get("_id") in seen_ids:
+            continue
+        seen_ids.add(m.get("_id") or "")
+        suf = _suffix(m.get("serialNumber") or "")
+        if suf:
+            by_suffix.setdefault(suf, []).append(m)
+    batch_ids = {m["_id"] for m in batch}
+    out: list[tuple[str, list[dict]]] = []
+    for suf, group in by_suffix.items():
+        if len(group) < 2:
+            continue
+        if any(m["_id"] in batch_ids for m in group):
+            out.append((suf, group))
+    return out
+
+
 # ── Verification ─────────────────────────────────────────────────────────
 
 def verify_batch(batch_ids: set[str], *, timeout_s: int, poll_every: int) -> dict[str, str]:
@@ -180,6 +219,9 @@ def main() -> int:
     p.add_argument("--restore-all", action="store_true",
                    help="Re-associate every active Mac to the trigger command and exit "
                         "(useful as cleanup after batching is done)")
+    p.add_argument("--allow-collisions", action="store_true",
+                   help="Proceed even if two batch Macs share the same LAST5 serial "
+                        "suffix (would produce duplicate hostnames). Default is to abort.")
     args = p.parse_args()
 
     print("Fetching active Macs from JumpCloud…")
@@ -216,6 +258,27 @@ def main() -> int:
         cur = m.get("hostname") or "—"
         marker = "(already KLR-*)" if cur.startswith("KLR-") else ""
         print(f"  · {sn:14s}  {name:50s} → cur:{cur:35s} {marker}")
+
+    # Predict LAST5 suffix collisions before firing — the rename script
+    # generates ``KLR-XXX-<LAST5>`` so two serials sharing the suffix
+    # would resolve to the same hostname after the rename runs.
+    collisions = find_collisions(batch, macs)
+    if collisions:
+        print(f"\n⚠️  COLLISION WARNING — {len(collisions)} suffix(es) shared by 2+ Macs:")
+        for suf, group in collisions:
+            print(f"  suffix={suf}  ({len(group)} Macs would resolve to KLR-???-{suf}):")
+            for m in group:
+                in_batch = " (in batch)" if m["_id"] in {b["_id"] for b in batch} else ""
+                cur = m.get("hostname") or "—"
+                print(f"    · {m.get('serialNumber'):14s}  cur:{cur}{in_batch}")
+        print("\nThe rename script would set BOTH Macs of each pair to the "
+              "same hostname. Causes DNS/Bonjour conflicts on local networks.")
+        if not args.allow_collisions:
+            print("\nAbort. Re-run with --allow-collisions to override, "
+                  "or pick a different batch.")
+            return 2
+        else:
+            print("\n--allow-collisions set; proceeding anyway.")
 
     if args.dry_run:
         print("\n(dry-run; nothing changed)")

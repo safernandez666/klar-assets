@@ -84,20 +84,25 @@ async def api_jc_refresh(
                      "devices_refreshed": 0},
         )
 
-    # ── 1. Fresh JC collection ────────────────────────────────────────
+    # ── 1. Fresh JC collection (lightweight — no user resolution) ─────
+    # The full ``safe_collect()`` does per-system user-association lookups
+    # against JumpCloud's API (~25s for 400 systems). This endpoint only
+    # needs ``serial → hostname → displayName``, so it uses a slim path
+    # that skips both user-association and user-details phases. Total:
+    # ~3s instead of ~30s — fits comfortably under any reasonable
+    # gateway timeout, and avoids the spinner-of-doom UX.
     collector = JumpCloudCollector()
-    result = collector.safe_collect()
-    if not result.success:
-        # Older CollectResult shapes don't include `error`; surface what we can.
-        err_detail = getattr(result, "error", None) or "unknown"
+    try:
+        fresh_jc = collector.collect_systems_only()
+    except Exception as exc:
+        logger.warning("jc_quick_refresh_collect_failed", error=str(exc))
         return JSONResponse(
             status_code=502,
-            content={"error": f"JumpCloud collection failed: {err_detail}",
+            content={"error": f"JumpCloud collection failed: {exc!s}",
                      "jc_collected": 0, "devices_refreshed": 0,
                      "scanned": 0, "drifted": 0, "updated": 0,
                      "failed": 0, "capped": 0, "dry_run": False},
         )
-    fresh_jc = result.devices
 
     fresh_by_serial: dict[str, Any] = {}
     for raw in fresh_jc:

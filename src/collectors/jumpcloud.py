@@ -102,6 +102,62 @@ class JumpCloudCollector(BaseCollector):
             self.log.warning("fetch_system_user_ids_error", system_id=system_id, error=str(exc))
         return []
 
+    def collect_systems_only(self) -> list[RawDevice]:
+        """Lightweight collect that skips the per-system user resolution.
+
+        For paths that only need ``serial → hostname → displayName`` (e.g.,
+        the on-demand JumpCloud refresh endpoint), the user-association and
+        user-details fetches are wasted work — they take ~25s on a 367-system
+        fleet because of JumpCloud's per-system associations API. This
+        returns RawDevices populated with everything except ``last_user``,
+        which leaves it ~10x faster (~3s total).
+        """
+        systems = self._fetch_systems()
+        results: list[RawDevice] = []
+        for sys in systems:
+            system_id = sys.get("id", "")
+            hostname = sys.get("hostname") or sys.get("displayName", "")
+            serial = sys.get("serialNumber") or ""
+            os_type = sys.get("os") or ""
+            os_version = sys.get("version") or ""
+            last_seen_str = sys.get("lastContactDate") or sys.get("lastContact", "")
+            last_seen = None
+            if last_seen_str:
+                try:
+                    if last_seen_str.endswith("Z"):
+                        last_seen_str = last_seen_str[:-1] + "+00:00"
+                    last_seen = datetime.fromisoformat(last_seen_str)
+                except Exception:
+                    pass
+            raw_tz = sys.get("systemTimezone")
+            if raw_tz is None:
+                raw_tz = sys.get("timezone")
+            if raw_tz is None:
+                timezone_str: str | None = None
+            elif isinstance(raw_tz, str):
+                timezone_str = raw_tz.strip() or None
+            elif isinstance(raw_tz, (int, float)):
+                timezone_str = str(int(raw_tz))
+            else:
+                timezone_str = None
+            results.append(
+                RawDevice(
+                    device_id=system_id,
+                    hostname=hostname,
+                    serial_number=serial if self.is_valid_serial(serial) else None,
+                    mac_addresses=[],
+                    os_type=os_type,
+                    os_version=os_version,
+                    last_user=None,
+                    last_seen=last_seen,
+                    timezone=timezone_str,
+                    source="jumpcloud",
+                    source_device_id=system_id,
+                    raw_data={**sys},
+                )
+            )
+        return results
+
     def collect(self) -> list[RawDevice]:
         systems = self._fetch_systems()
         results: list[RawDevice] = []

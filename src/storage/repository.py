@@ -49,8 +49,9 @@ class DeviceRepository:
                         canonical_id, hostnames, serial_number, mac_addresses,
                         owner_email, owner_name, os_type, sources, source_ids,
                         status, confidence_score, match_reason, is_active_vpn,
-                        coverage_gaps, days_since_seen, first_seen, last_seen, deleted_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        coverage_gaps, days_since_seen, first_seen, last_seen, deleted_at,
+                        source_last_seen
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         dev.canonical_id,
@@ -71,6 +72,7 @@ class DeviceRepository:
                         dev.first_seen.isoformat() if dev.first_seen else now,
                         dev.last_seen.isoformat() if dev.last_seen else now,
                         None,
+                        self._serialize(dev.source_last_seen or {}),
                     ),
                 )
         conn.close()
@@ -438,6 +440,7 @@ class DeviceRepository:
         d["mac_addresses"] = self._deserialize(d.get("mac_addresses"), [])
         d["sources"] = self._deserialize(d.get("sources"), [])
         d["source_ids"] = self._deserialize(d.get("source_ids"), {})
+        d["source_last_seen"] = self._deserialize(d.get("source_last_seen"), {})
         d["coverage_gaps"] = self._deserialize(d.get("coverage_gaps"), [])
         d["sources_ok"] = self._deserialize(d.get("sources_ok"), [])
         d["sources_failed"] = self._deserialize(d.get("sources_failed"), [])

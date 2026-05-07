@@ -132,4 +132,24 @@ CONTROLS_META = [
                     "y no hay telemetría para detección de incidentes. "
                     "Acción: verificar conectividad del agente y forzar check-in. Asociado al indicador KRI0022.",
      "source_from": "crowdstrike", "source_to": ""},
+    {"id": "CTL-009", "ref": "", "title": "Agente individual dormido (10+ días)",
+     "objective": "Detectar drift granular — un agente roto en una Mac que el resto ve viva",
+     "description": "Detecta dispositivos donde al menos UN source tiene `last_seen` mayor a 10 días, "
+                    "aunque otros sources reporten al equipo activo. Es el caso típico de un agente "
+                    "(usualmente CrowdStrike) que se rompe o pierde permisos pero el endpoint sigue "
+                    "vivo en JC/Okta. CTL-007/008 no lo detectan porque miran el last_seen mergeado "
+                    "(toma el más reciente entre sources). Acción: para cada device afectado, verificar "
+                    "qué source(s) están dormidos (ver `stale_sources` en cada fila) y guiar al usuario "
+                    "a revivir el agente correspondiente. Configurable vía env "
+                    "`STALE_SOURCE_THRESHOLD_DAYS` (default 10).",
+     "source_from": "", "source_to": ""},
 ]
+
+# Threshold (in days) at which a single-source agent is considered dormant for
+# CTL-009. Tuneable per-environment without redeploy. Default 10 — leaves
+# margin for vacations/long weekends but catches real drift quickly.
+import os as _os
+try:
+    STALE_SOURCE_THRESHOLD_DAYS = int(_os.getenv("STALE_SOURCE_THRESHOLD_DAYS", "10"))
+except ValueError:
+    STALE_SOURCE_THRESHOLD_DAYS = 10

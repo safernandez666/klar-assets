@@ -1,13 +1,14 @@
-"""Compliance-controls evaluation (CTL-001 .. CTL-008)."""
+"""Compliance-controls evaluation (CTL-001 .. CTL-009)."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from src.storage.repository import DeviceRepository
-from src.web.config import CONTROLS_META
+from src.web.config import CONTROLS_META, STALE_SOURCE_THRESHOLD_DAYS
 from src.web.dependencies import get_repo
 
 router = APIRouter()
@@ -106,6 +107,45 @@ async def api_controls(repo: DeviceRepository = Depends(get_repo)) -> Any:
     results.append({**CONTROLS_META[7], "status": "fail" if ctl8 else "pass",
                     "total": len(cs_devices), "affected": len(ctl8),
                     "devices": [_dev_summary(d) for d in ctl8[:50]]})
+
+    # CTL-009: per-source agent dormancy (10+ days by default).
+    # Catches the case where the merged last_seen is recent (because other
+    # sources are still reporting) but at least one source's individual
+    # agent went silent. CTL-007/008 miss this because they compare the
+    # merged last_seen, which takes the max across sources.
+    cutoff = datetime.now(timezone.utc) - timedelta(days=STALE_SOURCE_THRESHOLD_DAYS)
+    ctl9 = []
+    for d in active:
+        sls = d.get("source_last_seen") or {}
+        if not sls:
+            # Older rows pre-migration may have empty dicts; skip — those
+            # surface naturally in CTL-007/008 if relevant.
+            continue
+        stale_sources: list[str] = []
+        stale_detail: dict[str, str] = {}
+        for src, ts in sls.items():
+            if not ts:
+                continue
+            try:
+                seen = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+                if seen.tzinfo is None:
+                    seen = seen.replace(tzinfo=timezone.utc)
+                if seen < cutoff:
+                    stale_sources.append(src)
+                    stale_detail[src] = ts
+            except (ValueError, TypeError):
+                # Malformed timestamp — surface as stale conservatively
+                # rather than swallow it silently.
+                stale_sources.append(src)
+                stale_detail[src] = ts
+        if stale_sources:
+            ctl9.append({**_dev_summary(d),
+                         "stale_sources": stale_sources,
+                         "stale_detail": stale_detail})
+    results.append({**CONTROLS_META[8], "status": "fail" if ctl9 else "pass",
+                    "total": len(active), "affected": len(ctl9),
+                    "threshold_days": STALE_SOURCE_THRESHOLD_DAYS,
+                    "devices": ctl9[:50]})
 
     passing = sum(1 for r in results if r["status"] == "pass")
     return JSONResponse(content={

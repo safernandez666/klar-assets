@@ -50,8 +50,12 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false);
   const [reconciling, setReconciling] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (opts?: { silent?: boolean }) => {
+    // Silent mode skips the "Loading..." flash. Used after Refresh
+    // JumpCloud / similar background-y actions where a full-page reload
+    // feel is jarring — we already showed a toast, the table just
+    // updates in place.
+    if (!opts?.silent) setLoading(true);
     try {
       const res = await fetch("/api/settings");
       const json = await res.json();
@@ -60,7 +64,7 @@ export default function SettingsPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, []);
 
@@ -74,7 +78,9 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hours: interval }),
       });
-      loadData();
+      // Silent reload — saving the interval shouldn't feel like a page
+      // refresh; the value just updates in place.
+      loadData({ silent: true });
     } catch (e) {
       console.error(e);
     } finally {
@@ -164,7 +170,9 @@ export default function SettingsPage() {
         }
         // The cache was refreshed server-side; reload local data so the
         // sync history table and source-status grid reflect the new state.
-        loadData();
+        // Silent — the full-page "Loading..." flash after a successful
+        // toast feels like an unintended reload.
+        loadData({ silent: true });
       }
     } catch (e) {
       console.error(e);

@@ -16,6 +16,7 @@ from src.normalizer.deduplicator import Deduplicator
 from src.normalizer.enricher import Enricher
 from src.ai_matcher import ai_match
 from src.alerts import alert_after_sync
+from src.jumpcloud_reconciler import jc_displaynames_from_raw, reconcile_displaynames
 from src.storage.repository import DeviceRepository
 
 logger = structlog.get_logger(__name__)
@@ -141,6 +142,16 @@ class SyncEngine:
                 dev.canonical_id = str(uuid.uuid4())
 
         self.repo.upsert_devices(enriched)
+
+        # Reconcile JC console `displayName` for every renamed endpoint —
+        # JC's agent never refreshes that field on its own. Best-effort: a
+        # failure here must not abort the sync.
+        try:
+            jc_displaynames = jc_displaynames_from_raw(all_raw)
+            reconcile_summary = reconcile_displaynames(enriched, jc_displaynames)
+            logger.info("jc_displayname_reconcile", **reconcile_summary)
+        except Exception as exc:
+            logger.warning("jc_displayname_reconcile_failed", error=str(exc))
 
         # Save Okta users for compliance controls
         if okta_users:

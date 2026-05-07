@@ -23,7 +23,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.collectors.base import CollectResult
 from src.models import NormalizedDevice, RawDevice
 from src.storage.repository import DeviceRepository
 from src.web.api.jumpcloud import router as jumpcloud_router
@@ -107,28 +106,20 @@ class TestNoApiKey:
 # ── 502 when JC collector fails ───────────────────────────────────────
 
 class TestCollectorFailure:
-    def test_returns_502_when_jc_collect_fails(self, app_with_repo, monkeypatch) -> None:
+    def test_returns_502_when_jc_collect_raises(self, app_with_repo, monkeypatch) -> None:
         app, _ = app_with_repo
         monkeypatch.setenv("JC_API_KEY", "fake-key")
 
-        # Build a CollectResult tolerant of both shapes (with/without `error`).
-        try:
-            bad_result = CollectResult(devices=[], success=False, error="rate_limited")
-            expect_detail = "rate_limited"
-        except TypeError:
-            bad_result = CollectResult(devices=[], success=False)
-            expect_detail = "unknown"
-
         with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector:
             instance = MockCollector.return_value
-            instance.safe_collect.return_value = bad_result
+            instance.collect_systems_only.side_effect = RuntimeError("rate_limited")
             with TestClient(app) as client:
                 r = client.post("/api/jumpcloud/reconcile-displaynames")
 
         assert r.status_code == 502
         body = r.json()
         assert "JumpCloud collection failed" in body["error"]
-        assert expect_detail in body["error"]
+        assert "rate_limited" in body["error"]
 
 
 # ── happy path ────────────────────────────────────────────────────────
@@ -142,12 +133,10 @@ class TestRefreshEndpoint:
             _raw_jc("DG27", "KLR-MXM-DG27", "jc1", display_name="KLR-MXM-DG27"),
             _raw_jc("X4FV", "KLR-ARM-X4FV", "jc2", display_name="KLR-ARM-X4FV"),
         ]
-        good_result = CollectResult(devices=fresh, success=True)
 
-        # Mock cache.refresh to a no-op (cache is fragile in tests).
         with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector, \
              patch("src.web.api.jumpcloud.get_cache") as MockCache:
-            MockCollector.return_value.safe_collect.return_value = good_result
+            MockCollector.return_value.collect_systems_only.return_value = fresh
             MockCache.return_value.refresh = MagicMock()
 
             with TestClient(app) as client:
@@ -177,11 +166,10 @@ class TestRefreshEndpoint:
 
         # Only return DG27 — X4FV and ONLY-CS are not in fresh collection
         fresh = [_raw_jc("DG27", "KLR-MXM-DG27", "jc1")]
-        good_result = CollectResult(devices=fresh, success=True)
 
         with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector, \
              patch("src.web.api.jumpcloud.get_cache") as MockCache:
-            MockCollector.return_value.safe_collect.return_value = good_result
+            MockCollector.return_value.collect_systems_only.return_value = fresh
             MockCache.return_value.refresh = MagicMock()
             with TestClient(app) as client:
                 r = client.post("/api/jumpcloud/reconcile-displaynames")
@@ -211,8 +199,7 @@ class TestRefreshEndpoint:
                    return_value={"scanned": 3, "drifted": 1, "updated": 1,
                                  "failed": 0, "capped": 0, "dry_run": False}), \
              patch("src.web.api.jumpcloud.get_cache") as MockCache:
-            MockCollector.return_value.safe_collect.return_value = CollectResult(
-                devices=fresh, success=True)
+            MockCollector.return_value.collect_systems_only.return_value = fresh
             MockCache.return_value.refresh = MagicMock()
             with TestClient(app) as client:
                 r = client.post("/api/jumpcloud/reconcile-displaynames")
@@ -236,8 +223,7 @@ class TestRefreshEndpoint:
 
         with patch("src.web.api.jumpcloud.JumpCloudCollector") as MockCollector, \
              patch("src.web.api.jumpcloud.get_cache") as MockCache:
-            MockCollector.return_value.safe_collect.return_value = CollectResult(
-                devices=[], success=True)
+            MockCollector.return_value.collect_systems_only.return_value = []
             MockCache.return_value.refresh.side_effect = RuntimeError("cache boom")
             with TestClient(app) as client:
                 r = client.post("/api/jumpcloud/reconcile-displaynames")

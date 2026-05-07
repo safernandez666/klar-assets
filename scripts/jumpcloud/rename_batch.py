@@ -128,6 +128,23 @@ def fire_trigger() -> dict:
     return r.json()
 
 
+def patch_displayname(system_id: str, name: str) -> bool:
+    """Force JC's console ``displayName`` to match a freshly-set hostname.
+
+    JC's agent never refreshes ``displayName`` — that field is set at
+    enrollment and stays sticky forever. After a rename, the technical
+    ``hostname`` updates correctly but the console search bar (which
+    looks at ``displayName``) keeps returning the old label. This PUT
+    is the only way to align them without waiting for the app's 6h
+    auto-reconciler.
+    """
+    r = requests.put(
+        f"{BASE}/systems/{system_id}",
+        headers=H, json={"displayName": name}, timeout=30,
+    )
+    return r.status_code in (200, 204)
+
+
 # ── Selection ────────────────────────────────────────────────────────────
 
 def pick_batch(macs: list[dict], *, count: int, include_renamed: bool, serials: list[str] | None) -> list[dict]:
@@ -222,6 +239,11 @@ def main() -> int:
     p.add_argument("--allow-collisions", action="store_true",
                    help="Proceed even if two batch Macs share the same LAST5 serial "
                         "suffix (would produce duplicate hostnames). Default is to abort.")
+    p.add_argument("--skip-reconcile", action="store_true",
+                   help="Don't PUT JC displayNames after the rename. Useful only if "
+                        "you intend to let the app's reconciler handle it on the next "
+                        "sync. Default: reconcile inline so JC console search works "
+                        "immediately.")
     args = p.parse_args()
 
     print("Fetching active Macs from JumpCloud…")
@@ -331,6 +353,29 @@ def main() -> int:
         print("Pending Macs may be offline or have a slow agent — re-check later "
               "or investigate per-Mac. The JC agent typically picks up the command "
               "within minutes once the Mac is online.")
+
+    # Reconcile JC console displayNames inline. The app's auto-reconciler
+    # would do this on the next 6h cron / Refresh JumpCloud click, but
+    # nobody wants to switch tabs to verify the rename worked. PUT each
+    # drifted displayName so the JC console search finds the device by
+    # its new name immediately.
+    if not args.skip_reconcile:
+        print("\nReconciling JC displayNames…")
+        patched = 0
+        for sid, hostname in state.items():
+            if not hostname.startswith("KLR-"):
+                continue
+            # Re-read current to learn displayName (state only has hostname)
+            r = requests.get(f"{BASE}/systems/{sid}", headers=H, timeout=30)
+            if r.status_code != 200:
+                continue
+            current = (r.json().get("displayName") or "").strip()
+            if current == hostname:
+                continue
+            if patch_displayname(sid, hostname):
+                print(f"  patched {hostname:18s}  was: {current}")
+                patched += 1
+        print(f"  → {patched} displayName(s) reconciled")
     return 0
 
 

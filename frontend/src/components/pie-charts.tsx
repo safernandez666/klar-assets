@@ -40,19 +40,31 @@ const OS_COLORS: Record<string, string> = {
 };
 
 const REGION_COLORS: Record<string, string> = {
+  // New 2-letter country codes (matches the KLR-{XX}-... hostname taxonomy)
+  MX: "#10b981",
+  AR: "#3b82f6",
+  DE: "#a855f7",
+  OT: "#f59e0b",
+  UNKNOWN: "#6b7280",
+  // Legacy bucket names — kept so rows written before the country
+  // migration still render in their original color until the next sync
+  // re-writes the value.
   MEXICO: "#10b981",
   AMERICAS: "#3b82f6",
   EUROPE: "#a855f7",
   ROW: "#f59e0b",
-  UNKNOWN: "#6b7280",
 };
 
 const REGION_LABELS: Record<string, string> = {
+  MX: "México",
+  AR: "Argentina",
+  DE: "Germany",
+  OT: "Other",
+  UNKNOWN: "Unknown",
   MEXICO: "Mexico",
   AMERICAS: "Americas",
   EUROPE: "Europe",
   ROW: "Rest of World",
-  UNKNOWN: "Unknown",
 };
 
 interface PieChartsProps {

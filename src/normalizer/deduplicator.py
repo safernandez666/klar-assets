@@ -428,6 +428,7 @@ class Deduplicator:
         source_last_seen: dict[str, datetime] = {}
         os_type = ""
         timezone_str: str | None = None
+        agent_local_time: str | None = None
         first_seen: datetime | None = None
         last_seen: datetime | None = None
 
@@ -466,6 +467,13 @@ class Deduplicator:
                     timezone_str = d.timezone
                 elif d.source == "crowdstrike":
                     timezone_str = d.timezone
+            # Last-resort country signal for CS-only devices that don't carry a
+            # parseable `timezone` field — agent_local_time is an ISO 8601 with
+            # the local UTC offset embedded.
+            if d.source == "crowdstrike" and not agent_local_time:
+                alt = d.raw_data.get("agent_local_time") if d.raw_data else None
+                if isinstance(alt, str) and alt.strip():
+                    agent_local_time = alt.strip()
             # First/last seen
             if d.last_seen:
                 if first_seen is None or d.last_seen < first_seen:
@@ -547,7 +555,7 @@ class Deduplicator:
         if last_seen is None:
             last_seen = now
 
-        from src.normalizer.region import region_from_timezone
+        from src.normalizer.region import compute_country
         return NormalizedDevice(
             canonical_id=_make_canonical_id(group),
             hostnames=hostnames,
@@ -566,7 +574,7 @@ class Deduplicator:
             coverage_gaps=[],
             days_since_seen=None,
             timezone=timezone_str,
-            region=region_from_timezone(timezone_str),
+            region=compute_country(hostnames, timezone_str, agent_local_time),
             first_seen=first_seen,
             last_seen=last_seen,
             deleted_at=None,

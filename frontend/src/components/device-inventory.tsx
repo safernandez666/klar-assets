@@ -147,10 +147,10 @@ export function DeviceInventory() {
               className="w-40"
             >
               <option value="">All regions</option>
-              <option value="MEXICO">Mexico</option>
-              <option value="AMERICAS">Americas (excl. MX)</option>
-              <option value="EUROPE">Europe</option>
-              <option value="ROW">Rest of World</option>
+              <option value="MX">México</option>
+              <option value="AR">Argentina</option>
+              <option value="DE">Germany</option>
+              <option value="OT">Other</option>
               <option value="UNKNOWN">Unknown</option>
             </Select>
             <Select

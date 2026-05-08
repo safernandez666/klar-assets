@@ -152,8 +152,14 @@ if [[ "${#NEW_NAME}" -gt 15 ]]; then
     exit 1
 fi
 
-# Idempotency check
+# Idempotency check — if it ALREADY starts with KLR- we leave it alone even if
+# the computed NEW_NAME differs (avoids re-renaming a user who travels and the
+# detected timezone changes).
 CURRENT_COMPUTER_NAME=$(scutil --get ComputerName 2>/dev/null | tr -d '\n' || true)
+if [[ "$CURRENT_COMPUTER_NAME" == KLR-* ]]; then
+    log_info "Already has KLR-* prefix: $CURRENT_COMPUTER_NAME (skipping)"
+    exit 0
+fi
 if [[ "$CURRENT_COMPUTER_NAME" == "$NEW_NAME" ]]; then
     log_info "Hostname already correct: $NEW_NAME"
     kick_jc_agent  # still nudge JC so displayName/hostname reconcile
@@ -182,5 +188,49 @@ fi
 
 kick_jc_agent
 
-log_info "NOTE: JC 'displayName' is set at enrollment and is sticky."
-log_info "      klar_assets reconciles it automatically on the next sync cycle."
+# ---------------------------------------------------------------------------
+# Update JumpCloud console `displayName` to match the new hostname.
+# Without this, the JC console keeps showing the original enrollment-time
+# displayName forever (it never auto-refreshes from `hostname`).
+#
+# Requires the JC Command to expose JC_API_KEY as an environment variable
+# (Command → Environment Variables tab in JC console). The key only needs
+# Systems: read+write scope.
+# ---------------------------------------------------------------------------
+patch_jc_displayname() {
+    if [[ -z "${JC_API_KEY:-}" ]]; then
+        log_warn "JC_API_KEY env var not set on the command — skipping displayName PATCH."
+        log_warn "Set it under JC Command → Environment Variables. klar_assets sync will reconcile within 6h."
+        return 0
+    fi
+
+    local conf="/opt/jc/jcagent.conf"
+    if [[ ! -f "$conf" ]]; then
+        log_warn "JC agent config not found at $conf — cannot resolve systemKey."
+        return 0
+    fi
+
+    local system_id
+    system_id=$(/usr/bin/python3 -c "import json,sys; print(json.load(open('$conf')).get('systemKey',''))" 2>/dev/null || true)
+    if [[ -z "$system_id" ]]; then
+        log_warn "Could not extract systemKey from $conf — skipping displayName PATCH."
+        return 0
+    fi
+
+    local http_code
+    http_code=$(/usr/bin/curl -sS -o /dev/null -w '%{http_code}' \
+        -X PUT "https://console.jumpcloud.com/api/systems/${system_id}" \
+        -H "x-api-key: ${JC_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        --data "{\"displayName\":\"${NEW_NAME}\"}" \
+        --max-time 15 || echo "000")
+
+    if [[ "$http_code" == "200" ]]; then
+        log_info "JC displayName PATCH OK ($NEW_NAME)."
+    else
+        log_warn "JC displayName PATCH failed (HTTP $http_code). klar_assets sync will reconcile."
+    fi
+}
+
+patch_jc_displayname

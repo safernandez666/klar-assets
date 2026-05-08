@@ -97,7 +97,13 @@ if ($newName.Length -gt 15) {
 
 $currentName = $env:COMPUTERNAME
 
-# Idempotency
+# Idempotency — if it ALREADY starts with KLR- we leave it alone even if the
+# computed $newName differs (avoids re-renaming a user who travels and the
+# detected timezone changes).
+if ($currentName -match '^KLR-') {
+    Write-LogInfo "Already has KLR-* prefix: $currentName (skipping)"
+    exit 0
+}
 if ($currentName -eq $newName) {
     Write-LogInfo "Computer name already correct: $newName"
     exit 0
@@ -114,6 +120,63 @@ Rename-Computer -NewName $newName -Force -ErrorAction Stop
 
 Write-LogInfo "Rename command executed successfully."
 Write-LogInfo "Please schedule or perform a reboot when convenient."
-Write-LogInfo "NOTE: JC 'displayName' is set at enrollment and is sticky."
-Write-LogInfo "      klar_assets reconciles it automatically on the next sync cycle."
+
+# ---------------------------------------------------------------------------
+# Update JumpCloud console `displayName` to match the new hostname.
+# Without this, the JC console keeps showing the original enrollment-time
+# displayName forever (it never auto-refreshes from `hostname`).
+#
+# Requires the JC Command to expose JC_API_KEY as an environment variable
+# (Command → Environment Variables tab in JC console). The key only needs
+# Systems: read+write scope.
+# ---------------------------------------------------------------------------
+function Update-JcDisplayName {
+    param([string]$NewName)
+
+    if ([string]::IsNullOrWhiteSpace($env:JC_API_KEY)) {
+        Write-LogWarn "JC_API_KEY env var not set on the command — skipping displayName PATCH."
+        Write-LogWarn "Set it under JC Command -> Environment Variables. klar_assets sync will reconcile within 6h."
+        return
+    }
+
+    # Resolve systemKey from JC agent config
+    $confPaths = @(
+        "$env:ProgramData\JumpCloud\Plugins\Contrib\jcagent.conf",
+        "$env:ProgramFiles\JumpCloud\Plugins\Contrib\jcagent.conf"
+    )
+    $systemId = $null
+    foreach ($p in $confPaths) {
+        if (Test-Path $p) {
+            try {
+                $cfg = Get-Content $p -Raw | ConvertFrom-Json
+                if ($cfg.systemKey) { $systemId = $cfg.systemKey; break }
+            } catch { }
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($systemId)) {
+        Write-LogWarn "Could not resolve JC systemKey from agent config — skipping displayName PATCH."
+        return
+    }
+
+    $body = @{ displayName = $NewName } | ConvertTo-Json -Compress
+    try {
+        $resp = Invoke-WebRequest -Uri "https://console.jumpcloud.com/api/systems/$systemId" `
+            -Method Put `
+            -Headers @{ "x-api-key" = $env:JC_API_KEY; "Content-Type" = "application/json"; "Accept" = "application/json" } `
+            -Body $body `
+            -TimeoutSec 15 `
+            -UseBasicParsing
+        if ($resp.StatusCode -eq 200) {
+            Write-LogInfo "JC displayName PATCH OK ($NewName)."
+        } else {
+            Write-LogWarn "JC displayName PATCH unexpected status: $($resp.StatusCode)"
+        }
+    } catch {
+        Write-LogWarn "JC displayName PATCH failed: $($_.Exception.Message). klar_assets sync will reconcile."
+    }
+}
+
+Update-JcDisplayName -NewName $newName
+
 Write-LogInfo "NOTE: Hostname won't be visible in JC until after the reboot."

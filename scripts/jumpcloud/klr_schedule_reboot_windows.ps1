@@ -26,7 +26,11 @@ if ($now -ge $targetToday) {
 }
 
 $seconds = [math]::Round(($target - $now).TotalSeconds)
-$msg = 'KLR IT reiniciará este equipo a las 22:00 para completar una actualización de configuración. Por favor guardá tu trabajo.'
+# ASCII-only: shutdown.exe receives /c via argv as ANSI/codepage on Windows.
+# PowerShell sends UTF-8, so accented chars (á, ó, ñ) render as mojibake
+# (`á` -> `Ã¡`, `ó` -> `Ã³`) in the popup. Stick to ASCII to keep it readable
+# regardless of the host locale or PowerShell version.
+$msg = 'Klar Security reiniciara este equipo a las 22:00 para completar una actualizacion de configuracion. Por favor guarda tu trabajo.'
 
 Write-LogInfo "Current time:       $($now.ToString('yyyy-MM-dd HH:mm:ss'))"
 Write-LogInfo "Scheduled reboot:   $($target.ToString('yyyy-MM-dd HH:mm:ss'))"

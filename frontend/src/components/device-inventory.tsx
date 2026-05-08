@@ -8,7 +8,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Dialog } from "./ui/dialog";
 import { DeviceDetail, DeviceDetailHeader } from "./device-detail";
-import { formatDate, shortSource } from "../lib/utils";
+import { formatDate, pickHostname, shortSource } from "../lib/utils";
 import { api } from "../lib/api";
 import type { Device } from "../types";
 
@@ -223,7 +223,8 @@ export function DeviceInventory() {
                 {devices.map((d) => {
                   const cfg = STATUS_BADGES[d.status] || STATUS_BADGES.UNKNOWN;
                   const isRisk = d.status === "NO_EDR" || d.status === "NO_MDM" || d.status === "IDP_ONLY";
-                  const hostname = (d.hostnames || [])[0] || d.serial_number || "device";
+                  const { primary, aliases } = pickHostname(d.hostnames);
+                  const hostname = primary || d.serial_number || "device";
                   const open = () => setSelectedDevice(d);
                   return (
                     <tr
@@ -249,8 +250,19 @@ export function DeviceInventory() {
                         )}
                       </td>
                       <td className="max-w-[220px] py-3 pr-4 text-muted">
-                        <div className="truncate" title={(d.hostnames || []).join(", ") || undefined}>
-                          {(d.hostnames || []).join(", ") || "N/A"}
+                        <div
+                          className="flex items-center gap-1.5 truncate"
+                          title={aliases.length ? `Aliases: ${aliases.join(", ")}` : undefined}
+                        >
+                          <span className="truncate">{primary || "N/A"}</span>
+                          {aliases.length > 0 && (
+                            <span
+                              className="shrink-0 rounded border border-border/60 bg-card px-1 py-0.5 font-mono text-[9px] text-muted"
+                              aria-label={`${aliases.length} alias${aliases.length === 1 ? "" : "es"}`}
+                            >
+                              +{aliases.length}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 pr-4 font-mono text-xs text-muted">

@@ -28,3 +28,15 @@ const SOURCE_ABBREV: Record<string, string> = {
 export function shortSource(source: string): string {
   return SOURCE_ABBREV[source] || source;
 }
+
+export function pickHostname(hostnames: string[] | null | undefined): {
+  primary: string;
+  aliases: string[];
+} {
+  const list = (hostnames || []).filter(Boolean);
+  if (list.length === 0) return { primary: "", aliases: [] };
+  const klr = list.find((h) => /^KLR-/i.test(h));
+  const primary = klr || list[0];
+  const aliases = list.filter((h) => h !== primary);
+  return { primary, aliases };
+}

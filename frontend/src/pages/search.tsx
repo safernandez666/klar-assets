@@ -14,7 +14,7 @@ import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { formatDate, shortSource, normalizeOs } from "../lib/utils";
+import { formatDate, pickHostname, shortSource, normalizeOs } from "../lib/utils";
 import { api } from "../lib/api";
 import type { Device } from "../types";
 
@@ -61,7 +61,7 @@ function AckModal({ device, onClose, onAck }: AckModalProps) {
           </button>
         </div>
         <p className="text-xs text-muted mb-1">
-          <strong>{(device.hostnames || []).join(", ") || "Unknown"}</strong> — {device.owner_email || "No owner"}
+          <strong>{pickHostname(device.hostnames).primary || "Unknown"}</strong> — {device.owner_email || "No owner"}
         </p>
         <p className="text-xs text-muted mb-4">
           This device will be excluded from metrics, reports, and Quick Actions.
@@ -266,6 +266,7 @@ export default function SearchPage() {
                   {!loading && pageItems.map((d) => {
                     const cfg = STATUS_BADGES[d.status] || STATUS_BADGES.UNKNOWN;
                     const acked = (d as any).acknowledged;
+                    const { primary, aliases } = pickHostname(d.hostnames);
                     return (
                       <tr
                         key={d.canonical_id}
@@ -275,7 +276,20 @@ export default function SearchPage() {
                           {acked && <ShieldOff className="h-3.5 w-3.5 text-muted" />}
                         </td>
                         <td className="p-3">
-                          <div className="font-medium text-xs">{(d.hostnames || []).join(", ") || "N/A"}</div>
+                          <div
+                            className="flex items-center gap-1.5"
+                            title={aliases.length ? `Aliases: ${aliases.join(", ")}` : undefined}
+                          >
+                            <span className="font-medium text-xs">{primary || "N/A"}</span>
+                            {aliases.length > 0 && (
+                              <span
+                                className="shrink-0 rounded border border-border/60 bg-card px-1 py-0.5 font-mono text-[9px] text-muted"
+                                aria-label={`${aliases.length} alias${aliases.length === 1 ? "" : "es"}`}
+                              >
+                                +{aliases.length}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3">
                           <div className="text-xs">{d.owner_email || "N/A"}</div>

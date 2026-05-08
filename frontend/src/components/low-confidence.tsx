@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { formatDate, shortSource } from "../lib/utils";
+import { formatDate, pickHostname, shortSource } from "../lib/utils";
 import type { Device } from "../types";
 
 const PAGE_SIZE = 10;
@@ -85,6 +85,7 @@ export function LowConfidence({ devices }: LowConfidenceProps) {
               <tbody>
                 {pageItems.map((d) => {
                   const cfg = STATUS_BADGES[d.status] || STATUS_BADGES.UNKNOWN;
+                  const { primary, aliases } = pickHostname(d.hostnames);
                   return (
                     <tr
                       key={d.canonical_id}
@@ -97,7 +98,20 @@ export function LowConfidence({ devices }: LowConfidenceProps) {
                         )}
                       </td>
                       <td className="py-3 pr-4 text-muted">
-                        {(d.hostnames || []).join(", ") || "N/A"}
+                        <div
+                          className="flex items-center gap-1.5"
+                          title={aliases.length ? `Aliases: ${aliases.join(", ")}` : undefined}
+                        >
+                          <span className="truncate">{primary || "N/A"}</span>
+                          {aliases.length > 0 && (
+                            <span
+                              className="shrink-0 rounded border border-border/60 bg-card px-1 py-0.5 font-mono text-[9px] text-muted"
+                              aria-label={`${aliases.length} alias${aliases.length === 1 ? "" : "es"}`}
+                            >
+                              +{aliases.length}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 pr-4 font-mono text-xs text-muted">
                         {d.serial_number || "N/A"}

@@ -1,14 +1,23 @@
-"""Compliance-controls evaluation (CTL-001 .. CTL-009)."""
+"""Compliance-controls evaluation (CTL-001 .. CTL-011)."""
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from src.jumpcloud_reconciler import (
+    fetch_jc_agent_health_live,
+    fetch_jc_command_health_live,
+)
 from src.storage.repository import DeviceRepository
-from src.web.config import CONTROLS_META, STALE_SOURCE_THRESHOLD_DAYS
+from src.web.config import (
+    CONTROLS_META,
+    STALE_SOURCE_THRESHOLD_DAYS,
+    ZOMBIE_AGENT_LAST_CONTACT_HOURS,
+)
 from src.web.dependencies import get_repo
 
 router = APIRouter()
@@ -146,6 +155,101 @@ async def api_controls(repo: DeviceRepository = Depends(get_repo)) -> Any:
                     "total": len(active), "affected": len(ctl9),
                     "threshold_days": STALE_SOURCE_THRESHOLD_DAYS,
                     "devices": ctl9[:50]})
+
+    # CTL-011: JC zombie agent — reports inventory but doesn't actually
+    # execute work. JumpCloud has *two* execution channels and they fail
+    # independently, so we check both:
+    #
+    #   policy_pending — `policyStats.success == 0` AND `pending > 0`. The
+    #     declarative MDM channel never converged. Most common after a
+    #     macOS Tahoe upgrade where the user account that runs the agent
+    #     loses secureToken.
+    #
+    #   commands_dead — agent has been issued ≥3 commandresults in the
+    #     last 7 days and *none* of them returned an exitCode. The
+    #     imperative script channel is dead. This is the subtle case:
+    #     policyStats can look perfect (e.g. KV2GY645QV with 11/11) yet
+    #     CrowdStrike Install will silently fail forever. Typical cause:
+    #     TCC/PPPC denied to jumpcloud-agent for Full Disk Access or
+    #     Background Tasks.
+    #
+    # We deliberately ignore JC's `active` flag — it flips to false within
+    # ~30 min of idleness so trusting it would hide most zombies. The
+    # `last_contact` cutoff (env `ZOMBIE_AGENT_LAST_CONTACT_HOURS`,
+    # default 24) keeps the bucket tight against CTL-007.
+    #
+    # Skipped if no JC_API_KEY.
+    ctl11: list[dict[str, Any]] = []
+    jc_health: dict[str, dict] = {}
+    cmd_health: dict[str, dict] = {}
+    jc_key = os.getenv("JC_API_KEY", "")
+    if jc_key and jc_devices:
+        try:
+            jc_health = fetch_jc_agent_health_live(api_key=jc_key)
+        except Exception:
+            jc_health = {}
+        try:
+            cmd_health = fetch_jc_command_health_live(api_key=jc_key, days=7)
+        except Exception:
+            cmd_health = {}
+    zombie_cutoff = datetime.now(timezone.utc) - timedelta(hours=ZOMBIE_AGENT_LAST_CONTACT_HOURS)
+    MIN_COMMANDS_FOR_DEAD = 3   # we need *some* sample size before we conclude "commands are broken"
+
+    for d in jc_devices:
+        sid = (d.get("source_ids") or {}).get("jumpcloud")
+        if not sid or sid not in jc_health:
+            continue
+        h = jc_health[sid]
+        last = h.get("last_contact") or ""
+        try:
+            seen = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+            if seen.tzinfo is None:
+                seen = seen.replace(tzinfo=timezone.utc)
+            if seen < zombie_cutoff:
+                continue
+        except (ValueError, TypeError):
+            continue
+
+        # Pattern A: policy pending
+        ps = h.get("policy_stats") or {}
+        try:
+            success = int(ps.get("success", 0) or 0)
+            pending = int(ps.get("pending", 0) or 0)
+            failed = int(ps.get("failed", 0) or 0)
+        except (ValueError, TypeError):
+            success, pending, failed = 0, 0, 0
+        is_policy_zombie = success == 0 and pending > 0
+
+        # Pattern B: commands never complete
+        cmd = cmd_health.get(sid) or {}
+        cmd_total = cmd.get("total", 0)
+        cmd_completed = cmd.get("completed", 0)
+        is_command_zombie = cmd_total >= MIN_COMMANDS_FOR_DEAD and cmd_completed == 0
+
+        if not (is_policy_zombie or is_command_zombie):
+            continue
+
+        reasons = []
+        if is_policy_zombie:
+            reasons.append("policy_pending")
+        if is_command_zombie:
+            reasons.append("commands_dead")
+
+        ctl11.append({
+            **_dev_summary(d),
+            "zombie_reasons": reasons,
+            "policy_stats": {"success": success, "pending": pending, "failed": failed},
+            "command_stats": {"total_7d": cmd_total, "completed_7d": cmd_completed,
+                              "latest_request": cmd.get("latest_request") or None,
+                              "latest_completed": cmd.get("latest_completed") or None},
+            "last_contact": last,
+            "os_family": h.get("os_family"),
+        })
+    results.append({**CONTROLS_META[9], "status": "fail" if ctl11 else "pass",
+                    "total": len(jc_devices), "affected": len(ctl11),
+                    "cutoff_hours": ZOMBIE_AGENT_LAST_CONTACT_HOURS,
+                    "min_commands_for_dead": MIN_COMMANDS_FOR_DEAD,
+                    "devices": ctl11[:50]})
 
     passing = sum(1 for r in results if r["status"] == "pass")
     return JSONResponse(content={

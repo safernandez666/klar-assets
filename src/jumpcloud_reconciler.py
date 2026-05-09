@@ -31,6 +31,7 @@ Safety
 from __future__ import annotations
 
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
 import requests
@@ -207,4 +208,149 @@ def fetch_jc_displaynames_live(
             out[sid] = (r.json().get("displayName") or "").strip()
         except requests.RequestException as exc:
             logger.warning("jc_fetch_displayname_failed", jc_id=sid, error=str(exc))
+    return out
+
+
+def fetch_jc_command_health_live(*, api_key: str, days: int = 7) -> dict[str, dict]:
+    """Fetch command-execution health per system over the last N days.
+
+    Pulls every ``commandresult`` from the search API and aggregates per
+    system: how many we saw, how many actually completed (``exitCode``
+    not null), and the timestamps of the most recent activity.
+
+    Used by CTL-011 to detect the "command zombie" pattern — a JC agent
+    that applies policies fine (so policyStats look healthy) but never
+    completes a custom command. The MDM channel works, the script
+    channel doesn't (typically TCC/PPPC denied to jumpcloud-agent after
+    a macOS upgrade).
+
+    Returns:
+        ``{system_id: {"total": N,
+                        "completed": M,
+                        "latest_request": iso,
+                        "latest_completed": iso}}``.
+    """
+    out: dict[str, dict] = {}
+    if not api_key:
+        return out
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff_iso = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    session = requests.Session()
+    session.headers.update({
+        "x-api-key": api_key,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    })
+    skip = 0
+    page_size = 100
+    # The exitCode lives at `response.data.exitCode`, not the root.
+    # JC's `fields=` can't drill into nested objects so we just pull the
+    # whole `response` along with the bookkeeping fields.
+    while True:
+        try:
+            r = session.post(
+                f"{JC_API}/search/commandresults",
+                json={
+                    "filter": {"and": [{"requestTime": {"$gt": cutoff_iso}}]},
+                    "fields": "system requestTime responseTime response",
+                    "limit": page_size,
+                    "skip": skip,
+                    "sort": ["-requestTime"],
+                },
+                timeout=30,
+            )
+            r.raise_for_status()
+        except requests.RequestException as exc:
+            logger.warning("jc_fetch_command_health_failed", skip=skip, error=str(exc))
+            break
+        body = r.json()
+        results = body.get("results", []) if isinstance(body, dict) else body
+        if not results:
+            break
+        for item in results:
+            sid = item.get("system")
+            if not sid:
+                continue
+            entry = out.setdefault(sid, {
+                "total": 0, "completed": 0,
+                "latest_request": "", "latest_completed": "",
+            })
+            entry["total"] += 1
+            req_t = item.get("requestTime") or ""
+            if req_t and req_t > entry["latest_request"]:
+                entry["latest_request"] = req_t
+            # exitCode is at `response.data.exitCode`. Any non-null value
+            # (including "0" the string, or 0 the int) means the agent
+            # actually returned a result — that's all we care about for
+            # zombie detection.
+            resp = item.get("response") or {}
+            data = resp.get("data") or {}
+            if data.get("exitCode") is not None:
+                entry["completed"] += 1
+                resp_t = item.get("responseTime") or ""
+                if resp_t and resp_t > entry["latest_completed"]:
+                    entry["latest_completed"] = resp_t
+        if len(results) < page_size:
+            break
+        skip += page_size
+        # Defensive cap — even a pathological tenant shouldn't cross 5k
+        # results in 7 days. If we're past that, JC likely has a bigger
+        # issue and we'd rather degrade gracefully than spin.
+        if skip >= 5000:
+            logger.warning("jc_command_health_paging_capped", skip=skip)
+            break
+    return out
+
+
+def fetch_jc_agent_health_live(*, api_key: str) -> dict[str, dict]:
+    """Fetch live agent-health signals for every JC system in a single
+    paginated walk.
+
+    Used by CTL-011 (zombie agent detection). One paginated fetch beats N
+    per-system GETs — at ~410 systems this is the difference between 2s
+    and 30s.
+
+    Returns: ``{system_id: {"last_contact": iso, "policy_stats": {...},
+                            "active": bool, "os_family": str}}``.
+    """
+    out: dict[str, dict] = {}
+    if not api_key:
+        return out
+    session = requests.Session()
+    session.headers.update({"x-api-key": api_key, "Accept": "application/json"})
+    skip = 0
+    page_size = 100
+    while True:
+        try:
+            r = session.get(
+                f"{JC_API}/systems",
+                params={
+                    "skip": skip,
+                    "limit": page_size,
+                    "fields": "lastContact policyStats active osFamily",
+                },
+                timeout=30,
+            )
+            r.raise_for_status()
+        except requests.RequestException as exc:
+            logger.warning("jc_fetch_agent_health_failed", skip=skip, error=str(exc))
+            break
+        body = r.json()
+        page = body.get("results", []) if isinstance(body, dict) else body
+        if not page:
+            break
+        for item in page:
+            sid = item.get("_id") or item.get("id")
+            if not sid:
+                continue
+            out[sid] = {
+                "last_contact": item.get("lastContact") or "",
+                "policy_stats": item.get("policyStats") or {},
+                "active": bool(item.get("active")),
+                "os_family": item.get("osFamily") or "",
+            }
+        if len(page) < page_size:
+            break
+        skip += page_size
     return out

@@ -176,6 +176,24 @@ CONTROLS_META = [
                     "a revivir el agente correspondiente. Configurable vía env "
                     "`STALE_SOURCE_THRESHOLD_DAYS` (default 10).",
      "source_from": "", "source_to": ""},
+    {"id": "CTL-011", "ref": "", "title": "JC zombie agent (reporta pero no ejecuta)",
+     "objective": "Detectar agentes JumpCloud vivos pero incapaces de correr scripts/policies",
+     "description": "Detecta el patrón 'zombie agent' — el equipo aparece online en JC (last contact reciente) "
+                    "pero el agente está roto en uno o ambos canales de ejecución de JC. "
+                    "Patrones detectados:\n"
+                    "  • `policy_pending`: `policyStats.success == 0` AND `pending > 0`. El canal MDM "
+                    "declarativo no convergió. Típico tras upgrade macOS donde la cuenta del agente pierde "
+                    "secureToken.\n"
+                    "  • `commands_dead`: ≥3 commandresults en los últimos 7 días y NINGUNO devolvió exitCode. "
+                    "El canal de scripts custom está roto. Caso sutil: las policies pueden verse perfectas "
+                    "(success=11/11) pero CrowdStrike Install u otros scripts fallan en silencio para siempre. "
+                    "Causa típica: TCC/PPPC denegado a jumpcloud-agent (Full Disk Access, Background Tasks).\n"
+                    "Impacto: invisible para CTL-007 (el agente reporta inventory) pero peor que stale — JC "
+                    "muestra el equipo como manageable cuando en realidad es ciego. Acción: reinstall del "
+                    "agente vía JC Remote Assist o un admin con credenciales locales (los users finales no "
+                    "pueden correrlo por sí solos). Configurable vía `ZOMBIE_AGENT_LAST_CONTACT_HOURS` "
+                    "(default 24h).",
+     "source_from": "jumpcloud", "source_to": ""},
 ]
 
 # Threshold (in days) at which a single-source agent is considered dormant for
@@ -186,3 +204,11 @@ try:
     STALE_SOURCE_THRESHOLD_DAYS = int(_os.getenv("STALE_SOURCE_THRESHOLD_DAYS", "10"))
 except ValueError:
     STALE_SOURCE_THRESHOLD_DAYS = 10
+
+# CTL-011 cutoff: an agent must have contacted JC within this many hours
+# to count as "live but zombie". Outside this window we'd just call it stale
+# and CTL-007 already handles that case. Default 24h keeps the bucket tight.
+try:
+    ZOMBIE_AGENT_LAST_CONTACT_HOURS = int(_os.getenv("ZOMBIE_AGENT_LAST_CONTACT_HOURS", "24"))
+except ValueError:
+    ZOMBIE_AGENT_LAST_CONTACT_HOURS = 24
